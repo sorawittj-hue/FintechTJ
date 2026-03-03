@@ -1,0 +1,28 @@
+{
+  "name": "Nava² Finance - จัดการพอร์ตการลงทุน",
+  "short_name": "Nava² Finance",
+  "description": "แอพจัดการพอร์ตการลงทุนที่เข้าใจง่าย ใช้ฟรี และอัปเดตข้อมูลแบบเรียลไทม์",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9f9f9",
+  "theme_color": "#ee7d54",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 144 144'%3E%3Crect fill='%23ee7d54' width='144' height='144' rx='24'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='72'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E",
+      "sizes": "144x144",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%23ee7d54' width='192' height='192' rx='32'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='96'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect fill='%23ee7d54' width='512' height='512' rx='64'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='256'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

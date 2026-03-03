@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix app --",
+    "build": "npm run build --prefix app --",
+    "preview": "npm run preview --prefix app --",
+    "lint": "npm run lint --prefix app --"
+  },
+  "dependencies": {
+    "pocketbase": "^0.26.8"
+  }
+}
