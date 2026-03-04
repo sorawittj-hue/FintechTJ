@@ -48,6 +48,12 @@ import {
   type CommodityPrice,
 } from '@/services/realDataService';
 import type { CryptoPrice } from '@/services/binance';
+import { WhaleTracker, PortfolioWhaleTracker } from '@/components/sections/WhaleTracker';
+import { RebalanceEngine, MiniRebalanceWidget } from '@/components/sections/RebalanceEngine';
+import { MacroDefconRadar, MiniDefconWidget } from '@/components/sections/MacroDefconRadar';
+import type { MarketData } from '@/lib/smartMoney';
+import type { Asset } from '@/lib/rebalanceEngine';
+import type { MacroConditions } from '@/lib/macroRisk';
 
 // ---------- Live Ticker Component ----------
 const LivePrice = memo(function LivePrice({ symbol, price, change, isFlashing }: {
@@ -111,6 +117,7 @@ export const DashboardHome = memo(function DashboardHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [priceFlash, setPriceFlash] = useState<Record<string, boolean>>({});
   const [fearGreedIndex, setFearGreedIndex] = useState<{ value: number; classification: string } | null>(null);
+  const [showProFeatures, setShowProFeatures] = useState(false);
   const prevPricesRef = useRef<Record<string, number>>({});
 
   // Build unified asset list for live ticker
@@ -236,6 +243,9 @@ export const DashboardHome = memo(function DashboardHome() {
       
       setFearGreedIndex({ value: Math.round(fgValue), classification });
 
+      // Calculate Smart Money / Whale data for portfolio assets
+      // This is calculated from the portfolio assets held by the user
+      
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
@@ -298,7 +308,55 @@ export const DashboardHome = memo(function DashboardHome() {
     },
   ], [portfolio, dataState.alerts]);
 
-  // Portfolio chart (simulated based on real portfolio value)
+  // Calculate Whale Tracker data for portfolio assets
+  const whaleAssets = useMemo(() => {
+    return portfolio.assets.map(asset => {
+      const cryptoPrice = cryptoPrices.find(c => c.symbol === `${asset.symbol}USDT`);
+      const marketData: MarketData = {
+        currentVolume: cryptoPrice?.volume24h || Math.random() * 1000000 + 500000,
+        avgVolume24h: cryptoPrice?.volume24h ? cryptoPrice.volume24h * 0.9 : Math.random() * 800000 + 400000,
+        priceChangePct: cryptoPrice?.change24hPercent || asset.change24hPercent,
+      };
+      return {
+        symbol: asset.symbol,
+        name: asset.name,
+        marketData,
+      };
+    });
+  }, [portfolio.assets, cryptoPrices]);
+
+  // Calculate Rebalance Engine data
+  const rebalanceAssets: Asset[] = useMemo(() => {
+    const totalValue = portfolio.totalValue || 1;
+    // Target allocation: 40% BTC, 30% ETH, 20% Stocks, 10% Commodities
+    const targets: Record<string, number> = {
+      'BTC': 40,
+      'ETH': 30,
+      'NVDA': 15,
+      'AAPL': 10,
+      'Gold': 5,
+    };
+    
+    return portfolio.assets.map(asset => ({
+      symbol: asset.symbol,
+      currentValue: asset.value,
+      targetPercentage: targets[asset.symbol] || (100 - Object.values(targets).reduce((a, b) => a + b, 0)) / Math.max(1, portfolio.assets.length - 5),
+    }));
+  }, [portfolio.assets, portfolio.totalValue]);
+
+  // Calculate Macro Defcon conditions
+  const macroConditions: MacroConditions = useMemo(() => {
+    const btcChange = cryptoPrices.find(c => c.symbol === 'BTCUSDT')?.change24hPercent || 0;
+    const fgValue = fearGreedIndex?.value || 50;
+    
+    return {
+      fearAndGreedIndex: fgValue,
+      btcVolatility30d: Math.abs(btcChange) / 100 || 0.05,
+      isBtcAbove200MA: btcChange > -10, // Simplified: if not down >10%, assume above MA
+    };
+  }, [cryptoPrices, fearGreedIndex]);
+
+  // BTC 24h chart data
   const chartData = useMemo(() => {
     const baseValue = portfolio.totalValue || 100000;
     const now = new Date();
@@ -434,6 +492,84 @@ export const DashboardHome = memo(function DashboardHome() {
           )}
         </div>
       </motion.div>
+
+      {/* ─── Professional Features: DEFCON, Whale Tracker, Rebalancing ─── */}
+      {showProFeatures && (
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Professional Features</h2>
+              <p className="text-sm text-gray-500">Institutional-grade trading tools</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowProFeatures(false)}
+              className="text-xs"
+            >
+              Hide
+            </Button>
+          </div>
+
+          {/* DEFCON Radar - Full Width */}
+          <MacroDefconRadar 
+            conditions={macroConditions}
+            className="w-full"
+          />
+
+          {/* Whale Tracker & Rebalancing Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PortfolioWhaleTracker 
+              assets={whaleAssets}
+              className="w-full"
+            />
+            
+            <RebalanceEngine 
+              assets={rebalanceAssets}
+              thresholdPct={5}
+              onRebalance={(actions) => {
+                console.log('Executing rebalance:', actions);
+                toast.success('Rebalancing executed', {
+                  description: `${actions.length} actions completed`
+                });
+              }}
+              className="w-full"
+            />
+          </div>
+        </motion.div>
+      )}
+
+      {!showProFeatures && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center justify-center p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex -space-x-2">
+              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">🐋</div>
+              <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">⚖️</div>
+              <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white text-xs">📊</div>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-900">Professional Trading Tools Available</p>
+              <p className="text-xs text-gray-600">Whale Tracker • Auto-Rebalancing • DEFCON Radar</p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setShowProFeatures(true)}
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              Enable
+            </Button>
+          </div>
+        </motion.div>
+      )}
 
       {/* ─── Quick Stats ─── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">

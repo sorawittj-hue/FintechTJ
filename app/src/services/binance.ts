@@ -183,6 +183,14 @@ export class BinanceService {
   }
 
   /**
+   * Get current price for a symbol (alias for get24hStats)
+   * @param symbol - Trading symbol (e.g., 'BTC', 'ETH')
+   */
+  async getPrice(symbol: string): Promise<CryptoPrice | null> {
+    return this.get24hStats(symbol);
+  }
+
+  /**
    * Get 24hr statistics for a symbol
    * @param symbol - Trading symbol (e.g., 'BTC', 'ETH')
    */

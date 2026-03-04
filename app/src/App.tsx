@@ -40,6 +40,7 @@ const NarrativeCycle = lazy(() => import('@/sections/NarrativeCycle'));
 const PortfolioOverview = lazy(() => import('@/sections/PortfolioOverview'));
 const AdvancedCrypto = lazy(() => import('@/sections/AdvancedCrypto'));
 const CrisisGuide = lazy(() => import('@/components/CrisisGuide'));
+const InstitutionalTrading = lazy(() => import('@/sections/InstitutionalTrading'));
 
 function getSkeletonType(path: string): 'dashboard' | 'overview' | 'list' | 'grid' | 'chart' | 'settings' | 'default' {
   const section = path.substring(1) || 'dashboard';
@@ -55,7 +56,7 @@ function getSkeletonType(path: string): 'dashboard' | 'overview' | 'list' | 'gri
     case 'whalevault': case 'whale': case 'smcpanel': case 'smc':
     case 'brio': case 'sentinel': case 'audio': case 'sector':
     case 'narrative': case 'defcon': case 'riskpanel': case 'risk':
-    case 'liquidity': return 'chart';
+    case 'liquidity': case 'institutional': case 'trading': return 'chart';
     case 'settings': case 'help': return 'settings';
     case 'crisis': case 'crisisguide': return 'grid';
     default: return 'default';
@@ -147,6 +148,10 @@ function AppContent() {
                       {/* Crisis Guide */}
                       <Route path="/crisis" element={<CrisisGuide />} />
                       <Route path="/crisisguide" element={<CrisisGuide />} />
+
+                      {/* Institutional Trading Suite */}
+                      <Route path="/institutional" element={<InstitutionalTrading />} />
+                      <Route path="/trading" element={<InstitutionalTrading />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>

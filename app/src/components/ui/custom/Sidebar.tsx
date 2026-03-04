@@ -72,6 +72,7 @@ const SUITE_GROUPS = [
     icon: Terminal,
     color: 'from-blue-500 to-cyan-600',
     items: [
+      { id: 'institutional', label: 'Institutional Trading', icon: Shield, path: '/institutional', desc: 'เครื่องมือระดับสถาบัน' },
       { id: 'smc', label: 'SMC Panel', icon: Users, path: '/smc', desc: 'Smart Money Concepts' },
       { id: 'brio', label: 'Brio Terminal', icon: Terminal, path: '/brio', desc: 'เทอร์มินัลนักลงทุน' },
       { id: 'sentinel', label: 'Sentinel', icon: Eye, path: '/sentinel', desc: 'เฝ้าระวังพอร์ต' },

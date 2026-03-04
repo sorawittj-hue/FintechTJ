@@ -133,10 +133,10 @@ export function PortfolioManager() {
           <CardContent className="p-4">
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">มูลค่ารวม</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">
-              ฿{portfolio.totalValue.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+              ${portfolio.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
             <p className={`text-xs ${portfolio.totalChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {portfolio.totalChange24h >= 0 ? '+' : ''}฿{portfolio.totalChange24h.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+              {portfolio.totalChange24h >= 0 ? '+' : ''}${portfolio.totalChange24h.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
           </CardContent>
         </Card>
@@ -145,7 +145,7 @@ export function PortfolioManager() {
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">กำไร/ขาดทุนรวม</p>
             <p className={`text-xl font-bold ${portfolio.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {portfolio.totalProfitLoss >= 0 ? '+' : ''}
-              ฿{portfolio.totalProfitLoss.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+              ${portfolio.totalProfitLoss.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
             <p className={`text-xs ${portfolio.totalProfitLossPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
               {portfolio.totalProfitLossPercent >= 0 ? '+' : ''}{portfolio.totalProfitLossPercent.toFixed(2)}%
@@ -204,7 +204,7 @@ export function PortfolioManager() {
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(v: number) => `฿${v.toLocaleString()}`} />
+                      <Tooltip formatter={(v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
                     </RePieChart>
                   </ResponsiveContainer>
                 </div>
@@ -217,8 +217,9 @@ export function PortfolioManager() {
                       />
                       <span className="capitalize text-gray-600">{item.name}:</span>
                       <span className="font-medium">
-                        {((item.value / portfolio.totalValue) * 100).toFixed(1)}%
+                        {portfolio.totalValue > 0 ? ((item.value / portfolio.totalValue) * 100).toFixed(1) : 0}%
                       </span>
+                      <span className="text-xs text-gray-400">(${item.value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})</span>
                     </div>
                   ))}
                 </div>
@@ -251,7 +252,7 @@ export function PortfolioManager() {
                       </div>
                       <div className="text-right">
                         <p className="font-medium text-sm text-green-600">+{asset.pnlPercent.toFixed(2)}%</p>
-                        <p className="text-xs text-gray-500">฿{asset.currentValue.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">${asset.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                       </div>
                     </div>
                   ))}
@@ -301,14 +302,14 @@ export function PortfolioManager() {
                           <p className="font-medium">{asset.quantity}</p>
                         </td>
                         <td className="text-right py-3 px-4">
-                          <p className="font-medium">฿{asset.currentValue.toLocaleString()}</p>
+                          <p className="font-medium">${asset.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                           <p className="text-xs text-gray-400">
                             {((asset.currentValue / portfolio.totalValue) * 100).toFixed(1)}% ของพอร์ต
                           </p>
                         </td>
                         <td className="text-right py-3 px-4">
                           <p className={`font-medium ${asset.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {asset.pnl >= 0 ? '+' : ''}฿{asset.pnl.toLocaleString()}
+                            {asset.pnl >= 0 ? '+' : ''}${asset.pnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </p>
                           <p className={`text-xs ${asset.pnlPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             {asset.pnlPercent >= 0 ? '+' : ''}{asset.pnlPercent.toFixed(2)}%
@@ -402,12 +403,14 @@ export function PortfolioManager() {
                     <div key={item.name}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm capitalize">{item.name}</span>
-                        <span className="text-sm font-medium">{((item.value / portfolio.totalValue) * 100).toFixed(1)}%</span>
+                        <span className="text-sm font-medium">
+                          {portfolio.totalValue > 0 ? ((item.value / portfolio.totalValue) * 100).toFixed(1) : 0}%
+                        </span>
                       </div>
                       <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${(item.value / portfolio.totalValue) * 100}%` }}
+                          animate={{ width: portfolio.totalValue > 0 ? `${(item.value / portfolio.totalValue) * 100}%` : '0%' }}
                           transition={{ duration: 0.5, delay: index * 0.1 }}
                           className="h-full rounded-full"
                           style={{ backgroundColor: COLORS[index % COLORS.length] }}
@@ -450,9 +453,9 @@ export function PortfolioManager() {
                           </Badge>
                         </td>
                         <td className="text-right py-3 px-4">{tx.quantity}</td>
-                        <td className="text-right py-3 px-4">${(tx.price || 0).toLocaleString()}</td>
+                        <td className="text-right py-3 px-4">${(tx.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                         <td className="text-right py-3 px-4 font-medium">
-                          ฿{((tx.quantity || 0) * (tx.price || 0) * 35).toLocaleString()}
+                          ${((tx.quantity || 0) * (tx.price || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                     ))}

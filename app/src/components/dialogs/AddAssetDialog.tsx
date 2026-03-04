@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import {
     X,
@@ -8,9 +8,13 @@ import {
     Building2,
     Droplet,
     DollarSign,
-    Plus
+    Plus,
+    Search,
+    Loader2
 } from 'lucide-react';
 import { usePortfolio } from '@/context/hooks';
+import { binanceAPI } from '@/services/binance';
+import { usePrice } from '@/context/PriceContext';
 
 interface AddAssetDialogProps {
     isOpen: boolean;
@@ -18,14 +22,23 @@ interface AddAssetDialogProps {
 }
 
 export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
-    const { addAsset } = usePortfolio();
+    const { addAsset, assets } = usePortfolio();
+    const { refreshPrices } = usePrice();
 
-    const [type, setType] = useState<'crypto' | 'stock' | 'commodity'>('crypto');
+    const [type, setType] = useState<'crypto' | 'stock' | 'commodity' | 'forex'>('crypto');
     const [symbol, setSymbol] = useState('');
     const [name, setName] = useState('');
     const [quantity, setQuantity] = useState('');
     const [avgPrice, setAvgPrice] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isFetchingPrice, setIsFetchingPrice] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
+
+    // ตรวจสอบ symbol ซ้ำ
+    const existingAsset = useMemo(() => {
+        if (!symbol) return null;
+        return assets.find(a => a.symbol.toUpperCase() === symbol.toUpperCase());
+    }, [symbol, assets]);
 
     const resetForm = () => {
         setType('crypto');
@@ -40,6 +53,32 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         onClose();
     };
 
+    const fetchCurrentPrice = async () => {
+        if (!symbol) {
+            toast.error('กรุณากรอกสัญลักษณ์ก่อน');
+            return;
+        }
+        
+        setIsFetchingPrice(true);
+        setFetchError(null);
+        
+        try {
+            const price = await binanceAPI.getPrice(symbol.toUpperCase());
+            if (price) {
+                setAvgPrice(price.price.toString());
+                toast.success(`ดึงราคา ${symbol.toUpperCase()} สำเร็จ: $${price.price.toLocaleString()}`);
+            } else {
+                setFetchError('ไม่พบข้อมูลราคา กรุณากรอกราคาด้วยตนเอง');
+                toast.warning('ไม่พบข้อมูลราคา กรุณากรอกราคาด้วยตนเอง');
+            }
+        } catch (error) {
+            setFetchError('ไม่สามารถดึงราคาได้ กรุณากรอกราคาด้วยตนเอง');
+            toast.error('ไม่สามารถดึงราคาได้ กรุณากรอกราคาด้วยตนเอง');
+        } finally {
+            setIsFetchingPrice(false);
+        }
+    };
+
     const handleAddAsset = async () => {
         if (!symbol || !name || !quantity || !avgPrice) {
             toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
@@ -49,33 +88,66 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         const qtyNum = parseFloat(quantity);
         const pxNum = parseFloat(avgPrice);
 
+        if (isNaN(qtyNum) || isNaN(pxNum)) {
+            toast.error('จำนวนและราคาต้องเป็นตัวเลข');
+            return;
+        }
+
         if (qtyNum <= 0 || pxNum <= 0) {
             toast.error('จำนวนและราคาต้องมากกว่า 0');
             return;
         }
 
+        // ตรวจสอบ symbol ซ้ำ
+        const duplicateAsset = assets.find(a => a.symbol.toUpperCase() === symbol.toUpperCase());
+        if (duplicateAsset) {
+            toast.error(`สินทรัพย์ ${symbol.toUpperCase()} มีอยู่ในพอร์ตแล้ว กรุณาใช้ฟังก์ชัน "เพิ่มจำนวน" แทน`);
+            return;
+        }
+
         setIsProcessing(true);
 
-        // เลียนแบบการโหลด API
-        await new Promise(resolve => setTimeout(resolve, 800));
+        try {
+            // ดึงราคาปัจจุบันจริงๆ
+            let currentPrice = pxNum;
+            let change24h = 0;
+            let change24hPercent = 0;
+            
+            try {
+                const livePrice = await binanceAPI.getPrice(symbol.toUpperCase());
+                if (livePrice) {
+                    currentPrice = livePrice.price;
+                    change24h = livePrice.change24h;
+                    change24hPercent = livePrice.change24hPercent;
+                }
+            } catch {
+                // ถ้าดึงไม่ได้ ใช้ราคาเฉลี่ยที่กรอก
+            }
 
-        addAsset({
-            symbol: symbol.toUpperCase(),
-            name,
-            type,
-            quantity: qtyNum,
-            avgPrice: pxNum,
-            currentPrice: pxNum,
-            value: qtyNum * pxNum,
-            change24h: 0,
-            change24hPercent: 0,
-            change24hValue: 0,
-            allocation: 0
-        });
+            const totalValue = qtyNum * currentPrice;
+            const change24hValue = totalValue * (change24hPercent / 100);
 
-        toast.success(`เพิ่ม ${symbol.toUpperCase()} ลงในพอร์ตเรียบร้อยแล้ว`);
-        setIsProcessing(false);
-        handleClose();
+            addAsset({
+                symbol: symbol.toUpperCase(),
+                name,
+                type,
+                quantity: qtyNum,
+                avgPrice: pxNum,
+                currentPrice,
+                value: totalValue,
+                change24h,
+                change24hPercent,
+                change24hValue,
+                allocation: 0
+            });
+
+            toast.success(`เพิ่ม ${symbol.toUpperCase()} ลงในพอร์ตเรียบร้อยแล้ว`);
+            handleClose();
+        } catch (error) {
+            toast.error('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     return (
@@ -131,7 +203,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                         ].map((t) => (
                                             <button
                                                 key={t.id}
-                                                onClick={() => setType(t.id as 'crypto' | 'stock' | 'commodity')}
+                                                onClick={() => setType(t.id as typeof type)}
                                                 className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl border-2 transition-all ${type === t.id
                                                     ? 'border-[#ee7d54] bg-orange-50 text-[#ee7d54]'
                                                     : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
@@ -144,18 +216,46 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                     </div>
                                 </div>
 
+                                {existingAsset && (
+                                    <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
+                                        <p className="text-sm text-red-600">
+                                            ⚠️ สินทรัพย์ {symbol.toUpperCase()} มีอยู่ในพอร์ตแล้ว ({existingAsset.quantity} หน่วย)
+                                        </p>
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             สัญลักษณ์ (Symbol)
                                         </label>
-                                        <input
-                                            type="text"
-                                            value={symbol}
-                                            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                                            placeholder="e.g. BTC"
-                                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all font-medium uppercase"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={symbol}
+                                                onChange={(e) => {
+                                                    setSymbol(e.target.value.toUpperCase());
+                                                    setFetchError(null);
+                                                }}
+                                                placeholder="e.g. BTC"
+                                                className="w-full px-4 py-2.5 pr-10 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all font-medium uppercase"
+                                            />
+                                            <button
+                                                onClick={fetchCurrentPrice}
+                                                disabled={isFetchingPrice || !symbol}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-[#ee7d54] disabled:opacity-50 transition-colors"
+                                                title="ดึงราคาปัจจุบัน"
+                                            >
+                                                {isFetchingPrice ? (
+                                                    <Loader2 size={16} className="animate-spin" />
+                                                ) : (
+                                                    <Search size={16} />
+                                                )}
+                                            </button>
+                                        </div>
+                                        {fetchError && (
+                                            <p className="text-xs text-red-500 mt-1">{fetchError}</p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -209,6 +309,9 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                     <p className="text-2xl font-bold text-gray-900">
                                         ${(parseFloat(quantity || '0') * parseFloat(avgPrice || '0')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        จำนวน: {parseFloat(quantity || '0').toLocaleString()} × ราคา: ${parseFloat(avgPrice || '0').toLocaleString()}
+                                    </p>
                                 </div>
                             </div>
 
@@ -222,7 +325,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                 </button>
                                 <button
                                     onClick={handleAddAsset}
-                                    disabled={isProcessing || !symbol || !name || !quantity || !avgPrice}
+                                    disabled={isProcessing || !symbol || !name || !quantity || !avgPrice || !!existingAsset}
                                     className="flex-[2] py-3 px-4 bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#ee7d54]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isProcessing ? (

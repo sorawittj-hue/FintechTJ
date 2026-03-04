@@ -720,6 +720,17 @@ export function DataProvider({ children }: DataProviderProps) {
     }
 
     dispatch({ type: 'ADD_ASSET', payload: newAsset });
+    
+    // Subscribe to price updates for the new asset
+    wsManager.current.subscribe(
+      'ticker',
+      [asset.symbol],
+      (data: CryptoPrice) => {
+        dispatch({ type: 'UPDATE_PRICE', payload: data });
+      },
+      'binance'
+    );
+    
     toast.success(`Added ${newAsset.symbol} to portfolio`);
   }, []);
 
@@ -760,15 +771,18 @@ export function DataProvider({ children }: DataProviderProps) {
     state.assets.forEach((asset) => {
       const price = prices.get(asset.symbol);
       if (price) {
+        const newValue = asset.quantity * price.price;
+        const change24hValue = newValue * (price.change24hPercent / 100);
         dispatch({
           type: 'UPDATE_ASSET',
           payload: {
             id: asset.id,
             updates: {
               currentPrice: price.price,
-              value: asset.quantity * price.price,
+              value: newValue,
               change24h: price.change24h,
-              change24hValue: price.change24h,
+              change24hPercent: price.change24hPercent,
+              change24hValue,
             },
           },
         });

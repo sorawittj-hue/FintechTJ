@@ -3,7 +3,7 @@ export interface PortfolioAsset {
   id: string;
   name: string;
   symbol: string;
-  type: 'stock' | 'crypto' | 'commodity';
+  type: 'stock' | 'crypto' | 'commodity' | 'forex';
   quantity: number;
   avgPrice: number;
   currentPrice: number;
