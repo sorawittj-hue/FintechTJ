@@ -12,7 +12,7 @@
  * - LocalStorage persistence via DataContext
  */
 
-import { createContext, useMemo, useState, useContext, type ReactNode } from 'react';
+import { createContext, useMemo, useState, useContext, useCallback, type ReactNode } from 'react';
 
 import { useData } from './useData';
 import type { PortfolioAsset } from '@/types';
@@ -95,7 +95,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   }), [portfolioSummary, assets, transactions]);
 
   // Wrapper for addTransaction to match old API
-  const handleAddTransaction = (type: 'deposit' | 'withdraw', amount: number, assetSymbol: string) => {
+  const handleAddTransaction = useCallback((type: 'deposit' | 'withdraw', amount: number, assetSymbol: string) => {
     addDataTransaction({
       type,
       amount,
@@ -103,20 +103,19 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       symbol: assetSymbol,
       timestamp: new Date(),
     });
-  };
+  }, [addDataTransaction]);
 
 
 
   // Reset portfolio - clear all assets and transactions
-  const resetPortfolio = () => {
+  const resetPortfolio = useCallback(() => {
     clearTransactions();
-    // Remove all assets
     assets.forEach(asset => {
       removeAsset(asset.id);
     });
-  };
+  }, [assets, clearTransactions, removeAsset]);
 
-  const value: PortfolioContextType = {
+  const value = useMemo<PortfolioContextType>(() => ({
     portfolio,
     assets: assets as Asset[],
     transactions,
@@ -140,7 +139,31 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     isDepositOpen,
     isWithdrawOpen,
     isAlertOpen,
-  };
+  }), [
+    portfolio,
+    assets,
+    transactions,
+    portfolioSummary.totalValue,
+    portfolioSummary.totalCost,
+    portfolioSummary.totalProfitLoss,
+    portfolioSummary.totalProfitLossPercent,
+    portfolioSummary.totalChange24h,
+    portfolioSummary.totalChange24hPercent,
+    addAsset,
+    removeAsset,
+    updateAsset,
+    handleAddTransaction,
+    removeTransaction,
+    clearTransactions,
+    resetPortfolio,
+    updateAssetPrices,
+    setIsDepositOpen,
+    setIsWithdrawOpen,
+    setIsAlertOpen,
+    isDepositOpen,
+    isWithdrawOpen,
+    isAlertOpen,
+  ]);
 
   return (
     <PortfolioContext.Provider value={value}>

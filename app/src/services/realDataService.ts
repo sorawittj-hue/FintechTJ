@@ -231,6 +231,8 @@ const cache = {
     }),
 };
 
+const ohlcvCache = new Map<string, { klines: YahooKline[]; meta: YahooQuoteMeta }>();
+
 // ═══════════════════ UTILITY FUNCTIONS ═══════════════════
 
 async function fetchWithProxy(url: string, options?: RequestInit, proxyIndex = 0): Promise<Response> {
@@ -730,6 +732,116 @@ export async function fetchCommodityPrices(): Promise<CommodityPrice[]> {
     );
 
     return results.filter((r): r is CommodityPrice => r !== null);
+}
+
+// ═══════════════════ YAHOO OHLCV ═══════════════════
+
+export interface YahooKline {
+    time: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+}
+
+export interface YahooQuoteMeta {
+    symbol: string;
+    regularMarketPrice: number;
+    chartPreviousClose: number;
+    regularMarketDayHigh: number;
+    regularMarketDayLow: number;
+    regularMarketVolume: number;
+    shortName?: string;
+}
+
+/**
+ * Fetch real OHLCV kline data from Yahoo Finance.
+ * Supports any symbol: GC=F (Gold), CL=F (WTI Oil), BZ=F (Brent), stocks, etc.
+ *
+ * Timeframe → Yahoo interval/range:
+ *   15m  → interval=15m,  range=5d
+ *   1h   → interval=60m,  range=30d
+ *   4h   → interval=60m,  range=60d  (Yahoo has no 4h; use 1h with more data)
+ *   1d   → interval=1d,   range=180d
+ */
+export async function fetchYahooOHLCV(
+    symbol: string,
+    timeframe: '15m' | '1h' | '4h' | '1d' = '4h'
+): Promise<{ klines: YahooKline[]; meta: YahooQuoteMeta } | null> {
+    const intervalMap: Record<string, string> = {
+        '15m': '15m',
+        '1h': '60m',
+        '4h': '60m',
+        '1d': '1d',
+    };
+    const rangeMap: Record<string, string> = {
+        '15m': '5d',
+        '1h': '30d',
+        '4h': '60d',
+        '1d': '180d',
+    };
+
+    const interval = intervalMap[timeframe];
+    const range = rangeMap[timeframe];
+    const cacheKey = `yahoo_ohlcv_${symbol}_${timeframe}`;
+    const cached = ohlcvCache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const url = `${ENDPOINTS.yahoo.chart}/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`;
+        const response = await fetchWithProxy(url);
+        if (!response.ok) throw new Error(`Yahoo OHLCV error: ${response.status}`);
+
+        const data = await response.json();
+        const result = data.chart?.result?.[0];
+        if (!result) return null;
+
+        const timestamps: number[] = result.timestamp || [];
+        const quote = result.indicators?.quote?.[0] || {};
+        const opens: number[] = quote.open || [];
+        const highs: number[] = quote.high || [];
+        const lows: number[] = quote.low || [];
+        const closes: number[] = quote.close || [];
+        const volumes: number[] = quote.volume || [];
+
+        const klines: YahooKline[] = [];
+        for (let i = 0; i < timestamps.length; i++) {
+            if (
+                closes[i] != null && !isNaN(closes[i]) &&
+                opens[i] != null && highs[i] != null && lows[i] != null
+            ) {
+                klines.push({
+                    time: timestamps[i] * 1000,
+                    open: opens[i],
+                    high: highs[i],
+                    low: lows[i],
+                    close: closes[i],
+                    volume: volumes[i] || 0,
+                });
+            }
+        }
+
+        const m = result.meta || {};
+        const prevClose = m.chartPreviousClose || m.previousClose || 0;
+        const meta: YahooQuoteMeta = {
+            symbol,
+            regularMarketPrice: m.regularMarketPrice || closes[closes.length - 1] || 0,
+            chartPreviousClose: prevClose,
+            regularMarketDayHigh: m.regularMarketDayHigh || Math.max(...highs.filter(Boolean)),
+            regularMarketDayLow: m.regularMarketDayLow || Math.min(...lows.filter(Boolean)),
+            regularMarketVolume: m.regularMarketVolume || volumes[volumes.length - 1] || 0,
+            shortName: m.shortName || m.longName || symbol,
+        };
+
+        const out = { klines, meta };
+        ohlcvCache.set(cacheKey, out);
+        setTimeout(() => ohlcvCache.delete(cacheKey), 60_000);
+        return out;
+    } catch (error) {
+        console.warn(`[RealData] fetchYahooOHLCV failed for ${symbol}:`, error);
+        return null;
+    }
 }
 
 // ═══════════════════ FOREX RATES ═══════════════════

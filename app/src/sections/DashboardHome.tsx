@@ -1,4 +1,4 @@
-import { useMemo, memo, useState, useEffect, useRef } from 'react';
+import { useMemo, memo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -31,13 +31,10 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
 } from 'recharts';
 import { usePortfolio, usePrice, useData } from '@/context/hooks';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { binanceAPI } from '@/services/binance';
 import {
   fetchCommodityPrices,
   fetchStockQuote,
@@ -48,9 +45,9 @@ import {
   type CommodityPrice,
 } from '@/services/realDataService';
 import type { CryptoPrice } from '@/services/binance';
-import { WhaleTracker, PortfolioWhaleTracker } from '@/components/sections/WhaleTracker';
-import { RebalanceEngine, MiniRebalanceWidget } from '@/components/sections/RebalanceEngine';
-import { MacroDefconRadar, MiniDefconWidget } from '@/components/sections/MacroDefconRadar';
+import { PortfolioWhaleTracker } from '@/components/sections/WhaleTracker';
+import { RebalanceEngine } from '@/components/sections/RebalanceEngine';
+import { MacroDefconRadar } from '@/components/sections/MacroDefconRadar';
 import type { MarketData } from '@/lib/smartMoney';
 import type { Asset } from '@/lib/rebalanceEngine';
 import type { MacroConditions } from '@/lib/macroRisk';
@@ -94,103 +91,53 @@ const LivePrice = memo(function LivePrice({ symbol, price, change, isFlashing }:
   );
 });
 
-// ---------- Types ----------
-interface AssetSnapshot {
-  symbol: string;
-  price: number;
-  change: number;
-  type: 'crypto' | 'stock' | 'commodity';
-}
-
 // ---------- Main Dashboard ----------
 export const DashboardHome = memo(function DashboardHome() {
   const { portfolio, setIsDepositOpen, setIsAlertOpen } = usePortfolio();
-  const { isLoading: isLoadingPrices, lastUpdate: lastPriceUpdate, refreshPrices } = usePrice();
+  const { allPrices, lastUpdate: lastPriceUpdate, refreshPrices } = usePrice();
   const { state: dataState } = useData();
 
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([]);
   const [commodities, setCommodities] = useState<CommodityPrice[]>([]);
   const [stockData, setStockData] = useState<{ symbol: string; price: number; change: number }[]>([]);
-  const [riskIndicators, setRiskIndicators] = useState<RiskIndicator[]>([]);
   const [whaleActivity, setWhaleActivity] = useState<WhaleTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [priceFlash, setPriceFlash] = useState<Record<string, boolean>>({});
-  const [fearGreedIndex, setFearGreedIndex] = useState<{ value: number; classification: string } | null>(null);
   const [showProFeatures, setShowProFeatures] = useState(false);
   const prevPricesRef = useRef<Record<string, number>>({});
-
-  // Build unified asset list for live ticker
-  const allAssets: AssetSnapshot[] = useMemo(() => {
-    const list: AssetSnapshot[] = [];
-    // Top crypto
-    cryptoPrices.slice(0, 5).forEach(c => list.push({
-      symbol: c.symbol.replace('USDT', ''),
-      price: c.price,
-      change: c.change24hPercent,
-      type: 'crypto',
-    }));
-    // Commodities (Gold, Silver, Oil)
-    commodities.forEach(c => list.push({
-      symbol: c.name.split(' ')[0],
-      price: c.price,
-      change: c.change24hPercent,
-      type: 'commodity',
-    }));
-    return list;
-  }, [cryptoPrices, commodities]);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const lastFetchRef = useRef<number>(0);
   const isFetchingRef = useRef(false);
-  
-  const fetchAllData = async (isRefresh = false) => {
+
+  const fetchAllData = useCallback(async (isRefresh = false) => {
     // Prevent concurrent fetches
     if (isFetchingRef.current) {
       console.log('[Dashboard] Skipping fetch - already in progress');
       return;
     }
-    
+
     // Prevent rapid successive fetches (minimum 5 seconds between calls)
     const now = Date.now();
     if (now - lastFetchRef.current < 5000 && !isRefresh) {
       console.log('[Dashboard] Skipping fetch - too soon');
       return;
     }
-    
+
     isFetchingRef.current = true;
     lastFetchRef.current = now;
 
     try {
       if (isRefresh) setRefreshing(true);
-      else if (cryptoPrices.length === 0) setLoading(true);
+      else setLoading(true);
 
-      const [cryptoData, commodityData, nvdaData, aaplData, whales] = await Promise.allSettled([
-        binanceAPI.getAllPrices(),
+      const [commodityData, nvdaData, aaplData, whales] = await Promise.allSettled([
         fetchCommodityPrices(),
         fetchStockQuote('NVDA'),
         fetchStockQuote('AAPL'),
         fetchWhaleTransactions(500000, 5),
       ]);
-
-      if (cryptoData.status === 'fulfilled' && cryptoData.value.length > 0) {
-        const prices = cryptoData.value;
-        // Detect flashing
-        const newFlash: Record<string, boolean> = {};
-        prices.slice(0, 10).forEach(p => {
-          const prev = prevPricesRef.current[p.symbol];
-          if (prev && Math.abs(prev - p.price) / prev > 0.0002) {
-            newFlash[p.symbol] = true;
-          }
-          prevPricesRef.current[p.symbol] = p.price;
-        });
-        if (Object.keys(newFlash).length > 0) {
-          setPriceFlash(newFlash);
-          setTimeout(() => setPriceFlash({}), 1500);
-        }
-        setCryptoPrices(prices.slice(0, 10));
-      } else if (cryptoData.status === 'rejected') {
-        console.warn('[Dashboard] Crypto fetch failed:', cryptoData.reason);
-      }
 
       if (commodityData.status === 'fulfilled' && commodityData.value.length > 0) {
         setCommodities(commodityData.value);
@@ -209,43 +156,6 @@ export const DashboardHome = memo(function DashboardHome() {
       if (whales.status === 'fulfilled') {
         setWhaleActivity(whales.value);
       }
-
-      // Risk indicators from portfolio
-      const risks = calculateRiskIndicators(
-        portfolio.totalValue,
-        dataState.assets.map(a => ({
-          symbol: a.symbol,
-          value: a.value,
-          type: a.type,
-          change24hPercent: a.change24hPercent,
-        }))
-      );
-      setRiskIndicators(risks);
-
-      // Calculate Fear & Greed Index (simulated based on market data)
-      const btcChange = cryptoPrices.find(c => c.symbol === 'BTCUSDT')?.change24hPercent || 0;
-      const ethChange = cryptoPrices.find(c => c.symbol === 'ETHUSDT')?.change24hPercent || 0;
-      const avgCryptoChange = (btcChange + ethChange) / 2;
-      
-      // Simple Fear & Greed calculation
-      let fgValue = 50; // Neutral baseline
-      fgValue += Math.min(Math.max(avgCryptoChange * 5, -25), 25); // Crypto momentum
-      fgValue += Math.random() * 10 - 5; // Small random variation
-      
-      // Clamp to 0-100
-      fgValue = Math.max(0, Math.min(100, fgValue));
-      
-      let classification = 'Neutral';
-      if (fgValue >= 75) classification = 'Extreme Greed';
-      else if (fgValue >= 55) classification = 'Greed';
-      else if (fgValue <= 25) classification = 'Extreme Fear';
-      else if (fgValue <= 45) classification = 'Fear';
-      
-      setFearGreedIndex({ value: Math.round(fgValue), classification });
-
-      // Calculate Smart Money / Whale data for portfolio assets
-      // This is calculated from the portfolio assets held by the user
-      
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
@@ -253,20 +163,56 @@ export const DashboardHome = memo(function DashboardHome() {
       setRefreshing(false);
       isFetchingRef.current = false;
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (allPrices.length === 0) {
+      return;
+    }
+
+    const nextCryptoPrices = allPrices.slice(0, 10);
+    const newFlash: Record<string, boolean> = {};
+
+    nextCryptoPrices.forEach((price) => {
+      const prev = prevPricesRef.current[price.symbol];
+      if (prev && Math.abs(prev - price.price) / prev > 0.0002) {
+        newFlash[price.symbol] = true;
+      }
+      prevPricesRef.current[price.symbol] = price.price;
+    });
+
+    if (Object.keys(newFlash).length > 0) {
+      setPriceFlash(newFlash);
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+      }
+      flashTimeoutRef.current = setTimeout(() => setPriceFlash({}), 1500);
+    }
+
+    setCryptoPrices(nextCryptoPrices);
+  }, [allPrices]);
+
+  useEffect(() => {
+    return () => {
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+        flashTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Prevent multiple simultaneous fetches
     if (isFetchingRef.current) return;
-    
-    fetchAllData();
+
+    void fetchAllData();
     const interval = setInterval(() => {
       if (!isFetchingRef.current) {
-        fetchAllData(true);
+        void fetchAllData(true);
       }
     }, 30000);
     return () => clearInterval(interval);
-  }, [portfolio.totalValue]);
+  }, [fetchAllData]);
 
   // Quick Stats
   const quickStats = useMemo(() => [
@@ -308,13 +254,45 @@ export const DashboardHome = memo(function DashboardHome() {
     },
   ], [portfolio, dataState.alerts]);
 
+  const riskIndicators = useMemo<RiskIndicator[]>(() => (
+    calculateRiskIndicators(
+      portfolio.totalValue,
+      dataState.assets.map(a => ({
+        symbol: a.symbol,
+        value: a.value,
+        type: a.type,
+        change24hPercent: a.change24hPercent,
+      }))
+    )
+  ), [portfolio.totalValue, dataState.assets]);
+
+  const fearGreedIndex = useMemo(() => {
+    const btcChange = cryptoPrices.find(c => c.symbol === 'BTC')?.change24hPercent || 0;
+    const ethChange = cryptoPrices.find(c => c.symbol === 'ETH')?.change24hPercent || 0;
+    const avgCryptoChange = (btcChange + ethChange) / 2;
+
+    let fgValue = 50;
+    fgValue += Math.min(Math.max(avgCryptoChange * 5, -25), 25);
+    fgValue += Math.min(Math.max(portfolio.totalChange24hPercent * 1.5, -10), 10);
+    fgValue = Math.max(0, Math.min(100, fgValue));
+
+    let classification = 'Neutral';
+    if (fgValue >= 75) classification = 'Extreme Greed';
+    else if (fgValue >= 55) classification = 'Greed';
+    else if (fgValue <= 25) classification = 'Extreme Fear';
+    else if (fgValue <= 45) classification = 'Fear';
+
+    return { value: Math.round(fgValue), classification };
+  }, [cryptoPrices, portfolio.totalChange24hPercent]);
+
   // Calculate Whale Tracker data for portfolio assets
   const whaleAssets = useMemo(() => {
     return portfolio.assets.map(asset => {
-      const cryptoPrice = cryptoPrices.find(c => c.symbol === `${asset.symbol}USDT`);
+      const cryptoPrice = cryptoPrices.find(c => c.symbol === asset.symbol);
+      const fallbackVolume = Math.max(asset.value * 10, 500000);
       const marketData: MarketData = {
-        currentVolume: cryptoPrice?.volume24h || Math.random() * 1000000 + 500000,
-        avgVolume24h: cryptoPrice?.volume24h ? cryptoPrice.volume24h * 0.9 : Math.random() * 800000 + 400000,
+        currentVolume: cryptoPrice?.volume24h || fallbackVolume,
+        avgVolume24h: cryptoPrice?.volume24h ? cryptoPrice.volume24h * 0.9 : fallbackVolume * 0.85,
         priceChangePct: cryptoPrice?.change24hPercent || asset.change24hPercent,
       };
       return {
@@ -346,7 +324,7 @@ export const DashboardHome = memo(function DashboardHome() {
 
   // Calculate Macro Defcon conditions
   const macroConditions: MacroConditions = useMemo(() => {
-    const btcChange = cryptoPrices.find(c => c.symbol === 'BTCUSDT')?.change24hPercent || 0;
+    const btcChange = cryptoPrices.find(c => c.symbol === 'BTC')?.change24hPercent || 0;
     const fgValue = fearGreedIndex?.value || 50;
     
     return {
@@ -366,7 +344,7 @@ export const DashboardHome = memo(function DashboardHome() {
     for (let i = 29; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
-      const dailyChange = (Math.random() - 0.45) * 0.025; // Slight upward bias
+      const dailyChange = Math.sin((i + 1) * 0.45 + portfolio.totalChange24hPercent * 0.05) * 0.012 + 0.003;
       value = value * (1 + dailyChange);
       data.push({
         date: date.toLocaleDateString('th-TH', { month: 'short', day: 'numeric' }),
@@ -378,15 +356,23 @@ export const DashboardHome = memo(function DashboardHome() {
     return data;
   }, [portfolio.totalValue]);
 
-  const btcData = useMemo(() => {
-    const btc = cryptoPrices.find(c => c.symbol === 'BTCUSDT' || c.symbol === 'BTC');
-    if (!btc) return [];
-    const now = Date.now();
-    return Array.from({ length: 24 }, (_, i) => ({
-      time: `${23 - i}h`,
-      price: btc.price * (1 + (Math.sin((i + 1) * 0.4 + btc.change24hPercent * 0.1) * 0.015)),
-    }));
-  }, [cryptoPrices]);
+  const handleRefresh = useCallback(async () => {
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    const results = await Promise.allSettled([
+      refreshPrices(),
+      fetchAllData(true),
+    ]);
+
+    if (results.some((result) => result.status === 'rejected')) {
+      toast.error('รีเฟรชข้อมูลบางส่วนไม่สำเร็จ');
+      return;
+    }
+
+    toast.success('รีเฟรชข้อมูลแล้ว');
+  }, [refreshPrices, fetchAllData]);
 
   if (loading) {
     return (
@@ -470,12 +456,8 @@ export const DashboardHome = memo(function DashboardHome() {
             เพิ่มสินทรัพย์
           </Button>
           <Button
-            onClick={() => { 
-              if (!isFetchingRef.current) {
-                refreshPrices(); 
-                fetchAllData(true); 
-                toast.success('รีเฟรชข้อมูลแล้ว'); 
-              }
+            onClick={() => {
+              void handleRefresh();
             }}
             size="sm"
             variant="outline"
@@ -670,7 +652,7 @@ export const DashboardHome = memo(function DashboardHome() {
             {cryptoPrices.slice(0, 4).map(c => (
               <LivePrice
                 key={c.symbol}
-                symbol={c.symbol.replace('USDT', '')}
+                symbol={c.symbol}
                 price={c.price}
                 change={c.change24hPercent}
                 isFlashing={!!priceFlash[c.symbol]}
@@ -900,7 +882,7 @@ export const DashboardHome = memo(function DashboardHome() {
             { label: 'S&P 500', value: '5,234', change: '+0.82%', up: true, icon: Building2 },
             { label: 'NASDAQ', value: '16,485', change: '+1.24%', up: true, icon: BarChart2 },
             ...cryptoPrices.slice(0, 2).map(c => ({
-              label: c.symbol.replace('USDT', ''),
+              label: c.symbol,
               value: c.price > 1000 ? `$${(c.price / 1000).toFixed(1)}K` : `$${c.price.toFixed(2)}`,
               change: `${c.change24hPercent >= 0 ? '+' : ''}${c.change24hPercent.toFixed(2)}%`,
               up: c.change24hPercent >= 0,

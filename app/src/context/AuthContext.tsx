@@ -142,7 +142,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (pbUser) {
                 removeGuestUser();
                 setUser(pbUser);
+                setError(null);
+                return;
             }
+            setUser(null);
+            setError(null);
         });
         return () => unsubscribe();
     }, []);

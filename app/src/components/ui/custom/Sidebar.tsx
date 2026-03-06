@@ -30,6 +30,7 @@ import {
   Activity,
   Cpu,
   Shield,
+  Flame,
 } from 'lucide-react';
 
 // Core Navigation - always visible
@@ -72,6 +73,7 @@ const SUITE_GROUPS = [
     icon: Terminal,
     color: 'from-blue-500 to-cyan-600',
     items: [
+      { id: 'futures', label: 'Futures Signal', icon: Flame, path: '/futures', desc: 'สัญญาณทอง · น้ำมัน · คริปโต' },
       { id: 'institutional', label: 'Institutional Trading', icon: Shield, path: '/institutional', desc: 'เครื่องมือระดับสถาบัน' },
       { id: 'smc', label: 'SMC Panel', icon: Users, path: '/smc', desc: 'Smart Money Concepts' },
       { id: 'brio', label: 'Brio Terminal', icon: Terminal, path: '/brio', desc: 'เทอร์มินัลนักลงทุน' },

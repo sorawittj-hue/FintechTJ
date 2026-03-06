@@ -1,30 +1,37 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Bell, TrendingUp, TrendingDown, RefreshCw, Moon, Sun } from 'lucide-react';
-import { usePortfolio } from '@/context/hooks';
-import { binanceAPI } from '@/services/binance';
+import { usePortfolio, usePrice } from '@/context/hooks';
 import type { CryptoPrice } from '@/services/binance';
 
 // Key tickers to show in header
-const HEADER_TICKERS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
+const HEADER_TICKERS = ['BTC', 'ETH', 'SOL'];
 const TICKER_LABELS: Record<string, string> = {
-  BTCUSDT: 'BTC',
-  ETHUSDT: 'ETH',
-  SOLUSDT: 'SOL',
+  BTC: 'BTC',
+  ETH: 'ETH',
+  SOL: 'SOL',
 };
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [tickers, setTickers] = useState<CryptoPrice[]>([]);
-  const [prevPrices, setPrevPrices] = useState<Record<string, number>>({});
   const [priceFlash, setPriceFlash] = useState<Record<string, 'up' | 'down' | null>>({});
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
   });
   const { portfolio } = usePortfolio();
+  const { prices, isWebSocketConnected } = usePrice();
+  const previousPricesRef = useRef<Record<string, number>>({});
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const tickers = useMemo<CryptoPrice[]>(
+    () => HEADER_TICKERS
+      .map((symbol) => prices.get(symbol))
+      .filter((ticker): ticker is CryptoPrice => Boolean(ticker)),
+    [prices]
+  );
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -46,38 +53,33 @@ export function Header() {
     }
   }, [isDarkMode]);
 
-  const fetchTickers = useCallback(async () => {
-    try {
-      const prices = await binanceAPI.getAllPrices();
-      const filtered = prices.filter(p => HEADER_TICKERS.includes(p.symbol + 'USDT') || HEADER_TICKERS.includes(p.symbol));
+  useEffect(() => {
+    const newFlash: Record<string, 'up' | 'down' | null> = {};
 
-      // Check for price changes to animate
-      const newFlash: Record<string, 'up' | 'down' | null> = {};
-      filtered.forEach(p => {
-        const prev = prevPrices[p.symbol];
-        if (prev && prev !== p.price) {
-          newFlash[p.symbol] = p.price > prev ? 'up' : 'down';
-        }
-      });
-
-      if (Object.keys(newFlash).length > 0) {
-        setPriceFlash(newFlash);
-        setTimeout(() => setPriceFlash({}), 1500);
+    tickers.forEach((ticker) => {
+      const previousPrice = previousPricesRef.current[ticker.symbol];
+      if (previousPrice && previousPrice !== ticker.price) {
+        newFlash[ticker.symbol] = ticker.price > previousPrice ? 'up' : 'down';
       }
+      previousPricesRef.current[ticker.symbol] = ticker.price;
+    });
 
-      const newPrevPrices: Record<string, number> = {};
-      filtered.forEach(p => { newPrevPrices[p.symbol] = p.price; });
-      setPrevPrices(newPrevPrices);
-      setTickers(filtered.slice(0, 3));
-    } catch {
-      // Silently fail
+    if (Object.keys(newFlash).length > 0) {
+      setPriceFlash(newFlash);
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+      }
+      flashTimeoutRef.current = setTimeout(() => setPriceFlash({}), 1500);
     }
-  }, [prevPrices]);
+  }, [tickers]);
 
   useEffect(() => {
-    fetchTickers();
-    const interval = setInterval(fetchTickers, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+        flashTimeoutRef.current = null;
+      }
+    };
   }, []);
 
   const formatTime = (date: Date) => {
@@ -110,7 +112,7 @@ export function Header() {
               {tickers.map((ticker) => {
                 const flash = priceFlash[ticker.symbol];
                 const isUp = ticker.change24hPercent >= 0;
-                const label = TICKER_LABELS[ticker.symbol + 'USDT'] || ticker.symbol;
+                const label = TICKER_LABELS[ticker.symbol] || ticker.symbol;
                 return (
                   <div key={ticker.symbol} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
                     <span className="text-xs font-semibold text-gray-500">{label}</span>
@@ -133,8 +135,8 @@ export function Header() {
             </div>
           ) : (
             <div className="flex items-center gap-2 text-xs text-gray-400">
-              <RefreshCw size={12} className="animate-spin" />
-              กำลังโหลดราคา...
+              <RefreshCw size={12} className={isWebSocketConnected ? '' : 'animate-spin'} />
+              {isWebSocketConnected ? 'รอข้อมูลราคา...' : 'กำลังเชื่อมต่อราคา...'}
             </div>
           )}
         </div>

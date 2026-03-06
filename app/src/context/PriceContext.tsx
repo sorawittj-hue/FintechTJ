@@ -12,7 +12,7 @@
  * - Cross-tab synchronization
  */
 
-import { createContext, useEffect, useCallback, useRef, useContext, type ReactNode } from 'react';
+import { createContext, useEffect, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import { useData } from './useData';
 import { type CryptoPrice } from '@/services/binance';
 
@@ -35,21 +35,17 @@ const PriceContext = createContext<PriceContextType | undefined>(undefined);
 export function PriceProvider({ children }: { children: ReactNode }) {
   const { state, actions } = useData();
   const { prices, allPrices, isLoading, error, lastUpdate, connectionStatus } = state;
-  const { refreshPrices, subscribeToPrices } = actions;
-
-  const isMountedRef = useRef(true);
+  const { refreshPrices, subscribeToPrices, unsubscribeFromPrices } = actions;
 
   // Subscribe to prices on mount
   useEffect(() => {
-    isMountedRef.current = true;
-
     // Subscribe to default symbols via WebSocket
     subscribeToPrices(DEFAULT_POLLING_SYMBOLS);
 
     return () => {
-      isMountedRef.current = false;
+      unsubscribeFromPrices(DEFAULT_POLLING_SYMBOLS);
     };
-  }, [subscribeToPrices]);
+  }, [subscribeToPrices, unsubscribeFromPrices]);
 
   // Get price by symbol
   const getPrice = useCallback((symbol: string): CryptoPrice | undefined => {
@@ -68,7 +64,7 @@ export function PriceProvider({ children }: { children: ReactNode }) {
     return undefined;
   }, [prices]);
 
-  const value: PriceContextType = {
+  const value = useMemo<PriceContextType>(() => ({
     prices,
     allPrices,
     isLoading,
@@ -78,7 +74,17 @@ export function PriceProvider({ children }: { children: ReactNode }) {
     getPrice,
     getPriceChange,
     isWebSocketConnected: connectionStatus.state === 'connected',
-  };
+  }), [
+    prices,
+    allPrices,
+    isLoading,
+    error,
+    lastUpdate,
+    refreshPrices,
+    getPrice,
+    getPriceChange,
+    connectionStatus.state,
+  ]);
 
   return (
     <PriceContext.Provider value={value}>

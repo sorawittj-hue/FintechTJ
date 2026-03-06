@@ -155,6 +155,13 @@ export class WebSocketManager {
 
   private currentSymbols: string[] = [];
   private source: WebSocketSource = 'binance';
+  private readonly handleOnline = () => {
+    this.log('Network is online, attempting to reconnect');
+    if (this.status.state === 'error' || this.status.state === 'disconnected') {
+      this.status.reconnectAttempts = 0;
+      this.reconnect();
+    }
+  };
 
   private constructor(config: Partial<WebSocketConfig> = {}) {
     this.config = this.mergeConfig(config);
@@ -162,13 +169,7 @@ export class WebSocketManager {
 
     // Listen for network coming back online
     if (typeof window !== 'undefined') {
-      window.addEventListener('online', () => {
-        this.log('Network is online, attempting to reconnect');
-        if (this.status.state === 'error' || this.status.state === 'disconnected') {
-          this.status.reconnectAttempts = 0;
-          this.reconnect();
-        }
-      });
+      window.addEventListener('online', this.handleOnline);
     }
   }
 
@@ -260,16 +261,23 @@ export class WebSocketManager {
       return;
     }
 
+    if (symbols.length === 0) {
+      this.disconnect();
+      return;
+    }
+
     this.source = source;
     this.currentSymbols = [...symbols];
     this.config.url = SOURCE_URLS[source](symbols);
     this.config = this.mergeConfig({ ...this.config, source });
 
     this.updateStatus({ state: 'connecting', error: null });
-    
-    // Skip WebSocket and use REST API polling directly
-    this.log('Using REST API polling mode (WebSocket may be blocked)');
-    this.startPollingFallback();
+
+    if (this.usePollingFallback) {
+      this.stopPollingFallback();
+    }
+
+    this.createConnection();
   }
 
   /**
@@ -482,6 +490,7 @@ export class WebSocketManager {
    * Start polling fallback when WebSocket is blocked
    */
   private startPollingFallback(): void {
+    this.stopPollingFallback();
     this.usePollingFallback = true;
     this.updateStatus({
       state: 'connected',
@@ -857,6 +866,9 @@ export class WebSocketManager {
     this.subscriptions.clear();
     this.eventHandlers.clear();
     this.messageBuffer = [];
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', this.handleOnline);
+    }
     this.broadcastChannel?.close();
     this.broadcastChannel = null;
     this.stopPollingFallback();

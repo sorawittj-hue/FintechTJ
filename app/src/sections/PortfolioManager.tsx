@@ -10,7 +10,6 @@ import {
   Droplet,
   DollarSign,
   Trash2,
-  Edit3,
   Target,
   Shield,
   Minus,
@@ -42,6 +41,40 @@ const AssetIcon = ({ type }: { type: string }) => {
   }
 };
 
+const getTransactionBadgeClass = (type: string) => {
+  switch (type) {
+    case 'buy':
+      return 'bg-green-100 text-green-700';
+    case 'sell':
+      return 'bg-red-100 text-red-700';
+    case 'deposit':
+      return 'bg-blue-100 text-blue-700';
+    case 'withdraw':
+      return 'bg-orange-100 text-orange-700';
+    case 'transfer':
+      return 'bg-purple-100 text-purple-700';
+    default:
+      return 'bg-gray-100 text-gray-700';
+  }
+};
+
+const getTransactionLabel = (type: string) => {
+  switch (type) {
+    case 'buy':
+      return 'ซื้อ';
+    case 'sell':
+      return 'ขาย';
+    case 'deposit':
+      return 'ฝาก';
+    case 'withdraw':
+      return 'ถอน';
+    case 'transfer':
+      return 'โอน';
+    default:
+      return type;
+  }
+};
+
 export function PortfolioManager() {
   const {
     portfolio,
@@ -50,62 +83,65 @@ export function PortfolioManager() {
     removeAsset
   } = usePortfolio();
   const [activeTab, setActiveTab] = useState('overview');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [withdrawAssetId, setWithdrawAssetId] = useState<string | null>(null);
 
+  const assetMetrics = useMemo(() => {
+    return assets.map(asset => {
+      const currentValue = asset.value;
+      const invested = asset.quantity * asset.avgPrice;
+      const pnl = currentValue - invested;
+      const pnlPercent = invested > 0 ? (pnl / invested) * 100 : 0;
+      const portfolioWeight = portfolio.totalValue > 0 ? (currentValue / portfolio.totalValue) * 100 : 0;
+      return { ...asset, currentValue, pnl, pnlPercent, portfolioWeight };
+    });
+  }, [assets, portfolio.totalValue]);
+
+  const hasAssets = assetMetrics.length > 0;
+  const visibleTransactions = useMemo(() => transactions.slice(0, 20), [transactions]);
+
   // Asset Allocation Data
   const allocationData = useMemo(() => {
-    const byType = assets.reduce((acc, asset) => {
+    const byType = assetMetrics.reduce((acc, asset) => {
       const value = asset.value;
       acc[asset.type] = (acc[asset.type] || 0) + value;
       return acc;
     }, {} as Record<string, number>);
 
     return Object.entries(byType).map(([name, value]) => ({ name, value }));
-  }, [assets]);
+  }, [assetMetrics]);
 
   // Sector/Category Data (simplified without sector field)
   const sectorData = useMemo(() => {
-    // Group by type as sector fallback
-    const byType = assets.reduce((acc, asset) => {
-      const value = asset.value;
-      const type = asset.type;
-      acc[type] = (acc[type] || 0) + value;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return Object.entries(byType)
-      .map(([name, value]) => ({ name, value }))
+    return [...allocationData]
       .sort((a, b) => b.value - a.value)
       .slice(0, 6);
-  }, [assets]);
+  }, [allocationData]);
 
   // Top Performers
   const topPerformers = useMemo(() => {
-    return [...assets]
-      .map(asset => {
-        const currentValue = asset.value;
-        const invested = asset.quantity * asset.avgPrice;
-        const pnl = currentValue - invested;
-        const pnlPercent = invested > 0 ? (pnl / invested) * 100 : 0;
-        return { ...asset, currentValue, pnl, pnlPercent };
-      })
+    return [...assetMetrics]
       .sort((a, b) => b.pnlPercent - a.pnlPercent)
       .slice(0, 5);
-  }, [assets]);
+  }, [assetMetrics]);
 
   // Filtered Assets
-  const filteredAssets = useMemo(() => {
-    return assets.map(asset => {
-      const currentValue = asset.value;
-      const invested = asset.quantity * asset.avgPrice;
-      const pnl = currentValue - invested;
-      const pnlPercent = invested > 0 ? (pnl / invested) * 100 : 0;
-      return { ...asset, currentValue, pnl, pnlPercent };
-    });
-  }, [assets]);
+  const filteredAssets = assetMetrics;
+
+  const diversityScore = useMemo(() => {
+    if (!hasAssets || portfolio.totalValue <= 0) return 0;
+
+    const weights = allocationData.map(item => item.value / portfolio.totalValue);
+    const concentration = weights.reduce((sum, weight) => sum + weight * weight, 0);
+    return Math.max(1, Math.min(10, Number(((1 - concentration) * 12).toFixed(1))));
+  }, [allocationData, hasAssets, portfolio.totalValue]);
+
+  const diversityMessage = useMemo(() => {
+    if (!hasAssets) return 'เริ่มต้นสร้างพอร์ต';
+    if (diversityScore >= 8) return 'พอร์ตกระจายดีมาก';
+    if (diversityScore >= 6) return 'พอร์ตกำลังกระจายตัวดี';
+    return 'ควรกระจายสินทรัพย์เพิ่ม';
+  }, [diversityScore, hasAssets]);
 
   return (
     <div className="space-y-6">
@@ -156,14 +192,14 @@ export function PortfolioManager() {
           <CardContent className="p-4">
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">จำนวนสินทรัพย์</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">{assets.length}</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">{Object.keys(allocationData).length} ประเภท</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">{allocationData.length} ประเภท</p>
           </CardContent>
         </Card>
         <Card className="dark:bg-gray-900 dark:border-gray-800">
           <CardContent className="p-4">
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Diversity Score</p>
-            <p className="text-xl font-bold text-[#ee7d54]">8.5/10</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">พอร์ตกระจายดี</p>
+            <p className="text-xl font-bold text-[#ee7d54]">{diversityScore.toFixed(1)}/10</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">{diversityMessage}</p>
           </CardContent>
         </Card>
       </div>
@@ -188,41 +224,57 @@ export function PortfolioManager() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RePieChart>
-                      <Pie
-                        data={allocationData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {allocationData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
-                    </RePieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                  {allocationData.map((item, index) => (
-                    <div key={item.name} className="flex items-center gap-2 text-sm">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      />
-                      <span className="capitalize text-gray-600">{item.name}:</span>
-                      <span className="font-medium">
-                        {portfolio.totalValue > 0 ? ((item.value / portfolio.totalValue) * 100).toFixed(1) : 0}%
-                      </span>
-                      <span className="text-xs text-gray-400">(${item.value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})</span>
+                {hasAssets ? (
+                  <>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RePieChart>
+                          <Pie
+                            data={allocationData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {allocationData.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                        </RePieChart>
+                      </ResponsiveContainer>
                     </div>
-                  ))}
-                </div>
+                    <div className="grid grid-cols-2 gap-2 mt-4">
+                      {allocationData.map((item, index) => (
+                        <div key={item.name} className="flex items-center gap-2 text-sm">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="capitalize text-gray-600">{item.name}:</span>
+                          <span className="font-medium">
+                            {portfolio.totalValue > 0 ? ((item.value / portfolio.totalValue) * 100).toFixed(1) : 0}%
+                          </span>
+                          <span className="text-xs text-gray-400">(${item.value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-64 flex flex-col items-center justify-center text-center text-gray-400 gap-3">
+                    <PieChart size={32} className="opacity-40" />
+                    <div>
+                      <p className="font-medium text-gray-600">ยังไม่มีข้อมูลการกระจายพอร์ต</p>
+                      <p className="text-sm">เพิ่มสินทรัพย์แรกเพื่อดูสัดส่วนการลงทุน</p>
+                    </div>
+                    <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] hover:opacity-90">
+                      <Plus size={16} className="mr-2" />
+                      เพิ่มสินทรัพย์แรก
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -236,7 +288,7 @@ export function PortfolioManager() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {topPerformers.map((asset) => (
+                  {hasAssets ? topPerformers.map((asset) => (
                     <div key={asset.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white text-xs font-bold">
@@ -251,11 +303,19 @@ export function PortfolioManager() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium text-sm text-green-600">+{asset.pnlPercent.toFixed(2)}%</p>
+                        <p className={`font-medium text-sm ${asset.pnlPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {asset.pnlPercent >= 0 ? '+' : ''}{asset.pnlPercent.toFixed(2)}%
+                        </p>
                         <p className="text-xs text-gray-500">${asset.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="py-12 text-center text-gray-400">
+                      <Target size={32} className="mx-auto mb-3 opacity-30" />
+                      <p className="font-medium text-gray-600">ยังไม่มีสินทรัพย์ให้เปรียบเทียบ</p>
+                      <p className="text-sm">เมื่อเพิ่มสินทรัพย์แล้ว ระบบจะแสดงตัวที่ทำผลตอบแทนดีที่สุดให้ทันที</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -266,92 +326,99 @@ export function PortfolioManager() {
         <TabsContent value="holdings">
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">สินทรัพย์</th>
-                      <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">ราคา</th>
-                      <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">จำนวน</th>
-                      <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">มูลค่า</th>
-                      <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">P&L</th>
-                      <th className="text-center py-3 px-4 text-xs font-medium text-gray-500">จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAssets.map((asset) => (
-                      <tr key={asset.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#ee7d54] to-[#f59e0b] flex items-center justify-center text-white text-sm font-bold">
-                              {asset.symbol[0]}
-                            </div>
-                            <div>
-                              <p className="font-medium">{asset.symbol}</p>
-                              <p className="text-xs text-gray-400">{asset.name}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="text-right py-3 px-4">
-                          <p className="font-medium">${asset.currentPrice.toLocaleString()}</p>
-                          <p className={`text-xs ${asset.change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {asset.change24h >= 0 ? '+' : ''}{asset.change24h.toFixed(2)}%
-                          </p>
-                        </td>
-                        <td className="text-right py-3 px-4">
-                          <p className="font-medium">{asset.quantity}</p>
-                        </td>
-                        <td className="text-right py-3 px-4">
-                          <p className="font-medium">${asset.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                          <p className="text-xs text-gray-400">
-                            {((asset.currentValue / portfolio.totalValue) * 100).toFixed(1)}% ของพอร์ต
-                          </p>
-                        </td>
-                        <td className="text-right py-3 px-4">
-                          <p className={`font-medium ${asset.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {asset.pnl >= 0 ? '+' : ''}${asset.pnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                          </p>
-                          <p className={`text-xs ${asset.pnlPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {asset.pnlPercent >= 0 ? '+' : ''}{asset.pnlPercent.toFixed(2)}%
-                          </p>
-                        </td>
-                        <td className="text-center py-3 px-4">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => setSelectedAsset(asset.id)}
-                              className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-                            >
-                              <Edit3 size={14} />
-                            </button>
-                            <button
-                              onClick={() => setWithdrawAssetId(asset.id)}
-                              className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-                              title="ถอน/ขาย"
-                            >
-                              <Minus size={14} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                removeAsset(asset.id);
-                                toast.success(`ลบ ${asset.symbol} ออกจากพอร์ตแล้ว`);
-                              }}
-                              className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
+              {hasAssets ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">สินทรัพย์</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">ราคา</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">จำนวน</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">มูลค่า</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">P&L</th>
+                        <th className="text-center py-3 px-4 text-xs font-medium text-gray-500">จัดการ</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {filteredAssets.map((asset) => (
+                        <tr key={asset.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#ee7d54] to-[#f59e0b] flex items-center justify-center text-white text-sm font-bold">
+                                {asset.symbol[0]}
+                              </div>
+                              <div>
+                                <p className="font-medium">{asset.symbol}</p>
+                                <p className="text-xs text-gray-400">{asset.name}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="text-right py-3 px-4">
+                            <p className="font-medium">${asset.currentPrice.toLocaleString()}</p>
+                            <p className={`text-xs ${asset.change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              {asset.change24h >= 0 ? '+' : ''}{asset.change24h.toFixed(2)}%
+                            </p>
+                          </td>
+                          <td className="text-right py-3 px-4">
+                            <p className="font-medium">{asset.quantity}</p>
+                          </td>
+                          <td className="text-right py-3 px-4">
+                            <p className="font-medium">${asset.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                            <p className="text-xs text-gray-400">
+                              {asset.portfolioWeight.toFixed(1)}% ของพอร์ต
+                            </p>
+                          </td>
+                          <td className="text-right py-3 px-4">
+                            <p className={`font-medium ${asset.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {asset.pnl >= 0 ? '+' : ''}${asset.pnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </p>
+                            <p className={`text-xs ${asset.pnlPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              {asset.pnlPercent >= 0 ? '+' : ''}{asset.pnlPercent.toFixed(2)}%
+                            </p>
+                          </td>
+                          <td className="text-center py-3 px-4">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => setWithdrawAssetId(asset.id)}
+                                className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                                title="ถอน/ขาย"
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  removeAsset(asset.id);
+                                  toast.success(`ลบ ${asset.symbol} ออกจากพอร์ตแล้ว`);
+                                }}
+                                className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-16 px-6 text-center text-gray-400">
+                  <Briefcase size={36} className="mx-auto mb-3 opacity-30" />
+                  <p className="font-medium text-gray-600">ยังไม่มีสินทรัพย์ในพอร์ต</p>
+                  <p className="text-sm mt-1 mb-4">เริ่มติดตามการลงทุนของคุณด้วยการเพิ่มสินทรัพย์แรก</p>
+                  <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] hover:opacity-90">
+                    <Plus size={16} className="mr-2" />
+                    เพิ่มสินทรัพย์แรก
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* Allocation Tab */}
         <TabsContent value="allocation">
+          {hasAssets ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -422,46 +489,67 @@ export function PortfolioManager() {
               </CardContent>
             </Card>
           </div>
+          ) : (
+            <Card>
+              <CardContent className="py-16 text-center text-gray-400">
+                <Shield size={36} className="mx-auto mb-3 opacity-30" />
+                <p className="font-medium text-gray-600">ยังไม่มีข้อมูลการกระจายความเสี่ยง</p>
+                <p className="text-sm mt-1 mb-4">เพิ่มสินทรัพย์หลายประเภทเพื่อดูภาพรวมสัดส่วนและความหลากหลายของพอร์ต</p>
+                <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] hover:opacity-90">
+                  <Plus size={16} className="mr-2" />
+                  เพิ่มสินทรัพย์
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Transactions Tab */}
         <TabsContent value="transactions">
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">วันที่</th>
-                      <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">สินทรัพย์</th>
-                      <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">ประเภท</th>
-                      <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">จำนวน</th>
-                      <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">ราคา</th>
-                      <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">มูลค่า</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.slice(0, 20).map((tx) => (
-                      <tr key={tx.id} className="border-b border-gray-50">
-                        <td className="py-3 px-4 text-sm text-gray-500">
-                          {new Date(tx.timestamp).toLocaleDateString('th-TH')}
-                        </td>
-                        <td className="py-3 px-4 font-medium">{tx.symbol}</td>
-                        <td className="py-3 px-4">
-                          <Badge className={tx.type === 'buy' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
-                            {tx.type === 'buy' ? 'ซื้อ' : 'ขาย'}
-                          </Badge>
-                        </td>
-                        <td className="text-right py-3 px-4">{tx.quantity}</td>
-                        <td className="text-right py-3 px-4">${(tx.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                        <td className="text-right py-3 px-4 font-medium">
-                          ${((tx.quantity || 0) * (tx.price || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </td>
+              {visibleTransactions.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">วันที่</th>
+                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">สินทรัพย์</th>
+                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">ประเภท</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">จำนวน</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">ราคา</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">มูลค่า</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {visibleTransactions.map((tx) => (
+                        <tr key={tx.id} className="border-b border-gray-50">
+                          <td className="py-3 px-4 text-sm text-gray-500">
+                            {new Date(tx.timestamp).toLocaleDateString('th-TH')}
+                          </td>
+                          <td className="py-3 px-4 font-medium">{tx.symbol}</td>
+                          <td className="py-3 px-4">
+                            <Badge className={getTransactionBadgeClass(tx.type)}>
+                              {getTransactionLabel(tx.type)}
+                            </Badge>
+                          </td>
+                          <td className="text-right py-3 px-4">{tx.quantity}</td>
+                          <td className="text-right py-3 px-4">${(tx.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                          <td className="text-right py-3 px-4 font-medium">
+                            ${((tx.quantity || 0) * (tx.price || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-16 px-6 text-center text-gray-400">
+                  <Minus size={36} className="mx-auto mb-3 opacity-30" />
+                  <p className="font-medium text-gray-600">ยังไม่มีประวัติธุรกรรม</p>
+                  <p className="text-sm mt-1">เมื่อมีการซื้อ ขาย หรือถอนสินทรัพย์ ระบบจะแสดงประวัติที่นี่</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

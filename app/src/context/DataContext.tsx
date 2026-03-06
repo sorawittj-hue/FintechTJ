@@ -24,7 +24,7 @@ import {
   type ReactNode,
 } from 'react';
 import { toast } from 'sonner';
-import WebSocketManager, { type ConnectionStatus } from '@/services/websocket';
+import WebSocketManager, { type ConnectionStatus, type MessageHandler } from '@/services/websocket';
 import { binanceAPI, type CryptoPrice } from '@/services/binance';
 import { pb, isPocketBaseEnabled } from '@/lib/pocketbase';
 import type {
@@ -33,6 +33,7 @@ import type {
   PortfolioSummary,
 } from '@/types';
 import type { UserSettings } from './SettingsContext';
+import { useAuth } from './AuthContext';
 
 // =============================================================================
 // TYPES
@@ -202,6 +203,25 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_WEBSOCKET_SYMBOLS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP'];
+const PORTFOLIO_COLLECTIONS = ['portfolio_positions', 'assets'] as const;
+
+type PortfolioCollectionName = (typeof PORTFOLIO_COLLECTIONS)[number];
+
+async function withPortfolioCollection<T>(
+  operation: (collectionName: PortfolioCollectionName) => Promise<T>
+): Promise<T> {
+  let lastError: unknown;
+
+  for (const collectionName of PORTFOLIO_COLLECTIONS) {
+    try {
+      return await operation(collectionName);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Portfolio collection is unavailable');
+}
 
 // =============================================================================
 // REDUCER
@@ -405,10 +425,13 @@ interface DataProviderProps {
 }
 
 export function DataProvider({ children }: DataProviderProps) {
+  const { user } = useAuth();
   // Initialize state from localStorage
   const [state, dispatch] = useReducer(dataReducer, null, () => {
     const savedSettings = loadFromStorage<UserSettings>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
-    const savedAssets = loadFromStorage<PortfolioAsset[]>(STORAGE_KEYS.PORTFOLIO, []);
+    const savedAssets = recalculateAllocations(
+      loadFromStorage<PortfolioAsset[]>(STORAGE_KEYS.PORTFOLIO, [])
+    );
     const savedAlerts = loadFromStorage<Alert[]>(STORAGE_KEYS.ALERTS, []);
     const savedTransactions = loadFromStorage<Transaction[]>(STORAGE_KEYS.TRANSACTIONS, []);
 
@@ -440,44 +463,13 @@ export function DataProvider({ children }: DataProviderProps) {
   const wsManager = useRef(WebSocketManager.getInstance());
   const throttledUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const broadcastChannel = useRef<BroadcastChannel | null>(null);
-
-  // Load from PocketBase if authenticated
-  useEffect(() => {
-    if (isPocketBaseEnabled && pb && pb.authStore.isValid) {
-      pb.collection('assets').getFullList()
-        .then(records => {
-          if (records.length > 0) {
-            const mappedAssets = records.map(r => ({
-              id: r.id,
-              symbol: r.symbol,
-              name: r.name || r.symbol,
-              quantity: r.quantity,
-              avgPrice: r.avgPrice,
-              currentPrice: r.avgPrice, // Will be updated by websocket
-              value: r.quantity * r.avgPrice,
-              change24h: 0,
-              change24hPercent: 0,
-              change24hValue: 0,
-              allocation: 0,
-              type: r.type || 'crypto'
-            }));
-            dispatch({ type: 'SET_ASSETS', payload: mappedAssets as PortfolioAsset[] });
-          }
-        })
-        .catch(err => console.error("Failed to load assets from PocketBase:", err));
-    }
-  }, []);
-
-  // =============================================================================
-  // HELPERS
-  // =============================================================================
+  const priceSubscriptionHandlersRef = useRef<Map<string, MessageHandler<CryptoPrice>>>(new Map());
 
   function loadFromStorage<T>(key: string, defaultValue: T): T {
     try {
       const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Restore Date objects for transactions
         if (key === STORAGE_KEYS.TRANSACTIONS && Array.isArray(parsed)) {
           return parsed.map((t: Transaction) => ({
             ...t,
@@ -507,11 +499,69 @@ export function DataProvider({ children }: DataProviderProps) {
     }
   }
 
-  // =============================================================================
-  // PERSISTENCE EFFECTS
-  // =============================================================================
+  useEffect(() => {
+    let isActive = true;
 
-  // Persist settings
+    const loadPortfolioAssets = async () => {
+      if (!(isPocketBaseEnabled && pb && pb.authStore.isValid && user && !user.isGuest)) {
+        return;
+      }
+
+      const pbInstance = pb;
+
+      try {
+        const records = await withPortfolioCollection<Array<Record<string, unknown>>>(
+          async (collectionName) => {
+            const result = await pbInstance.collection(collectionName).getFullList({
+              filter: `user = "${user.id}"`,
+            });
+            return result as Array<Record<string, unknown>>;
+          }
+        );
+
+        if (!isActive) {
+          return;
+        }
+
+        const mappedAssets: PortfolioAsset[] = records.map((record) => {
+          const symbol = String(record.symbol ?? '');
+          const name = String(record.name ?? symbol);
+          const quantity = Number(record.quantity ?? 0);
+          const avgPrice = Number(record.avgPrice ?? 0);
+          const currentPrice = Number(record.currentPrice ?? avgPrice);
+          const change24h = Number(record.change24h ?? 0);
+          const change24hPercent = Number(record.change24hPercent ?? 0);
+          const change24hValue = Number(record.change24hValue ?? 0);
+
+          return {
+            id: String(record.id ?? ''),
+            symbol,
+            name,
+            quantity,
+            avgPrice,
+            currentPrice,
+            value: quantity * currentPrice,
+            change24h,
+            change24hPercent,
+            change24hValue,
+            allocation: Number(record.allocation ?? 0),
+            type: (typeof record.type === 'string' ? record.type : 'crypto') as PortfolioAsset['type'],
+          };
+        });
+
+        dispatch({ type: 'SET_ASSETS', payload: mappedAssets });
+      } catch (err) {
+        console.error('Failed to load assets from PocketBase:', err);
+      }
+    };
+
+    void loadPortfolioAssets();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user?.id, user?.isGuest]);
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       saveToStorage(STORAGE_KEYS.SETTINGS, state.settings);
@@ -682,19 +732,33 @@ export function DataProvider({ children }: DataProviderProps) {
   }, []);
 
   const subscribeToPrices = useCallback((symbols: string[]) => {
-    wsManager.current.subscribe(
-      'ticker',
-      symbols,
-      (data: CryptoPrice) => {
+    symbols.forEach((symbol) => {
+      const normalizedSymbol = symbol.toUpperCase();
+      if (priceSubscriptionHandlersRef.current.has(normalizedSymbol)) {
+        return;
+      }
+
+      const handler: MessageHandler<CryptoPrice> = (data) => {
         dispatch({ type: 'UPDATE_PRICE', payload: data });
-      },
-      'binance'
-    );
+      };
+
+      priceSubscriptionHandlersRef.current.set(normalizedSymbol, handler);
+      wsManager.current.subscribe('ticker', [normalizedSymbol], handler, 'binance');
+    });
   }, []);
 
-  const unsubscribeFromPrices = useCallback(() => {
-    // WebSocketManager handles unsubscription internally
-    wsManager.current.subscribe('ticker', [], () => { }, 'binance');
+  const unsubscribeFromPrices = useCallback((symbols: string[]) => {
+    symbols.forEach((symbol) => {
+      const normalizedSymbol = symbol.toUpperCase();
+      const handler = priceSubscriptionHandlersRef.current.get(normalizedSymbol);
+
+      if (!handler) {
+        return;
+      }
+
+      wsManager.current.unsubscribe('ticker', [normalizedSymbol], handler);
+      priceSubscriptionHandlersRef.current.delete(normalizedSymbol);
+    });
   }, []);
 
   const addAsset = useCallback(async (asset: Omit<PortfolioAsset, 'id'>) => {
@@ -705,13 +769,19 @@ export function DataProvider({ children }: DataProviderProps) {
 
     if (isPocketBaseEnabled && pb && pb.authStore.isValid) {
       try {
-        const record = await pb.collection('assets').create({
-          user: pb.authStore.model?.id,
-          symbol: asset.symbol,
-          name: asset.name,
-          quantity: asset.quantity,
-          avgPrice: asset.avgPrice,
-          type: asset.type
+        const pbInstance = pb;
+        const record = await withPortfolioCollection<{ id: string }>(async (collectionName) => {
+          const createdRecord = await pbInstance.collection(collectionName).create({
+            user: pbInstance.authStore.model?.id,
+            symbol: asset.symbol,
+            name: asset.name,
+            quantity: asset.quantity,
+            avgPrice: asset.avgPrice,
+            type: asset.type,
+            ...(collectionName === 'portfolio_positions' ? { isActive: true } : {}),
+          });
+
+          return { id: String((createdRecord as Record<string, unknown>).id ?? newAsset.id) };
         });
         newAsset.id = record.id;
       } catch (err) {
@@ -720,31 +790,38 @@ export function DataProvider({ children }: DataProviderProps) {
     }
 
     dispatch({ type: 'ADD_ASSET', payload: newAsset });
-    
-    // Subscribe to price updates for the new asset
-    wsManager.current.subscribe(
-      'ticker',
-      [asset.symbol],
-      (data: CryptoPrice) => {
-        dispatch({ type: 'UPDATE_PRICE', payload: data });
-      },
-      'binance'
-    );
-    
+
+    subscribeToPrices([asset.symbol]);
+
     toast.success(`Added ${newAsset.symbol} to portfolio`);
-  }, []);
+  }, [subscribeToPrices]);
 
   const removeAsset = useCallback(async (id: string) => {
+    const assetToRemove = state.assets.find((asset) => asset.id === id);
+
     if (isPocketBaseEnabled && pb && pb.authStore.isValid) {
       try {
-        await pb.collection('assets').delete(id);
+        const pbInstance = pb;
+        await withPortfolioCollection((collectionName) => pbInstance.collection(collectionName).delete(id));
       } catch (err) {
         console.error('PocketBase delete asset error:', err);
       }
     }
+
     dispatch({ type: 'REMOVE_ASSET', payload: id });
+
+    if (assetToRemove) {
+      const hasDuplicateSymbol = state.assets.some(
+        (asset) => asset.id !== id && asset.symbol === assetToRemove.symbol
+      );
+
+      if (!hasDuplicateSymbol) {
+        unsubscribeFromPrices([assetToRemove.symbol]);
+      }
+    }
+
     toast.success('Asset removed from portfolio');
-  }, []);
+  }, [state.assets, unsubscribeFromPrices]);
 
   const updateAsset = useCallback(async (id: string, updates: Partial<PortfolioAsset>) => {
     if (isPocketBaseEnabled && pb && pb.authStore.isValid) {
@@ -754,8 +831,11 @@ export function DataProvider({ children }: DataProviderProps) {
         if (updates.quantity !== undefined) pbUpdates.quantity = updates.quantity;
         if (updates.avgPrice !== undefined) pbUpdates.avgPrice = updates.avgPrice;
 
+        const pbInstance = pb;
         if (Object.keys(pbUpdates).length > 0) {
-          await pb.collection('assets').update(id, pbUpdates);
+          await withPortfolioCollection((collectionName) =>
+            pbInstance.collection(collectionName).update(id, pbUpdates)
+          );
         }
       } catch (err) {
         console.error('PocketBase update asset error:', err);

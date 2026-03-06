@@ -24,6 +24,14 @@ interface AppProviderProps {
   children: ReactNode;
 }
 
+const RECOVERY_STORAGE_KEYS = [
+  'app-settings',
+  'app-portfolio-v2',
+  'app-alerts',
+  'app-transactions',
+  'kimi_guest_session',
+];
+
 /**
  * Provider Error Fallback Component
  * Shows when a context provider fails to initialize
@@ -63,7 +71,7 @@ function ProviderErrorFallback({ provider }: { provider: string }) {
           <button
             onClick={() => {
               // Clear localStorage as a recovery option
-              localStorage.clear();
+              RECOVERY_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
               window.location.reload();
             }}
             className="px-4 py-2 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"
