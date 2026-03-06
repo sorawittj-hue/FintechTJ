@@ -85,6 +85,7 @@ const SUITE_GROUPS = [
     icon: PieChart,
     color: 'from-amber-500 to-orange-600',
     items: [
+      { id: 'us-framework', label: 'US Stock Framework', icon: Target, path: '/us-framework', desc: 'วิเคราะห์หุ้นพื้นฐาน' },
       { id: 'advanced', label: 'Advanced Crypto', icon: Bitcoin, path: '/advanced', desc: 'วิเคราะห์คริปโตลึก' },
       { id: 'sector', label: 'Sector Rotation', icon: PieChart, path: '/sector', desc: 'การหมุน Sector' },
       { id: 'narrative', label: 'Narrative Cycle', icon: TrendingUp, path: '/narrative', desc: 'วัฏจักรเงินทุน' },

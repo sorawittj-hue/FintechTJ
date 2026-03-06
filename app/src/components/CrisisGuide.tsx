@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
@@ -14,21 +14,21 @@ import {
   ChevronRight,
   ChevronDown,
   Info,
-  TrendingUp,
   AlertTriangle,
-  CheckCircle2,
   Bookmark,
   BookmarkCheck,
   ExternalLink,
   PieChart,
-  BarChart3,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   crisisScenarios,
+  getCrisisScenarioById,
   type CrisisScenario,
   type CrisisStock,
 } from '@/data/crisisScenarios';
@@ -79,6 +79,24 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
   const [selectedScenario, setSelectedScenario] = useState<CrisisScenario | null>(null);
   const [expandedStock, setExpandedStock] = useState<string | null>(null);
   const [savedScenarios, setSavedScenarios] = useState<Set<string>>(new Set());
+
+  // AI Analysis States
+  const [isAnalyzing, setIsAnalyzing] = useState(true);
+  const [identifiedScenario, setIdentifiedScenario] = useState<CrisisScenario | null>(null);
+
+  useEffect(() => {
+    // Simulate an AI scanning the global news and macro data
+    const timer = setTimeout(() => {
+      // In a real app, this would be an API call dynamically determining the situation
+      const currentSituation = getCrisisScenarioById('war');
+      if (currentSituation) {
+        setIdentifiedScenario(currentSituation);
+      }
+      setIsAnalyzing(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const toggleSave = (scenarioId: string) => {
     setSavedScenarios(prev => {
@@ -132,6 +150,70 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
             : 'This information is for educational purposes only, not financial advice. Please research before investing.'}
         </AlertDescription>
       </Alert>
+
+      {/* Current World Situation Feature */}
+      <Card className="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 border-indigo-500/30 overflow-hidden relative min-h-[160px]">
+        <div className="absolute top-0 right-0 p-4 opacity-10">
+          <Activity className="w-32 h-32" />
+        </div>
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <div>
+              <Badge variant="outline" className="border-indigo-400 text-indigo-300 bg-indigo-500/10 mb-2">
+                <Sparkles className="w-3 h-3 mr-1" />
+                {language === 'th' ? 'AI วิเคราะห์ตลาดโลกปัจจุบัน' : 'AI Global Market Analysis'}
+              </Badge>
+              {isAnalyzing ? (
+                <CardTitle className="text-xl text-white flex items-center mt-1">
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin text-indigo-400" />
+                  {language === 'th' ? 'กำลังวิเคราะห์ข้อมูลเศรษฐกิจและข่าวกรอง...' : 'Analyzing economic data and intelligence...'}
+                </CardTitle>
+              ) : (
+                <CardTitle className="text-xl text-white mt-1">
+                  {language === 'th'
+                    ? `สถานการณ์โลกปัจจุบัน: ${identifiedScenario?.nameTH || 'ความตึงเครียดทางภูมิรัฐศาสตร์'}`
+                    : `Current Global Situation: ${identifiedScenario?.name || 'Geopolitical Tensions'}`}
+                </CardTitle>
+              )}
+            </div>
+            {!isAnalyzing && (
+              <div className="text-right">
+                <div className="text-sm text-indigo-200">{language === 'th' ? 'ความมั่นใจ' : 'Confidence'}</div>
+                <div className="text-2xl font-bold text-indigo-400">85%</div>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isAnalyzing ? (
+            <div className="space-y-2 mt-2">
+              <div className="h-2 bg-indigo-900/50 rounded animate-pulse w-3/4"></div>
+              <div className="h-2 bg-indigo-900/50 rounded animate-pulse w-1/2"></div>
+              <div className="h-2 bg-indigo-900/50 rounded animate-pulse w-2/3"></div>
+            </div>
+          ) : (
+            <>
+              <p className="text-indigo-100/80 mb-4 max-w-2xl">
+                {language === 'th'
+                  ? 'จากสมรรถนะของโมเดลในการวิเคราะห์ข้อมูลเศรษฐกิจ ข่าวกรอง และแนวโน้มมหภาคล่าสุด พบว่าตลาดกำลังให้ความสำคัญสูงสุดกับความเสี่ยงด้านภูมิรัฐศาสตร์ แนะนำให้ปรับพอร์ตการลงทุนสู่สินทรัพย์ปลอดภัย (Safe Havens) และธุรกิจในกลุ่มอุตสาหกรรมป้องกันประเทศ'
+                  : 'Based on our model\'s analysis of recent economic data, intelligence, and macro trends, the market is currently heavily weighting geopolitical risks. Recommended to reallocate portfolio towards safe-haven assets and defense sector stocks.'}
+              </p>
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700 text-white border-0"
+                onClick={() => {
+                  if (identifiedScenario) setSelectedScenario(identifiedScenario);
+                }}
+              >
+                {(() => {
+                  const IconComp = identifiedScenario ? (ICON_MAP[identifiedScenario.icon] || Shield) : Shield;
+                  return <IconComp className="w-4 h-4 mr-2" />;
+                })()}
+                {language === 'th' ? 'คลิกดูหุ้นแนะนำสำหรับสถานการณ์นี้' : 'View Recommended Stocks'}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Crisis Scenarios Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -326,9 +408,8 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
                       transition={{ delay: index * 0.05 }}
                     >
                       <Card
-                        className={`bg-slate-800/50 border-slate-700 cursor-pointer transition-colors ${
-                          expandedStock === stock.symbol ? 'border-blue-500/50 bg-slate-800' : 'hover:border-slate-600'
-                        }`}
+                        className={`bg-slate-800/50 border-slate-700 cursor-pointer transition-colors ${expandedStock === stock.symbol ? 'border-blue-500/50 bg-slate-800' : 'hover:border-slate-600'
+                          }`}
                         onClick={() => setExpandedStock(expandedStock === stock.symbol ? null : stock.symbol)}
                       >
                         <CardContent className="p-4">

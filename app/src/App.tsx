@@ -41,6 +41,7 @@ const PortfolioOverview = lazy(() => import('@/sections/PortfolioOverview'));
 const AdvancedCrypto = lazy(() => import('@/sections/AdvancedCrypto'));
 const CrisisGuide = lazy(() => import('@/components/CrisisGuide'));
 const InstitutionalTrading = lazy(() => import('@/sections/InstitutionalTrading'));
+const USStockFramework = lazy(() => import('@/sections/USStockFramework'));
 
 function getSkeletonType(path: string): 'dashboard' | 'overview' | 'list' | 'grid' | 'chart' | 'settings' | 'default' {
   const section = path.substring(1) || 'dashboard';
@@ -56,7 +57,7 @@ function getSkeletonType(path: string): 'dashboard' | 'overview' | 'list' | 'gri
     case 'whalevault': case 'whale': case 'smcpanel': case 'smc':
     case 'brio': case 'sentinel': case 'audio': case 'sector':
     case 'narrative': case 'defcon': case 'riskpanel': case 'risk':
-    case 'liquidity': case 'institutional': case 'trading': return 'chart';
+    case 'liquidity': case 'institutional': case 'trading': case 'us-framework': return 'chart';
     case 'settings': case 'help': return 'settings';
     case 'crisis': case 'crisisguide': return 'grid';
     default: return 'default';
@@ -137,6 +138,7 @@ function AppContent() {
                       <Route path="/audiobrief" element={<AudioBrief />} />
 
                       {/* Market Analysis */}
+                      <Route path="/us-framework" element={<USStockFramework />} />
                       <Route path="/sector" element={<SectorRotation />} />
                       <Route path="/sectorrotation" element={<SectorRotation />} />
                       <Route path="/narrative" element={<NarrativeCycle />} />
