@@ -120,15 +120,15 @@ export interface DataActions {
   unsubscribeFromPrices: (symbols: string[]) => void;
 
   // Portfolio actions
-  addAsset: (asset: Omit<PortfolioAsset, 'id'>) => void;
-  removeAsset: (id: string) => void;
-  updateAsset: (id: string, updates: Partial<PortfolioAsset>) => void;
+  addAsset: (asset: Omit<PortfolioAsset, 'id'>) => Promise<void>;
+  removeAsset: (id: string) => Promise<void>;
+  updateAsset: (id: string, updates: Partial<PortfolioAsset>) => Promise<void>;
   updateAssetPrices: (prices: Map<string, CryptoPrice>) => void;
 
   // Transaction actions
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
-  removeTransaction: (id: string) => void;
-  clearTransactions: () => void;
+  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  removeTransaction: (id: string) => Promise<void>;
+  clearTransactions: () => Promise<void>;
 
   // Alert actions
   addAlert: (alert: Omit<Alert, 'id' | 'createdAt'>) => void;
@@ -282,21 +282,57 @@ function recalculateAllocations(assets: PortfolioAsset[]): PortfolioAsset[] {
   }));
 }
 
+function mergeAllPrices(existing: CryptoPrice[], updates: CryptoPrice[]): CryptoPrice[] {
+  if (updates.length === 0) {
+    return existing;
+  }
+
+  const merged = new Map(existing.map((price) => [price.symbol, price]));
+  updates.forEach((price) => {
+    merged.set(price.symbol, price);
+  });
+
+  const orderedSymbols = existing.map((price) => price.symbol);
+  updates.forEach((price) => {
+    if (!orderedSymbols.includes(price.symbol)) {
+      orderedSymbols.push(price.symbol);
+    }
+  });
+
+  return orderedSymbols
+    .map((symbol) => merged.get(symbol))
+    .filter((price): price is CryptoPrice => Boolean(price));
+}
+
 function dataReducer(state: DataState, action: DataAction): DataState {
   switch (action.type) {
     case 'SET_PRICES':
-      return { ...state, prices: action.payload };
+      return {
+        ...state,
+        prices: action.payload,
+        allPrices: mergeAllPrices(state.allPrices, Array.from(action.payload.values())),
+      };
 
     case 'SET_PRICES_BATCH': {
       const newPrices = new Map(state.prices);
       action.payload.forEach((price) => newPrices.set(price.symbol, price));
-      return { ...state, prices: newPrices, lastUpdate: new Date() };
+      return {
+        ...state,
+        prices: newPrices,
+        allPrices: mergeAllPrices(state.allPrices, action.payload),
+        lastUpdate: new Date(),
+      };
     }
 
     case 'UPDATE_PRICE': {
       const newPrices = new Map(state.prices);
       newPrices.set(action.payload.symbol, action.payload);
-      return { ...state, prices: newPrices, lastUpdate: new Date() };
+      return {
+        ...state,
+        prices: newPrices,
+        allPrices: mergeAllPrices(state.allPrices, [action.payload]),
+        lastUpdate: new Date(),
+      };
     }
 
     case 'SET_ALL_PRICES':
@@ -560,7 +596,58 @@ export function DataProvider({ children }: DataProviderProps) {
     return () => {
       isActive = false;
     };
-  }, [user?.id, user?.isGuest]);
+  }, [user]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadTransactions = async () => {
+      if (!(isPocketBaseEnabled && pb && pb.authStore.isValid && user && !user.isGuest)) {
+        return;
+      }
+
+      try {
+        const pbInstance = pb;
+        const records = await pbInstance.collection('transactions').getFullList({
+          filter: `user = "${user.id}"`,
+          sort: '-timestamp',
+        }) as Array<Record<string, unknown>>;
+
+        if (!isActive) {
+          return;
+        }
+
+        const mappedTransactions: Transaction[] = records.map((record) => {
+          const quantity = Number(record.quantity ?? record.totalValue ?? 0);
+          const price = Number(record.price ?? 1);
+          const totalValue = Number(record.totalValue ?? quantity * price);
+          const symbol = String(record.symbol ?? 'USD');
+
+          return {
+            id: String(record.id ?? ''),
+            type: (String(record.type ?? 'buy') as Transaction['type']),
+            amount: totalValue,
+            asset: symbol,
+            symbol,
+            timestamp: new Date(String(record.timestamp ?? record.created ?? new Date().toISOString())),
+            price,
+            quantity,
+            fee: Number(record.fee ?? 0),
+          };
+        });
+
+        dispatch({ type: 'SET_TRANSACTIONS', payload: mappedTransactions });
+      } catch (err) {
+        console.error('Failed to load transactions from PocketBase:', err);
+      }
+    };
+
+    void loadTransactions();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -777,6 +864,12 @@ export function DataProvider({ children }: DataProviderProps) {
             name: asset.name,
             quantity: asset.quantity,
             avgPrice: asset.avgPrice,
+            currentPrice: asset.currentPrice,
+            value: asset.value,
+            change24h: asset.change24h,
+            change24hPercent: asset.change24hPercent,
+            change24hValue: asset.change24hValue,
+            allocation: asset.allocation,
             type: asset.type,
             ...(collectionName === 'portfolio_positions' ? { isActive: true } : {}),
           });
@@ -826,10 +919,18 @@ export function DataProvider({ children }: DataProviderProps) {
   const updateAsset = useCallback(async (id: string, updates: Partial<PortfolioAsset>) => {
     if (isPocketBaseEnabled && pb && pb.authStore.isValid) {
       try {
-        // Prepare allowed update fields
-        const pbUpdates: Partial<{ quantity: number; avgPrice: number }> = {};
+        const pbUpdates: Partial<PortfolioAsset> = {};
         if (updates.quantity !== undefined) pbUpdates.quantity = updates.quantity;
         if (updates.avgPrice !== undefined) pbUpdates.avgPrice = updates.avgPrice;
+        if (updates.currentPrice !== undefined) pbUpdates.currentPrice = updates.currentPrice;
+        if (updates.value !== undefined) pbUpdates.value = updates.value;
+        if (updates.change24h !== undefined) pbUpdates.change24h = updates.change24h;
+        if (updates.change24hPercent !== undefined) pbUpdates.change24hPercent = updates.change24hPercent;
+        if (updates.change24hValue !== undefined) pbUpdates.change24hValue = updates.change24hValue;
+        if (updates.allocation !== undefined) pbUpdates.allocation = updates.allocation;
+        if (updates.name !== undefined) pbUpdates.name = updates.name;
+        if (updates.symbol !== undefined) pbUpdates.symbol = updates.symbol;
+        if (updates.type !== undefined) pbUpdates.type = updates.type;
 
         const pbInstance = pb;
         if (Object.keys(pbUpdates).length > 0) {
@@ -847,49 +948,116 @@ export function DataProvider({ children }: DataProviderProps) {
   const updateAssetPrices = useCallback((prices: Map<string, CryptoPrice>) => {
     dispatch({ type: 'SET_PRICES', payload: prices });
 
-    // Update asset values with new prices
-    state.assets.forEach((asset) => {
+    const updatedAssets = state.assets.map((asset) => {
       const price = prices.get(asset.symbol);
-      if (price) {
-        const newValue = asset.quantity * price.price;
-        const change24hValue = newValue * (price.change24hPercent / 100);
-        dispatch({
-          type: 'UPDATE_ASSET',
-          payload: {
-            id: asset.id,
-            updates: {
-              currentPrice: price.price,
-              value: newValue,
-              change24h: price.change24h,
-              change24hPercent: price.change24hPercent,
-              change24hValue,
-            },
-          },
-        });
+      if (!price) {
+        return asset;
       }
+
+      const newValue = asset.quantity * price.price;
+      const change24hValue = newValue * (price.change24hPercent / 100);
+
+      if (
+        asset.currentPrice === price.price &&
+        asset.value === newValue &&
+        asset.change24h === price.change24h &&
+        asset.change24hPercent === price.change24hPercent &&
+        asset.change24hValue === change24hValue
+      ) {
+        return asset;
+      }
+
+      return {
+        ...asset,
+        currentPrice: price.price,
+        value: newValue,
+        change24h: price.change24h,
+        change24hPercent: price.change24hPercent,
+        change24hValue,
+      };
     });
+
+    const hasChanges = updatedAssets.some((asset, index) => asset !== state.assets[index]);
+    if (hasChanges) {
+      dispatch({ type: 'SET_ASSETS', payload: updatedAssets });
+    }
   }, [state.assets]);
 
-  const addTransaction = useCallback((transaction: Omit<Transaction, 'id'>) => {
+  const addTransaction = useCallback(async (transaction: Omit<Transaction, 'id'>) => {
+    const quantity = transaction.quantity ?? transaction.amount;
+    const price = transaction.price ?? 1;
+    const relatedAsset = state.assets.find(
+      (asset) => asset.symbol.toUpperCase() === transaction.symbol.toUpperCase()
+    );
+
     const newTransaction: Transaction = {
       ...transaction,
+      quantity,
+      price,
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
-    dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
-    toast.success(
-      `Successfully ${transaction.type === 'deposit' ? 'deposited' : 'withdrew'} $${transaction.amount.toLocaleString()}`
-    );
-  }, []);
 
-  const removeTransaction = useCallback((id: string) => {
+    if (isPocketBaseEnabled && pb && pb.authStore.isValid) {
+      try {
+        const pbInstance = pb;
+        const createdRecord = await pbInstance.collection('transactions').create({
+          user: pbInstance.authStore.model?.id,
+          position: relatedAsset?.id,
+          type: transaction.type,
+          symbol: transaction.symbol,
+          quantity,
+          price,
+          totalValue: transaction.amount,
+          fee: transaction.fee ?? 0,
+          timestamp: transaction.timestamp.toISOString(),
+        }) as Record<string, unknown>;
+
+        newTransaction.id = String(createdRecord.id ?? newTransaction.id);
+      } catch (err) {
+        console.error('PocketBase create transaction error:', err);
+      }
+    }
+
+    dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
+
+    const actionLabel = transaction.type === 'deposit'
+      ? 'deposited'
+      : transaction.type === 'withdraw'
+        ? 'withdrew'
+        : transaction.type === 'buy'
+          ? 'recorded buy for'
+          : 'recorded sell for';
+
+    toast.success(
+      `Successfully ${actionLabel} $${transaction.amount.toLocaleString()}`
+    );
+  }, [state.assets]);
+
+  const removeTransaction = useCallback(async (id: string) => {
+    if (isPocketBaseEnabled && pb && pb.authStore.isValid) {
+      try {
+        const pbInstance = pb;
+        await pbInstance.collection('transactions').delete(id);
+      } catch (err) {
+        console.error('PocketBase delete transaction error:', err);
+      }
+    }
+
     dispatch({ type: 'REMOVE_TRANSACTION', payload: id });
     toast.success('Transaction removed');
   }, []);
 
-  const clearTransactions = useCallback(() => {
+  const clearTransactions = useCallback(async () => {
+    if (isPocketBaseEnabled && pb && pb.authStore.isValid && state.transactions.length > 0) {
+      const pbInstance = pb;
+      await Promise.allSettled(
+        state.transactions.map((transaction) => pbInstance.collection('transactions').delete(transaction.id))
+      );
+    }
+
     dispatch({ type: 'CLEAR_TRANSACTIONS' });
     toast.success('All transactions cleared');
-  }, []);
+  }, [state.transactions]);
 
   const addAlert = useCallback((alert: Omit<Alert, 'id' | 'createdAt'>) => {
     const newAlert: Alert = {

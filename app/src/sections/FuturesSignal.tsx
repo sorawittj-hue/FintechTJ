@@ -28,10 +28,10 @@ import {
   Eye,
 } from 'lucide-react';
 import {
-  generateAllFuturesSignals,
-  getFuturesSignalSummary,
+  generateFuturesSignalSnapshot,
   sortSignals,
   type FuturesSignal,
+  type FuturesSignalDiagnostics,
   type FuturesSignalSummary,
   type Timeframe,
   type SignalDirection,
@@ -92,6 +92,34 @@ function formatPrice(price: number, symbol: string): string {
   if (price < 10) return `$${price.toFixed(4)}`;
   if (price < 1000) return `$${price.toFixed(2)}`;
   return `$${price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+function formatLatency(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  return `${(seconds / 3600).toFixed(1)}h`;
+}
+
+function formatSyncTime(date: Date): string {
+  return date.toLocaleTimeString('th-TH', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+function freshnessBadge(signal: FuturesSignal) {
+  if (signal.isStale) {
+    return {
+      className: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700/40',
+      label: `Delayed ${formatLatency(signal.latencySeconds)}`,
+    };
+  }
+
+  return {
+    className: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700/40',
+    label: `Fresh ${formatLatency(signal.latencySeconds)}`,
+  };
 }
 
 // ─── Reusable Sub-components ─────────────────────────────────────────────────
@@ -222,6 +250,7 @@ function HeroBestSignal({ signal }: { signal: FuturesSignal }) {
       : signal.direction === 'SHORT'
       ? 'from-red-500/20 via-red-500/5 to-transparent dark:from-red-900/40'
       : 'from-amber-500/20 via-amber-500/5 to-transparent dark:from-amber-900/40';
+  const freshness = freshnessBadge(signal);
 
   return (
     <motion.div
@@ -257,6 +286,12 @@ function HeroBestSignal({ signal }: { signal: FuturesSignal }) {
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">{signal.symbol}</h2>
                   <span className={`text-xs px-2 py-0.5 rounded-full border ${assetClassBadge(signal.assetClass)}`}>
                     {signal.assetClass}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-white/80 dark:bg-gray-800/80 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700">
+                    {signal.source}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full border ${freshness.className}`}>
+                    {freshness.label}
                   </span>
                   {signal.volumeSpike && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-300 dark:border-purple-700 flex items-center gap-1">
@@ -294,6 +329,11 @@ function HeroBestSignal({ signal }: { signal: FuturesSignal }) {
             </div>
           </div>
 
+          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+            <span>Data candle {formatSyncTime(signal.dataTimestamp)}</span>
+            <span>Engine refresh {formatSyncTime(signal.timestamp)}</span>
+          </div>
+
           {signal.direction !== 'NEUTRAL' && (
             <div className="mt-4 grid grid-cols-4 gap-2">
               <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur rounded-xl p-2.5 text-center">
@@ -324,6 +364,7 @@ function HeroBestSignal({ signal }: { signal: FuturesSignal }) {
 
 function SignalCard({ signal }: { signal: FuturesSignal }) {
   const [expanded, setExpanded] = useState(false);
+  const freshness = freshnessBadge(signal);
 
   const dirIcon =
     signal.direction === 'LONG' ? (
@@ -350,6 +391,12 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
           <div className="flex items-center gap-1.5 mb-2 flex-wrap">
             <span className={`text-xs px-2 py-0.5 rounded-full border ${assetClassBadge(signal.assetClass)}`}>
               {signal.assetClass}
+            </span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-white/80 dark:bg-gray-800/80 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700">
+              {signal.source}
+            </span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${freshness.className}`}>
+              {freshness.label}
             </span>
             {signal.volumeSpike && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center gap-0.5">
@@ -560,9 +607,10 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
                 )}
 
                 {/* Timestamp */}
-                <p className="text-xs text-gray-400 text-right">
-                  อัปเดตเมื่อ {signal.timestamp.toLocaleTimeString('th-TH')}
-                </p>
+                <div className="flex items-center justify-between gap-3 text-xs text-gray-400 flex-wrap">
+                  <span>{signal.source} · candle {formatSyncTime(signal.dataTimestamp)}</span>
+                  <span>อัปเดตเมื่อ {formatSyncTime(signal.timestamp)}</span>
+                </div>
               </CardContent>
             </motion.div>
           )}
@@ -617,40 +665,171 @@ function SummaryCard({ label, value, icon, color, sub }: { label: string; value:
   );
 }
 
+function DiagnosticsOverview({ diagnostics, summary }: { diagnostics: FuturesSignalDiagnostics; summary: FuturesSignalSummary }) {
+  const coverageTone = diagnostics.coveragePercent >= 100
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : diagnostics.coveragePercent >= 70
+    ? 'text-amber-600 dark:text-amber-400'
+    : 'text-red-600 dark:text-red-400';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="border-[#ee7d54]/15 bg-gradient-to-br from-white to-orange-50/50 dark:from-gray-900 dark:to-gray-900/80">
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[#ee7d54] font-semibold">Data Health</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-1">สถานะคุณภาพข้อมูลแบบ Real Data</h3>
+            </div>
+
+            <div className="text-right">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Last sync</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatSyncTime(diagnostics.fetchedAt)}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Calc {diagnostics.durationMs}ms</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/70 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Coverage</p>
+              <p className={`text-2xl font-bold mt-1 ${coverageTone}`}>{diagnostics.coveragePercent}%</p>
+              <p className="text-[11px] text-gray-400 mt-1">{diagnostics.successCount}/{diagnostics.requestedAssets} assets loaded</p>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/70 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Avg Latency</p>
+              <p className="text-2xl font-bold mt-1 text-gray-900 dark:text-white">{formatLatency(diagnostics.averageLatencySeconds)}</p>
+              <p className="text-[11px] text-gray-400 mt-1">เทียบจาก candle ล่าสุด</p>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/70 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Stale Feeds</p>
+              <p className={`text-2xl font-bold mt-1 ${diagnostics.staleCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                {diagnostics.staleCount}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1">feeds ที่ควรเฝ้าระวัง</p>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/70 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Sources</p>
+              <p className="text-2xl font-bold mt-1 text-gray-900 dark:text-white">{diagnostics.sources.Binance}/{diagnostics.sources['Yahoo Finance']}</p>
+              <p className="text-[11px] text-gray-400 mt-1">Binance / Yahoo Finance</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 flex-wrap text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex items-center gap-2">
+              <Layers className="w-3.5 h-3.5" />
+              <span>{diagnostics.activeSignals} active signals</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Summary updated {formatSyncTime(summary.lastUpdated)}</span>
+            </div>
+          </div>
+
+          {diagnostics.failedCount > 0 && (
+            <div className="rounded-xl border border-amber-200 dark:border-amber-700/40 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+              โหลดข้อมูลได้บางส่วน: {diagnostics.failedSymbols.join(', ')}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OIL';
 
-export default function FuturesSignalSection() {
+ export default function FuturesSignalSection() {
   const [signals, setSignals] = useState<FuturesSignal[]>([]);
   const [summary, setSummary] = useState<FuturesSignalSummary | null>(null);
+  const [diagnostics, setDiagnostics] = useState<FuturesSignalDiagnostics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [statusNotice, setStatusNotice] = useState<{ tone: 'warning' | 'error'; message: string } | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>('4h');
   const [filter, setFilter] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortOption>('score');
   const refreshKeyRef = useRef(0);
+  const hasLoadedRef = useRef(false);
+  const latestSignalsRef = useRef<FuturesSignal[]>([]);
 
   const fetchSignals = useCallback(async () => {
-    setLoading(true);
+    const isInitialLoad = !hasLoadedRef.current;
+    const hadExistingSignals = hasLoadedRef.current && latestSignalsRef.current.length > 0;
+
+    if (isInitialLoad) setLoading(true);
+    else setIsRefreshing(true);
+
+    setStatusNotice(null);
+
     try {
-      const data = await generateAllFuturesSignals(timeframe);
-      setSignals(data);
-      setSummary(getFuturesSignalSummary(data));
+      const snapshot = await generateFuturesSignalSnapshot(timeframe);
+
+      if (snapshot.signals.length === 0 && hadExistingSignals) {
+        setDiagnostics(snapshot.diagnostics);
+        refreshKeyRef.current += 1;
+        setStatusNotice({
+          tone: 'error',
+          message: 'รีเฟรชไม่สำเร็จจากทุกแหล่ง กำลังคงข้อมูลชุดก่อนหน้าไว้เพื่อไม่ให้จอว่าง',
+        });
+        return;
+      }
+
+      latestSignalsRef.current = snapshot.signals;
+      setSignals(snapshot.signals);
+      setSummary(snapshot.summary);
+      setDiagnostics(snapshot.diagnostics);
+      hasLoadedRef.current = true;
       refreshKeyRef.current += 1;
+
+      if (snapshot.signals.length === 0) {
+        setStatusNotice({
+          tone: 'error',
+          message: 'ไม่สามารถโหลดข้อมูล real-time ได้จากทุกแหล่งในขณะนี้',
+        });
+      } else if (snapshot.diagnostics.failedCount > 0) {
+        setStatusNotice({
+          tone: 'warning',
+          message: `โหลดข้อมูลได้ ${snapshot.diagnostics.successCount}/${snapshot.diagnostics.requestedAssets} สินทรัพย์ กำลังแสดงข้อมูลล่าสุดที่มีคุณภาพดีที่สุด`,
+        });
+      }
     } catch {
+      setStatusNotice({
+        tone: 'error',
+        message: hasLoadedRef.current
+          ? 'รีเฟรชไม่สำเร็จ กำลังแสดงข้อมูลชุดล่าสุดที่ยังมีอยู่'
+          : 'ไม่สามารถโหลดสัญญาณได้ กรุณาลองใหม่',
+      });
       toast.error('ไม่สามารถโหลดสัญญาณได้ กรุณาลองใหม่');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [timeframe]);
 
   useEffect(() => {
-    fetchSignals();
+    latestSignalsRef.current = signals;
+  }, [signals]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void fetchSignals();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [fetchSignals]);
 
   const handleAutoRefresh = useCallback(() => {
-    if (!loading) fetchSignals();
-  }, [loading, fetchSignals]);
+    if (!loading && !isRefreshing) fetchSignals();
+  }, [loading, isRefreshing, fetchSignals]);
 
   const filtered = sortSignals(
     signals.filter(s => {
@@ -688,6 +867,22 @@ export default function FuturesSignalSection() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             สัญญาณเทรดฟิวเจอร์ส · ทองคำ · น้ำมัน · คริปโต — Real-Time Multi-Indicator Analysis
           </p>
+          {diagnostics && summary && (
+            <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-gray-500 dark:text-gray-400">
+              <span className="px-2 py-1 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                Sync {formatSyncTime(diagnostics.fetchedAt)}
+              </span>
+              <span className="px-2 py-1 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                Coverage {diagnostics.coveragePercent}%
+              </span>
+              <span className={`px-2 py-1 rounded-full border ${diagnostics.staleCount > 0 ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700/40' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700/40'}`}>
+                {diagnostics.staleCount > 0 ? `${diagnostics.staleCount} stale feeds` : 'All feeds healthy'}
+              </span>
+              <span className="px-2 py-1 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                {summary.bestSignal ? `Top ${summary.bestSignal.symbol}` : 'No active signal'}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -710,14 +905,30 @@ export default function FuturesSignalSection() {
             variant="outline"
             size="sm"
             onClick={fetchSignals}
-            disabled={loading}
+            disabled={loading || isRefreshing}
             className="gap-1"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`w-3.5 h-3.5 ${loading || isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing' : 'Refresh'}
           </Button>
         </div>
       </motion.div>
+
+      {statusNotice && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-xl border px-4 py-3 text-sm ${statusNotice.tone === 'error'
+            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700/40 text-red-700 dark:text-red-400'
+            : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700/40 text-amber-700 dark:text-amber-400'}`}
+        >
+          {statusNotice.message}
+        </motion.div>
+      )}
+
+      {diagnostics && summary && !loading && (
+        <DiagnosticsOverview diagnostics={diagnostics} summary={summary} />
+      )}
 
       {/* Summary Cards */}
       {summary && !loading && (
@@ -826,7 +1037,7 @@ export default function FuturesSignalSection() {
       </motion.div>
 
       {/* Loading Skeletons */}
-      {loading && (
+      {loading && signals.length === 0 && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[...Array(6)].map((_, i) => (
             <SignalCardSkeleton key={i} />

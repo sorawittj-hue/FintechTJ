@@ -28,29 +28,96 @@ import {
 import { usePortfolio, usePrice } from '@/context/hooks';
 
 const COLORS = ['#ee7d54', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899'];
+const PORTFOLIO_HISTORY_KEY = 'dashboard-portfolio-history-v1';
+
+type PortfolioHistoryPoint = {
+  timestamp: number;
+  value: number;
+};
+
+function formatFeedAge(ageSeconds: number | null): string {
+  if (ageSeconds === null) return '—';
+  if (ageSeconds < 5) return 'just now';
+  if (ageSeconds < 60) return `${ageSeconds}s`;
+
+  const minutes = Math.floor(ageSeconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+
+  return `${(minutes / 60).toFixed(1)}h`;
+}
+
+function loadPortfolioHistory(): PortfolioHistoryPoint[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const saved = window.localStorage.getItem(PORTFOLIO_HISTORY_KEY);
+    if (!saved) {
+      return [];
+    }
+
+    return (JSON.parse(saved) as PortfolioHistoryPoint[])
+      .filter((point) => Number.isFinite(point.timestamp) && Number.isFinite(point.value) && point.value > 0)
+      .slice(-30);
+  } catch {
+    return [];
+  }
+}
 
 export const PortfolioOverview = React.memo(function PortfolioOverview() {
   const { portfolio, setIsDepositOpen, setIsWithdrawOpen } = usePortfolio();
-  const { isLoading: isLoadingPrices } = usePrice();
+  const {
+    isLoading: isLoadingPrices,
+    isWebSocketConnected,
+    isPriceFeedStale,
+    lastUpdate,
+    lastUpdateAgeSeconds,
+    latencyMs,
+    connectionState,
+  } = usePrice();
 
   const isPositive = portfolio.totalChange24h >= 0;
   const isProfit = portfolio.totalProfitLoss >= 0;
 
-  // Generate dynamic chart data based on current value (simulated history)
+  const portfolioHistory = useMemo(() => loadPortfolioHistory(), []);
+
   const chartData = useMemo(() => {
-    const data = [];
-    const baseValue = portfolio.totalValue || 10000;
-    const now = new Date();
-    for (let i = 30; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      data.push({
-        date: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-        value: baseValue * (1 + (Math.sin(i * 0.3) * 0.08)) // Deterministic fluctuation
-      });
+    if (portfolioHistory.length === 0) {
+      return [];
     }
-    return data;
-  }, [portfolio.totalValue]);
+
+    return portfolioHistory.map((point) => ({
+      date: new Date(point.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      value: point.value,
+    }));
+  }, [portfolioHistory]);
+
+  const hasChartHistory = chartData.length >= 2;
+
+  const feedHealth = useMemo(() => {
+    if (!isWebSocketConnected) {
+      return {
+        label: connectionState === 'reconnecting' ? 'Syncing feed' : 'Connecting feed',
+        badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+        dotClass: 'bg-amber-500',
+      };
+    }
+
+    if (isPriceFeedStale) {
+      return {
+        label: 'Delayed market feed',
+        badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',
+        dotClass: 'bg-orange-500',
+      };
+    }
+
+    return {
+      label: 'Live market feed',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      dotClass: 'bg-emerald-500',
+    };
+  }, [connectionState, isPriceFeedStale, isWebSocketConnected]);
 
   // Memoized allocation data
   const allocationData = useMemo(() =>
@@ -123,11 +190,23 @@ export const PortfolioOverview = React.memo(function PortfolioOverview() {
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6 }}
-        className="flex items-center justify-between"
+        className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
       >
         <div>
           <h2 className="text-2xl font-bold">Portfolio Overview</h2>
           <p className="text-gray-500 text-sm">Track your investments across all markets</p>
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${feedHealth.badgeClass}`}>
+              <span className={`w-2 h-2 rounded-full ${feedHealth.dotClass} ${isWebSocketConnected && !isPriceFeedStale ? 'animate-pulse' : ''}`} />
+              {feedHealth.label}
+            </span>
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-600">
+              age {formatFeedAge(lastUpdateAgeSeconds)}
+            </span>
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-600">
+              {latencyMs > 0 ? `${latencyMs}ms` : connectionState}
+            </span>
+          </div>
         </div>
         <div className="flex gap-2">
           {isLoadingPrices && (
@@ -164,7 +243,7 @@ export const PortfolioOverview = React.memo(function PortfolioOverview() {
             <div className="w-12 h-12 rounded-2xl bg-[#ee7d54]/10 flex items-center justify-center">
               <Wallet className="text-[#ee7d54]" size={24} />
             </div>
-            <span className="text-xs text-gray-400">Total Balance</span>
+            <span className="text-xs text-gray-400">{lastUpdate ? `Updated ${formatFeedAge(lastUpdateAgeSeconds)}` : 'Awaiting live price'}</span>
           </div>
           <h3 className="text-3xl font-bold mb-2">
             {statsConfig.totalValue.value}
@@ -267,7 +346,9 @@ export const PortfolioOverview = React.memo(function PortfolioOverview() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="font-semibold">Portfolio Performance</h3>
-              <p className="text-sm text-gray-500">Last 12 months</p>
+              <p className="text-sm text-gray-500">
+                {hasChartHistory ? 'Based on recorded portfolio history' : 'Waiting for enough recorded history to draw a real chart'}
+              </p>
             </div>
             <select
               onChange={handleTimeframeChange}
@@ -280,29 +361,38 @@ export const PortfolioOverview = React.memo(function PortfolioOverview() {
             </select>
           </div>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ee7d54" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#ee7d54" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} domain={['dataMin - 5000', 'dataMax + 5000']} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#ee7d54"
-                  strokeWidth={2}
-                  fill="url(#portfolioGradient)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {hasChartHistory ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#ee7d54" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#ee7d54" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} domain={['dataMin - 5000', 'dataMax + 5000']} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#ee7d54"
+                    strokeWidth={2}
+                    fill="url(#portfolioGradient)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full rounded-2xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-center px-6">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">ยังไม่มีประวัติพอร์ตจริงเพียงพอสำหรับกราฟ</p>
+                  <p className="text-xs text-gray-500 mt-2">เมื่อพอร์ตของคุณถูกบันทึกต่อเนื่อง กราฟนี้จะแสดงข้อมูลจริงแทนการจำลอง</p>
+                </div>
+              </div>
+            )}
           </div>
         </motion.div>
 

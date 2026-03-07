@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useData } from '@/context/useData';
+import { usePrice } from '@/context/hooks';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -28,6 +29,17 @@ interface ConnectionStatusProps {
   variant?: 'default' | 'compact' | 'detailed';
 }
 
+function formatFeedAge(ageSeconds: number | null) {
+  if (ageSeconds === null) return 'Never';
+  if (ageSeconds < 5) return 'Just now';
+  if (ageSeconds < 60) return `${ageSeconds}s ago`;
+
+  const minutes = Math.floor(ageSeconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+
+  return `${Math.floor(minutes / 60)}h ago`;
+}
+
 export function ConnectionStatus({
   className,
   showLabel = true,
@@ -36,6 +48,7 @@ export function ConnectionStatus({
   const { state, actions } = useData();
   const { connectionStatus, lastUpdate } = state;
   const { reconnect } = actions;
+  const { isPriceFeedStale, lastUpdateAgeSeconds, isWebSocketConnected, connectionState, latencyMs } = usePrice();
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -67,6 +80,7 @@ export function ConnectionStatus({
   // Get status color
   const getStatusColor = () => {
     if (!isOnline) return 'text-red-500';
+    if (isPriceFeedStale) return 'text-orange-500';
     switch (connectionStatus.state) {
       case 'connected':
         return 'text-green-500';
@@ -83,6 +97,7 @@ export function ConnectionStatus({
   // Get status icon
   const getStatusIcon = () => {
     if (!isOnline) return <WifiOff className="h-4 w-4" />;
+    if (isPriceFeedStale) return <AlertCircle className="h-4 w-4" />;
     switch (connectionStatus.state) {
       case 'connected':
         return <Wifi className="h-4 w-4" />;
@@ -99,6 +114,7 @@ export function ConnectionStatus({
   // Get status text
   const getStatusText = () => {
     if (!isOnline) return 'Offline';
+    if (isPriceFeedStale) return 'Delayed Feed';
     switch (connectionStatus.state) {
       case 'connected':
         return 'Connected';
@@ -111,21 +127,6 @@ export function ConnectionStatus({
       default:
         return 'Disconnected';
     }
-  };
-
-  // Format last update time
-  const formatLastUpdate = () => {
-    if (!lastUpdate) return 'Never';
-    const now = new Date();
-    const diff = now.getTime() - lastUpdate.getTime();
-    const seconds = Math.floor(diff / 1000);
-
-    if (seconds < 5) return 'Just now';
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ago`;
   };
 
   // Compact variant
@@ -155,13 +156,16 @@ export function ConnectionStatus({
             <div className="space-y-1">
               <p className="font-medium">{getStatusText()}</p>
               <p className="text-xs text-muted-foreground">
-                Last update: {formatLastUpdate()}
+                Last update: {formatFeedAge(lastUpdateAgeSeconds)}
               </p>
-              {connectionStatus.latency > 0 && (
+              {(latencyMs > 0 || connectionStatus.latency > 0) && (
                 <p className="text-xs text-muted-foreground">
-                  Latency: {connectionStatus.latency}ms
+                  Latency: {latencyMs || connectionStatus.latency}ms
                 </p>
               )}
+              <p className="text-xs text-muted-foreground">
+                Feed: {connectionState}
+              </p>
             </div>
           </TooltipContent>
         </Tooltip>
@@ -200,7 +204,7 @@ export function ConnectionStatus({
           </div>
           <div className="space-y-0.5">
             <p className="text-muted-foreground">Last Update</p>
-            <p className="font-medium">{formatLastUpdate()}</p>
+            <p className="font-medium">{formatFeedAge(lastUpdateAgeSeconds)}</p>
           </div>
           {connectionStatus.reconnectAttempts > 0 && (
             <div className="space-y-0.5">
@@ -208,13 +212,24 @@ export function ConnectionStatus({
               <p className="font-medium">{connectionStatus.reconnectAttempts}</p>
             </div>
           )}
-          {connectionStatus.latency > 0 && (
+          {(latencyMs > 0 || connectionStatus.latency > 0) && (
             <div className="space-y-0.5">
               <p className="text-muted-foreground">Latency</p>
-              <p className="font-medium">{connectionStatus.latency}ms</p>
+              <p className="font-medium">{latencyMs || connectionStatus.latency}ms</p>
             </div>
           )}
+          <div className="space-y-0.5">
+            <p className="text-muted-foreground">Feed State</p>
+            <p className="font-medium">{isWebSocketConnected && !isPriceFeedStale ? 'Live' : getStatusText()}</p>
+          </div>
         </div>
+
+        {isPriceFeedStale && isOnline && (
+          <div className="flex items-center gap-2 p-2 bg-orange-500/10 rounded text-sm text-orange-600">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <p>Price feed is delayed. Showing the latest confirmed market snapshot.</p>
+          </div>
+        )}
 
         {!isOnline && (
           <div className="flex items-center gap-2 p-2 bg-red-500/10 rounded text-sm text-red-600">
@@ -233,7 +248,6 @@ export function ConnectionStatus({
     );
   }
 
-  // Default variant
   return (
     <TooltipProvider>
       <Tooltip>
@@ -252,7 +266,7 @@ export function ConnectionStatus({
             )}
             {lastUpdate && (
               <span className="text-xs text-muted-foreground">
-                • {formatLastUpdate()}
+                • {formatFeedAge(lastUpdateAgeSeconds)}
               </span>
             )}
           </div>
@@ -260,7 +274,7 @@ export function ConnectionStatus({
         <TooltipContent side="bottom" className="max-w-xs">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              {connectionStatus.state === 'connected' ? (
+              {isWebSocketConnected && !isPriceFeedStale ? (
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
               ) : (
                 <AlertCircle className="h-4 w-4 text-yellow-500" />
@@ -268,8 +282,16 @@ export function ConnectionStatus({
               <span className="font-medium">{getStatusText()}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Last update: {formatLastUpdate()}
+              Last update: {formatFeedAge(lastUpdateAgeSeconds)}
             </p>
+            <p className="text-xs text-muted-foreground">
+              Feed: {connectionState}
+            </p>
+            {(latencyMs > 0 || connectionStatus.latency > 0) && (
+              <p className="text-xs text-muted-foreground">
+                Latency: {latencyMs || connectionStatus.latency}ms
+              </p>
+            )}
             {connectionStatus.state !== 'connected' && (
               <Button
                 size="sm"

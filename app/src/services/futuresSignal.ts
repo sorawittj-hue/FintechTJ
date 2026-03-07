@@ -26,6 +26,7 @@ export type SignalDirection = 'LONG' | 'SHORT' | 'NEUTRAL';
 export type SignalStrength = 'STRONG' | 'MODERATE' | 'WEAK';
 export type AssetClass = 'CRYPTO' | 'GOLD' | 'OIL';
 export type Timeframe = '15m' | '1h' | '4h' | '1d';
+export type FuturesSignalSource = 'Binance' | 'Yahoo Finance';
 
 export interface TradePlan {
   entry: number;
@@ -71,6 +72,10 @@ export interface FuturesSignal {
   warnings: string[];
   patterns: string[]; // detected candlestick patterns
   timestamp: Date;
+  source: FuturesSignalSource;
+  dataTimestamp: Date;
+  latencySeconds: number;
+  isStale: boolean;
   change24h: number;
   change24hPercent: number;
   high24h: number;
@@ -93,7 +98,39 @@ export interface FuturesSignalSummary {
   lastUpdated: Date;
 }
 
+export interface FuturesSignalDiagnostics {
+  requestedAssets: number;
+  successCount: number;
+  failedCount: number;
+  coveragePercent: number;
+  staleCount: number;
+  activeSignals: number;
+  averageLatencySeconds: number;
+  sources: Record<FuturesSignalSource, number>;
+  failedSymbols: string[];
+  errors: string[];
+  fetchedAt: Date;
+  durationMs: number;
+}
+
+export interface FuturesSignalSnapshot {
+  signals: FuturesSignal[];
+  summary: FuturesSignalSummary;
+  diagnostics: FuturesSignalDiagnostics;
+}
+
 export type SortOption = 'score' | 'confidence' | 'change' | 'name';
+
+const SIGNAL_STALE_THRESHOLDS_MS: Record<Timeframe, number> = {
+  '15m': 20 * 60 * 1000,
+  '1h': 90 * 60 * 1000,
+  '4h': 6 * 60 * 60 * 1000,
+  '1d': 36 * 60 * 60 * 1000,
+};
+
+export function isSignalStale(timeframe: Timeframe, latencySeconds: number): boolean {
+  return latencySeconds * 1000 > SIGNAL_STALE_THRESHOLDS_MS[timeframe];
+}
 
 // ─── Asset Configuration ──────────────────────────────────────────────────────
 
@@ -217,6 +254,17 @@ interface ScoreResult {
   volumeSpike: boolean;
   nearSupport: boolean;
   nearResistance: boolean;
+}
+
+interface SignalGenerationResult {
+  symbol: string;
+  source: FuturesSignalSource;
+  signal: FuturesSignal | null;
+  error: string | null;
+}
+
+function getSignalSource(config: AssetConfig): FuturesSignalSource {
+  return config.assetClass === 'GOLD' || config.assetClass === 'OIL' ? 'Yahoo Finance' : 'Binance';
 }
 
 function scoreSignal(engine: IndicatorEngine, currentPrice: number): ScoreResult {
@@ -398,7 +446,7 @@ function scoreSignal(engine: IndicatorEngine, currentPrice: number): ScoreResult
   }
 
   // ── Volume spike detection ──
-  let volumeSpike = false;
+  const volumeSpike = false;
   // Not directly available from engine; will be checked outside
 
   // ── Warnings ──
@@ -516,7 +564,9 @@ const YAHOO_SYMBOL_MAP: Record<string, string> = {
 async function generateSignalForAsset(
   config: AssetConfig,
   timeframe: Timeframe
-): Promise<FuturesSignal | null> {
+): Promise<SignalGenerationResult> {
+  const source = getSignalSource(config);
+
   try {
     const intervalMap: Record<Timeframe, string> = {
       '15m': '15m',
@@ -537,7 +587,14 @@ async function generateSignalForAsset(
     if (config.assetClass === 'GOLD' || config.assetClass === 'OIL') {
       const yahooSymbol = YAHOO_SYMBOL_MAP[config.symbol];
       const data = await fetchYahooOHLCV(yahooSymbol, timeframe);
-      if (!data || data.klines.length < 30) return null;
+      if (!data || data.klines.length < 30) {
+        return {
+          symbol: config.symbol,
+          source,
+          signal: null,
+          error: 'Insufficient Yahoo market data',
+        };
+      }
 
       candles = data.klines.map(klineToCandle);
       currentPrice = data.meta.regularMarketPrice;
@@ -553,7 +610,14 @@ async function generateSignalForAsset(
         binanceAPI.getKlines(config.binanceSymbol, interval, 200),
       ]);
 
-      if (!priceData || klinesData.length < 30) return null;
+      if (!priceData || klinesData.length < 30) {
+        return {
+          symbol: config.symbol,
+          source,
+          signal: null,
+          error: 'Insufficient Binance market data',
+        };
+      }
 
       candles = klinesData.map(klineToCandle);
       currentPrice = priceData.price;
@@ -569,6 +633,11 @@ async function generateSignalForAsset(
     const scoreResult = scoreSignal(engine, currentPrice);
     const { direction, score, strength, confidence, reasoning, warnings, patterns, nearSupport, nearResistance } = scoreResult;
 
+    const lastCandleTime = candles[candles.length - 1]?.time ?? Date.now();
+    const dataTimestamp = new Date(lastCandleTime);
+    const latencySeconds = Math.max(0, Math.round((Date.now() - dataTimestamp.getTime()) / 1000));
+    const stale = isSignalStale(timeframe, latencySeconds);
+
     // Volume spike detection: last candle volume > 2x average of last 20
     const recentVolumes = candles.slice(-20).map(c => c.volume);
     const avgVol = recentVolumes.reduce((s, v) => s + v, 0) / recentVolumes.length;
@@ -576,6 +645,9 @@ async function generateSignalForAsset(
     const volumeSpike = lastVol > avgVol * 2;
     if (volumeSpike) {
       reasoning.push(`Volume Spike ×${(lastVol / avgVol).toFixed(1)} — สัญญาณเคลื่อนไหวรุนแรง`);
+    }
+    if (stale) {
+      warnings.push(`ข้อมูลของ ${config.symbol} เริ่มเก่าแล้ว (${Math.round(latencySeconds / 60)} นาที)`);
     }
 
     const rsi = engine.calculateRSI();
@@ -605,49 +677,105 @@ async function generateSignalForAsset(
     const tradePlan = buildTradePlan(currentPrice, direction, atr.value, config);
 
     return {
-      id: `${config.symbol}_${timeframe}_${Date.now()}`,
       symbol: config.symbol,
-      name: config.name,
-      assetClass: config.assetClass,
-      currentPrice,
-      direction,
-      strength,
-      score,
-      confidence,
-      timeframe,
-      tradePlan,
-      indicators,
-      reasoning,
-      warnings,
-      patterns,
-      timestamp: new Date(),
-      change24h,
-      change24hPercent,
-      high24h,
-      low24h,
-      volume24h,
-      volumeSpike,
-      nearSupport,
-      nearResistance,
-      isActive: direction !== 'NEUTRAL' && strength !== 'WEAK',
+      source,
+      error: null,
+      signal: {
+        id: `${config.symbol}_${timeframe}_${Date.now()}`,
+        symbol: config.symbol,
+        name: config.name,
+        assetClass: config.assetClass,
+        currentPrice,
+        direction,
+        strength,
+        score,
+        confidence,
+        timeframe,
+        tradePlan,
+        indicators,
+        reasoning,
+        warnings,
+        patterns,
+        timestamp: new Date(),
+        source,
+        dataTimestamp,
+        latencySeconds,
+        isStale: stale,
+        change24h,
+        change24hPercent,
+        high24h,
+        low24h,
+        volume24h,
+        volumeSpike,
+        nearSupport,
+        nearResistance,
+        isActive: direction !== 'NEUTRAL' && strength !== 'WEAK',
+      },
     };
   } catch (err) {
     console.error(`[FuturesSignal] Error generating signal for ${config.symbol}:`, err);
-    return null;
+    return {
+      symbol: config.symbol,
+      source,
+      signal: null,
+      error: err instanceof Error ? err.message : 'Unknown signal generation error',
+    };
   }
+}
+
+function buildFuturesSignalDiagnostics(
+  results: SignalGenerationResult[],
+  signals: FuturesSignal[],
+  durationMs: number
+): FuturesSignalDiagnostics {
+  const failedResults = results.filter((result) => result.signal === null);
+  const averageLatencySeconds = signals.length > 0
+    ? Math.round(signals.reduce((sum, signal) => sum + signal.latencySeconds, 0) / signals.length)
+    : 0;
+
+  return {
+    requestedAssets: results.length,
+    successCount: signals.length,
+    failedCount: failedResults.length,
+    coveragePercent: results.length > 0 ? Math.round((signals.length / results.length) * 100) : 0,
+    staleCount: signals.filter((signal) => signal.isStale).length,
+    activeSignals: signals.filter((signal) => signal.isActive).length,
+    averageLatencySeconds,
+    sources: {
+      Binance: signals.filter((signal) => signal.source === 'Binance').length,
+      'Yahoo Finance': signals.filter((signal) => signal.source === 'Yahoo Finance').length,
+    },
+    failedSymbols: failedResults.map((result) => result.symbol),
+    errors: failedResults
+      .map((result) => result.error)
+      .filter((error): error is string => Boolean(error)),
+    fetchedAt: new Date(),
+    durationMs,
+  };
+}
+
+export async function generateFuturesSignalSnapshot(
+  timeframe: Timeframe = '4h'
+): Promise<FuturesSignalSnapshot> {
+  const startedAt = Date.now();
+  const results = await Promise.all(FUTURES_ASSETS.map((config) => generateSignalForAsset(config, timeframe)));
+  const signals = results
+    .map((result) => result.signal)
+    .filter((signal): signal is FuturesSignal => signal !== null);
+  const diagnostics = buildFuturesSignalDiagnostics(results, signals, Date.now() - startedAt);
+
+  return {
+    signals,
+    summary: getFuturesSignalSummary(signals),
+    diagnostics,
+  };
 }
 
 export async function generateAllFuturesSignals(
   timeframe: Timeframe = '4h'
 ): Promise<FuturesSignal[]> {
-  const results = await Promise.allSettled(
-    FUTURES_ASSETS.map(config => generateSignalForAsset(config, timeframe))
-  );
-
-  return results
-    .filter((r): r is PromiseFulfilledResult<FuturesSignal | null> => r.status === 'fulfilled')
-    .map(r => r.value)
-    .filter((s): s is FuturesSignal => s !== null);
+  const snapshot = await generateFuturesSignalSnapshot(timeframe);
+  return snapshot.signals;
 }
 
 export function getFuturesSignalSummary(signals: FuturesSignal[]): FuturesSignalSummary {
@@ -656,7 +784,12 @@ export function getFuturesSignalSummary(signals: FuturesSignal[]): FuturesSignal
   const avgConf = signals.length > 0
     ? Math.round(signals.reduce((s, sig) => s + sig.confidence, 0) / signals.length)
     : 0;
-  const active = signals.filter(s => s.isActive).sort((a, b) => b.score - a.score);
+  const active = signals
+    .filter(s => s.isActive)
+    .sort((a, b) => b.score - a.score || b.confidence - a.confidence || a.latencySeconds - b.latencySeconds);
+  const lastUpdated = signals.length > 0
+    ? new Date(Math.max(...signals.map((signal) => signal.timestamp.getTime())))
+    : new Date();
 
   return {
     totalLong: longs.length,
@@ -666,7 +799,7 @@ export function getFuturesSignalSummary(signals: FuturesSignal[]): FuturesSignal
     avgConfidence: avgConf,
     bestSignal: active[0] ?? null,
     marketBias: longs.length > shorts.length ? 'bullish' : shorts.length > longs.length ? 'bearish' : 'mixed',
-    lastUpdated: new Date(),
+    lastUpdated,
   };
 }
 

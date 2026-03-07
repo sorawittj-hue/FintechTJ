@@ -14,28 +14,100 @@ import {
   Globe,
   Zap
 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { useData, usePortfolio } from '@/context/hooks';
 
-// Demo Data
-const AUDIO_BRIEF_DEMO = {
-  id: 'brief-1',
-  date: new Date().toISOString(),
-  duration: 180,
-  summary: 'Market update: Bitcoin maintains support levels while WTI crude faces intense supply pressure following a massive EIA inventory build.',
-  keyPoints: [
-    'Bitcoin holding above key support at $67,000',
-    'WTI crude alert: 15.9M barrel inventory build creates bearish supply glut',
-    'DXY strength reaching critical multi-month resistance',
-    'Institutional flows rotating from tech into defensive commodities'
-  ],
-  sentiment: 'mixed'
+type GeneratedBrief = {
+  title: string;
+  date: Date;
+  duration: number;
+  summary: string;
+  keyPoints: string[];
+  sentiment: 'bullish' | 'bearish' | 'mixed';
+  script: string;
 };
 
 export function AudioBrief() {
+  const { state: dataState } = useData();
+  const { portfolio } = usePortfolio();
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [volume] = useState(80);
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  const topCryptos = useMemo(
+    () => dataState.allPrices.slice(0, 3),
+    [dataState.allPrices]
+  );
+
+  const stockIndices = useMemo(
+    () => dataState.marketData.indices.slice(0, 3),
+    [dataState.marketData.indices]
+  );
+
+  const brief = useMemo<GeneratedBrief>(() => {
+    const marketBias = portfolio.totalChange24hPercent > 1
+      ? 'bullish'
+      : portfolio.totalChange24hPercent < -1
+        ? 'bearish'
+        : 'mixed';
+
+    const cryptoLine = topCryptos.length > 0
+      ? topCryptos.map((coin) => `${coin.symbol} ${coin.change24hPercent >= 0 ? 'up' : 'down'} ${Math.abs(coin.change24hPercent).toFixed(2)}%`).join(', ')
+      : 'crypto coverage is still loading';
+
+    const indexLine = stockIndices.length > 0
+      ? stockIndices.map((index) => `${index.name} ${index.changePercent >= 0 ? '+' : ''}${index.changePercent.toFixed(2)}%`).join(', ')
+      : 'equity index coverage is not available yet';
+
+    const summary = `Portfolio value is ${portfolio.totalValue > 0 ? `$${portfolio.totalValue.toLocaleString()}` : 'not funded yet'}. Over the last 24 hours, portfolio performance is ${portfolio.totalChange24hPercent >= 0 ? 'up' : 'down'} ${Math.abs(portfolio.totalChange24hPercent).toFixed(2)} percent. Crypto markets show ${cryptoLine}, while major indices show ${indexLine}.`;
+
+    const keyPoints = [
+      portfolio.assets.length > 0
+        ? `You are tracking ${portfolio.assets.length} assets with unrealized P and L of ${portfolio.totalProfitLoss >= 0 ? '+' : '-'}$${Math.abs(portfolio.totalProfitLoss).toLocaleString(undefined, { maximumFractionDigits: 2 })}.`
+        : 'Your portfolio is currently empty, so the brief is based on market coverage rather than holdings.',
+      topCryptos[0]
+        ? `${topCryptos[0].symbol} is trading at $${topCryptos[0].price.toLocaleString(undefined, { maximumFractionDigits: 2 })} with ${topCryptos[0].change24hPercent >= 0 ? 'positive' : 'negative'} daily momentum.`
+        : 'Top crypto movers are not available yet from the live feed.',
+      dataState.globalStats.totalVolume24h > 0
+        ? `Estimated crypto market volume is $${Math.round(dataState.globalStats.totalVolume24h).toLocaleString()} over 24 hours, with BTC dominance at ${dataState.globalStats.btcDominance.toFixed(1)} percent.`
+        : 'Global crypto market breadth is still syncing, so volume and dominance are temporarily unavailable.',
+      dataState.connectionStatus.state === 'connected'
+        ? 'Live data feed is connected and available for ongoing market monitoring.'
+        : `Data feed state is ${dataState.connectionStatus.state}, so some parts of the brief may lag until reconnection completes.`,
+    ];
+
+    const script = [summary, ...keyPoints].join(' ');
+    const estimatedDuration = Math.max(45, Math.min(240, Math.round(script.split(/\s+/).length / 2.5)));
+
+    return {
+      title: 'Live Market Brief',
+      date: new Date(),
+      duration: estimatedDuration,
+      summary,
+      keyPoints,
+      sentiment: marketBias,
+      script,
+    };
+  }, [dataState.connectionStatus.state, dataState.globalStats.btcDominance, dataState.globalStats.totalVolume24h, portfolio.assets.length, portfolio.totalChange24hPercent, portfolio.totalProfitLoss, portfolio.totalValue, stockIndices, topCryptos]);
+
+  const hasBriefData = useMemo(
+    () => portfolio.assets.length > 0 || topCryptos.length > 0 || stockIndices.length > 0,
+    [portfolio.assets.length, stockIndices.length, topCryptos.length]
+  );
+
+  const briefSchedule = useMemo(() => {
+    const now = new Date();
+    const hours = now.getHours();
+
+    return [
+      { time: '07:00 AM', name: 'Pre-Market Brief', status: hours >= 7 ? 'completed' : 'scheduled' },
+      { time: '09:30 AM', name: 'Market Open Brief', status: hours >= 10 ? 'completed' : 'scheduled' },
+      { time: '04:00 PM', name: 'Market Close Brief', status: hours >= 16 ? 'completed' : 'scheduled' },
+      { time: '08:00 PM', name: 'After-Hours Brief', status: hours >= 20 ? 'completed' : 'scheduled' },
+    ] as const;
+  }, []);
 
   useEffect(() => {
     if (isPlaying) {
@@ -60,13 +132,21 @@ export function AudioBrief() {
     };
   }, [isPlaying]);
 
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const currentTime = Math.floor((progress / 100) * AUDIO_BRIEF_DEMO.duration);
+  const currentTime = Math.floor((progress / 100) * brief.duration);
 
   return (
     <div className="space-y-6">
@@ -79,11 +159,11 @@ export function AudioBrief() {
       >
         <div>
           <h2 className="text-2xl font-bold">Audio Morning Brief</h2>
-          <p className="text-gray-500 text-sm">AI-generated daily market summary</p>
+          <p className="text-gray-500 text-sm">AI-composed summary from live portfolio and market data</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-            AI Generated
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${brief.sentiment === 'bullish' ? 'bg-green-100 text-green-700' : brief.sentiment === 'bearish' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}`}>
+            {brief.sentiment === 'bullish' ? 'Bullish' : brief.sentiment === 'bearish' ? 'Bearish' : 'Mixed'} Tone
           </span>
         </div>
       </motion.div>
@@ -101,10 +181,10 @@ export function AudioBrief() {
               <Mic size={32} />
             </div>
             <div>
-              <h3 className="text-xl font-bold">Morning Market Brief</h3>
+              <h3 className="text-xl font-bold">{brief.title}</h3>
               <p className="text-white/70 flex items-center gap-2">
                 <Calendar size={14} />
-                {new Date(AUDIO_BRIEF_DEMO.date).toLocaleDateString('en-US', {
+                {brief.date.toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
@@ -115,8 +195,12 @@ export function AudioBrief() {
           </div>
           <div className="text-right">
             <p className="text-3xl font-bold">{formatTime(currentTime)}</p>
-            <p className="text-white/70 text-sm">/ {formatTime(AUDIO_BRIEF_DEMO.duration)}</p>
+            <p className="text-white/70 text-sm">/ {formatTime(brief.duration)}</p>
           </div>
+        </div>
+
+        <div className="mb-6 p-4 rounded-2xl bg-white/10 backdrop-blur-sm">
+          <p className="text-sm text-white/90 leading-relaxed">{brief.summary}</p>
         </div>
 
         {/* Progress Bar */}
@@ -153,11 +237,35 @@ export function AudioBrief() {
                   toast.error('Audio playback is not supported in this browser.');
                   return;
                 }
-                setIsPlaying(!isPlaying);
+
+                if (!hasBriefData) {
+                  toast.error('Not enough live data to generate the brief yet.');
+                  return;
+                }
+
                 if (isPlaying) {
+                  window.speechSynthesis.cancel();
                   toast.info('Paused');
+                  setIsPlaying(false);
                 } else {
+                  const utterance = new SpeechSynthesisUtterance(brief.script);
+                  utterance.rate = 1;
+                  utterance.pitch = 1;
+                  utterance.volume = volume / 100;
+                  utterance.onend = () => {
+                    setIsPlaying(false);
+                    setProgress(100);
+                  };
+                  utterance.onerror = () => {
+                    setIsPlaying(false);
+                    toast.error('Failed to play the generated brief.');
+                  };
+                  utteranceRef.current = utterance;
+                  setProgress(0);
+                  window.speechSynthesis.cancel();
+                  window.speechSynthesis.speak(utterance);
                   toast.success('Playing...');
+                  setIsPlaying(true);
                 }
               }}
               className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-[#ee7d54] hover:scale-105 transition-transform"
@@ -202,7 +310,7 @@ export function AudioBrief() {
         </div>
 
         <div className="space-y-4">
-          {AUDIO_BRIEF_DEMO.keyPoints.map((point: string, index: number) => (
+          {brief.keyPoints.map((point: string, index: number) => (
             <motion.div
               key={index}
               initial={{ x: -20, opacity: 0 }}
@@ -234,18 +342,16 @@ export function AudioBrief() {
             <span className="text-sm text-gray-500">Stock Markets</span>
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">S&P 500</span>
-              <span className="text-sm font-medium text-green-500">+0.89%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">NASDAQ</span>
-              <span className="text-sm font-medium text-green-500">+0.98%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">DOW</span>
-              <span className="text-sm font-medium text-red-500">-0.06%</span>
-            </div>
+            {stockIndices.length > 0 ? stockIndices.map((index) => (
+              <div key={index.symbol} className="flex items-center justify-between">
+                <span className="text-sm">{index.name}</span>
+                <span className={`text-sm font-medium ${index.changePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {index.changePercent >= 0 ? '+' : ''}{index.changePercent.toFixed(2)}%
+                </span>
+              </div>
+            )) : (
+              <p className="text-sm text-gray-400">Index data not available yet</p>
+            )}
           </div>
         </div>
 
@@ -257,18 +363,16 @@ export function AudioBrief() {
             <span className="text-sm text-gray-500">Crypto Markets</span>
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Bitcoin</span>
-              <span className="text-sm font-medium text-green-500">+3.45%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Ethereum</span>
-              <span className="text-sm font-medium text-green-500">+4.12%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Solana</span>
-              <span className="text-sm font-medium text-green-500">+6.34%</span>
-            </div>
+            {topCryptos.length > 0 ? topCryptos.map((coin) => (
+              <div key={coin.symbol} className="flex items-center justify-between">
+                <span className="text-sm">{coin.symbol}</span>
+                <span className={`text-sm font-medium ${coin.change24hPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {coin.change24hPercent >= 0 ? '+' : ''}{coin.change24hPercent.toFixed(2)}%
+                </span>
+              </div>
+            )) : (
+              <p className="text-sm text-gray-400">Crypto feed still syncing</p>
+            )}
           </div>
         </div>
 
@@ -281,16 +385,16 @@ export function AudioBrief() {
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm">Fed Rate</span>
-              <span className="text-sm font-medium">5.50%</span>
+              <span className="text-sm">Fear & Greed</span>
+              <span className="text-sm font-medium">{dataState.globalStats.fearGreedIndex || '—'}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm">CPI YoY</span>
-              <span className="text-sm font-medium text-green-500">3.1%</span>
+              <span className="text-sm">BTC Dominance</span>
+              <span className="text-sm font-medium text-green-500">{dataState.globalStats.btcDominance > 0 ? `${dataState.globalStats.btcDominance.toFixed(1)}%` : '—'}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm">VIX</span>
-              <span className="text-sm font-medium text-green-500">13.45</span>
+              <span className="text-sm">24h Volume</span>
+              <span className="text-sm font-medium text-green-500">{dataState.globalStats.totalVolume24h > 0 ? `$${Math.round(dataState.globalStats.totalVolume24h).toLocaleString()}` : '—'}</span>
             </div>
           </div>
         </div>
@@ -316,24 +420,19 @@ export function AudioBrief() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[
-            { time: '07:00 AM', name: 'Pre-Market Brief', status: 'completed' },
-            { time: '09:30 AM', name: 'Market Open Brief', status: 'completed' },
-            { time: '04:00 PM', name: 'Market Close Brief', status: 'scheduled' },
-            { time: '08:00 PM', name: 'After-Hours Brief', status: 'scheduled' },
-          ].map((brief) => (
+          {briefSchedule.map((scheduledBrief) => (
             <div
-              key={brief.name}
-              className={`p-4 rounded-2xl ${brief.status === 'completed'
+              key={scheduledBrief.name}
+              className={`p-4 rounded-2xl ${scheduledBrief.status === 'completed'
                 ? 'bg-green-50 border border-green-100'
                 : 'bg-gray-50 border border-gray-100'
                 }`}
             >
-              <p className="text-xs text-gray-500 mb-1">{brief.time}</p>
-              <p className="font-medium text-sm">{brief.name}</p>
-              <span className={`text-xs ${brief.status === 'completed' ? 'text-green-600' : 'text-gray-400'
+              <p className="text-xs text-gray-500 mb-1">{scheduledBrief.time}</p>
+              <p className="font-medium text-sm">{scheduledBrief.name}</p>
+              <span className={`text-xs ${scheduledBrief.status === 'completed' ? 'text-green-600' : 'text-gray-400'
                 }`}>
-                {brief.status === 'completed' ? '✓ Completed' : '○ Scheduled'}
+                {scheduledBrief.status === 'completed' ? '✓ Completed' : '○ Scheduled'}
               </span>
             </div>
           ))}

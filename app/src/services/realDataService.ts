@@ -213,6 +213,10 @@ const cache = {
         maxSize: 500,
         defaultTTL: 30 * 1000, // 30 seconds
     }),
+    priceLists: new LRUCache<RealTimePrice[]>({
+        maxSize: 100,
+        defaultTTL: 30 * 1000,
+    }),
     global: new LRUCache<GlobalMarketData>({
         maxSize: 1,
         defaultTTL: 5 * 60 * 1000, // 5 minutes
@@ -262,9 +266,10 @@ async function fetchWithProxy(url: string, options?: RequestInit, proxyIndex = 0
 export async function fetchCryptoPrices(symbols: string[]): Promise<RealTimePrice[]> {
     if (symbols.length === 0) return [];
 
-    const cacheKey = `prices_${symbols.sort().join(',')}`;
-    const cached = cache.prices.get(cacheKey);
-    if (cached) return [cached];
+    const normalizedSymbols = [...symbols].sort((a, b) => a.localeCompare(b));
+    const cacheKey = `prices_${normalizedSymbols.join(',')}`;
+    const cached = cache.priceLists.get(cacheKey);
+    if (cached) return cached;
 
     return rateLimiters.coingecko.execute(async () => {
         try {
@@ -303,6 +308,7 @@ export async function fetchCryptoPrices(symbols: string[]): Promise<RealTimePric
                 source: 'CoinGecko',
             }));
 
+            cache.priceLists.set(cacheKey, prices);
             prices.forEach(p => cache.prices.set(`prices_${p.symbol}`, p));
             return prices;
         } catch (error) {
@@ -311,6 +317,8 @@ export async function fetchCryptoPrices(symbols: string[]): Promise<RealTimePric
             try {
                 const binancePrices = await fetchCryptoPricesFromBinance(symbols);
                 if (binancePrices.length > 0) {
+                    cache.priceLists.set(cacheKey, binancePrices);
+                    binancePrices.forEach(p => cache.prices.set(`prices_${p.symbol}`, p));
                     return binancePrices;
                 }
             } catch (binanceError) {
@@ -538,7 +546,7 @@ export async function fetchWhaleTransactions(
             let btcPrice: number | null = null;
             try {
                 btcPrice = await getCachedBTCPrice();
-            } catch (e) {
+            } catch {
                 btcPrice = 65000; // Fallback
             }
 
@@ -1049,10 +1057,19 @@ export function calculateRiskIndicators(
     if (assets.length === 0) return [];
 
     const indicators: RiskIndicator[] = [];
+    const normalizedHistoricalValues = (historicalValues || []).filter((value) => Number.isFinite(value) && value > 0);
+    const historicalReturns = normalizedHistoricalValues.length > 1
+        ? normalizedHistoricalValues.slice(1).map((value, index) => {
+            const previous = normalizedHistoricalValues[index];
+            return previous > 0 ? (value - previous) / previous : 0;
+        })
+        : [];
 
     // 1. Portfolio VaR (Value at Risk) - Simplified calculation
     const assetVolatilities = assets.map(a => Math.abs(a.change24hPercent) / 100);
-    const avgVolatility = assetVolatilities.reduce((a, b) => a + b, 0) / assetVolatilities.length;
+    const avgVolatility = historicalReturns.length > 0
+        ? historicalReturns.reduce((sum, value) => sum + Math.abs(value), 0) / historicalReturns.length
+        : assetVolatilities.reduce((a, b) => a + b, 0) / assetVolatilities.length;
     const portfolioVaR = portfolioValue * avgVolatility * 1.645; // 95% confidence
     const varPercent = (portfolioVaR / portfolioValue) * 100;
 
@@ -1066,7 +1083,10 @@ export function calculateRiskIndicators(
 
     // 2. Sharpe Ratio approximation (assuming risk-free rate ~5%)
     const totalReturn = assets.reduce((sum, a) => sum + (a.change24hPercent / 100) * (a.value / portfolioValue), 0);
-    const annualizedReturn = totalReturn * 365;
+    const averageHistoricalReturn = historicalReturns.length > 0
+        ? historicalReturns.reduce((sum, value) => sum + value, 0) / historicalReturns.length
+        : totalReturn;
+    const annualizedReturn = averageHistoricalReturn * 365;
     const riskFreeRate = 0.05;
     const volatility = avgVolatility * Math.sqrt(365);
     const sharpeRatio = volatility > 0 ? (annualizedReturn - riskFreeRate) / volatility : 0;
@@ -1080,7 +1100,21 @@ export function calculateRiskIndicators(
     });
 
     // 3. Max Drawdown estimation from 24h changes
-    const maxLoss = Math.min(...assets.map(a => a.change24hPercent));
+    let maxLoss = Math.min(...assets.map(a => a.change24hPercent));
+    if (normalizedHistoricalValues.length > 1) {
+        let peak = normalizedHistoricalValues[0];
+        let maxDrawdown = 0;
+
+        normalizedHistoricalValues.forEach((value) => {
+            peak = Math.max(peak, value);
+            if (peak > 0) {
+                maxDrawdown = Math.min(maxDrawdown, ((value - peak) / peak) * 100);
+            }
+        });
+
+        maxLoss = maxDrawdown;
+    }
+
     indicators.push({
         name: 'Max Drawdown (24h)',
         value: maxLoss,

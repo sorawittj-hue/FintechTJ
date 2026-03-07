@@ -13,8 +13,12 @@ import {
     Loader2
 } from 'lucide-react';
 import { usePortfolio } from '@/context/hooks';
-import { binanceAPI } from '@/services/binance';
-import { usePrice } from '@/context/PriceContext';
+import {
+    fetchCommodityPrices,
+    fetchCryptoPrices,
+    fetchForexRates,
+    fetchStockQuote,
+} from '@/services/realDataService';
 
 interface AddAssetDialogProps {
     isOpen: boolean;
@@ -22,8 +26,7 @@ interface AddAssetDialogProps {
 }
 
 export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
-    const { addAsset, assets } = usePortfolio();
-    const { refreshPrices } = usePrice();
+    const { addAsset, assets, updateAsset, addTransaction } = usePortfolio();
 
     const [type, setType] = useState<'crypto' | 'stock' | 'commodity' | 'forex'>('crypto');
     const [symbol, setSymbol] = useState('');
@@ -53,6 +56,54 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         onClose();
     };
 
+    const fetchQuoteByType = async () => {
+        const normalizedSymbol = symbol.toUpperCase();
+
+        if (type === 'crypto') {
+            const [price] = await fetchCryptoPrices([normalizedSymbol]);
+            if (!price) return null;
+            return {
+                price: price.price,
+                name: price.name || normalizedSymbol,
+                change24h: price.change24h,
+                change24hPercent: price.change24hPercent,
+            };
+        }
+
+        if (type === 'stock') {
+            const stock = await fetchStockQuote(normalizedSymbol);
+            if (!stock) return null;
+            return {
+                price: stock.price,
+                name: stock.name || normalizedSymbol,
+                change24h: stock.change,
+                change24hPercent: stock.changePercent,
+            };
+        }
+
+        if (type === 'commodity') {
+            const commodities = await fetchCommodityPrices();
+            const commodity = commodities.find((item) => item.symbol.toUpperCase() === normalizedSymbol || item.name.toUpperCase().includes(normalizedSymbol));
+            if (!commodity) return null;
+            return {
+                price: commodity.price,
+                name: commodity.name,
+                change24h: commodity.change24h,
+                change24hPercent: commodity.change24hPercent,
+            };
+        }
+
+        const forexRates = await fetchForexRates();
+        const rate = forexRates.find((item) => item.symbol.toUpperCase() === normalizedSymbol || item.name.replace('/', '').toUpperCase() === normalizedSymbol);
+        if (!rate) return null;
+        return {
+            price: rate.rate,
+            name: rate.name,
+            change24h: rate.change24h,
+            change24hPercent: rate.change24hPercent,
+        };
+    };
+
     const fetchCurrentPrice = async () => {
         if (!symbol) {
             toast.error('กรุณากรอกสัญลักษณ์ก่อน');
@@ -63,15 +114,18 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         setFetchError(null);
         
         try {
-            const price = await binanceAPI.getPrice(symbol.toUpperCase());
-            if (price) {
-                setAvgPrice(price.price.toString());
-                toast.success(`ดึงราคา ${symbol.toUpperCase()} สำเร็จ: $${price.price.toLocaleString()}`);
+            const quote = await fetchQuoteByType();
+            if (quote) {
+                setAvgPrice(quote.price.toString());
+                if (!name.trim()) {
+                    setName(quote.name);
+                }
+                toast.success(`ดึงราคา ${symbol.toUpperCase()} สำเร็จ: $${quote.price.toLocaleString()}`);
             } else {
                 setFetchError('ไม่พบข้อมูลราคา กรุณากรอกราคาด้วยตนเอง');
                 toast.warning('ไม่พบข้อมูลราคา กรุณากรอกราคาด้วยตนเอง');
             }
-        } catch (error) {
+        } catch {
             setFetchError('ไม่สามารถดึงราคาได้ กรุณากรอกราคาด้วยตนเอง');
             toast.error('ไม่สามารถดึงราคาได้ กรุณากรอกราคาด้วยตนเอง');
         } finally {
@@ -108,17 +162,18 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         setIsProcessing(true);
 
         try {
-            // ดึงราคาปัจจุบันจริงๆ
             let currentPrice = pxNum;
             let change24h = 0;
             let change24hPercent = 0;
+            let resolvedName = name;
             
             try {
-                const livePrice = await binanceAPI.getPrice(symbol.toUpperCase());
-                if (livePrice) {
-                    currentPrice = livePrice.price;
-                    change24h = livePrice.change24h;
-                    change24hPercent = livePrice.change24hPercent;
+                const liveQuote = await fetchQuoteByType();
+                if (liveQuote) {
+                    currentPrice = liveQuote.price;
+                    change24h = liveQuote.change24h;
+                    change24hPercent = liveQuote.change24hPercent;
+                    resolvedName = liveQuote.name || name;
                 }
             } catch {
                 // ถ้าดึงไม่ได้ ใช้ราคาเฉลี่ยที่กรอก
@@ -126,10 +181,38 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
 
             const totalValue = qtyNum * currentPrice;
             const change24hValue = totalValue * (change24hPercent / 100);
+            const normalizedSymbol = symbol.toUpperCase();
+            const usdCashAsset = assets.find((asset) => asset.symbol.toUpperCase() === 'USD');
 
-            addAsset({
-                symbol: symbol.toUpperCase(),
-                name,
+            if (usdCashAsset && usdCashAsset.value >= totalValue) {
+                const nextCashQuantity = usdCashAsset.quantity - totalValue;
+
+                if (nextCashQuantity <= 0.000001) {
+                    await updateAsset(usdCashAsset.id, {
+                        quantity: 0,
+                        avgPrice: 1,
+                        currentPrice: 1,
+                        value: 0,
+                        change24h: 0,
+                        change24hPercent: 0,
+                        change24hValue: 0,
+                    });
+                } else {
+                    await updateAsset(usdCashAsset.id, {
+                        quantity: nextCashQuantity,
+                        avgPrice: 1,
+                        currentPrice: 1,
+                        value: nextCashQuantity,
+                        change24h: 0,
+                        change24hPercent: 0,
+                        change24hValue: 0,
+                    });
+                }
+            }
+
+            await addAsset({
+                symbol: normalizedSymbol,
+                name: resolvedName,
                 type,
                 quantity: qtyNum,
                 avgPrice: pxNum,
@@ -141,9 +224,19 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                 allocation: 0
             });
 
-            toast.success(`เพิ่ม ${symbol.toUpperCase()} ลงในพอร์ตเรียบร้อยแล้ว`);
+            await addTransaction({
+                type: 'buy',
+                amount: qtyNum * pxNum,
+                asset: normalizedSymbol,
+                symbol: normalizedSymbol,
+                timestamp: new Date(),
+                price: pxNum,
+                quantity: qtyNum,
+                fee: 0,
+            });
+
             handleClose();
-        } catch (error) {
+        } catch {
             toast.error('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
         } finally {
             setIsProcessing(false);

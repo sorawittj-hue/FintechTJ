@@ -36,16 +36,16 @@ export interface UsePortfolioReturn {
   isEmpty: boolean;
 
   // Asset operations
-  addAsset: (asset: Omit<PortfolioAsset, 'id'>) => void;
-  removeAsset: (id: string) => void;
-  updateAsset: (id: string, updates: Partial<PortfolioAsset>) => void;
+  addAsset: (asset: Omit<PortfolioAsset, 'id'>) => Promise<void>;
+  removeAsset: (id: string) => Promise<void>;
+  updateAsset: (id: string, updates: Partial<PortfolioAsset>) => Promise<void>;
   getAsset: (id: string) => PortfolioAsset | undefined;
   getAssetBySymbol: (symbol: string) => PortfolioAsset | undefined;
 
   // Transaction operations
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
-  removeTransaction: (id: string) => void;
-  clearTransactions: () => void;
+  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  removeTransaction: (id: string) => Promise<void>;
+  clearTransactions: () => Promise<void>;
 
   // Analysis
   getAllocationByType: () => Record<string, number>;

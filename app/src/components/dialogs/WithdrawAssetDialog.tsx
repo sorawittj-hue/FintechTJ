@@ -11,7 +11,7 @@ interface WithdrawAssetDialogProps {
 }
 
 export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetDialogProps) {
-    const { assets, updateAsset, removeAsset } = usePortfolio();
+    const { assets, updateAsset, removeAsset, addAsset, addTransaction } = usePortfolio();
 
     const [quantity, setQuantity] = useState('');
     const [price, setPrice] = useState('');
@@ -58,26 +58,63 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
 
         setIsProcessing(true);
 
-        // เลียนแบบการโหลด API
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        try {
+            const saleValue = withdrawQty * withdrawPx;
+            const remainingQty = asset.quantity - withdrawQty;
+            const usdCashAsset = assets.find((item) => item.symbol.toUpperCase() === 'USD');
 
-        if (withdrawQty === asset.quantity) {
-            // Remove completely if withdrawing all
-            removeAsset(asset.id);
-            toast.success(`ถอน ${asset.symbol} ทั้งหมดแล้ว`);
-        } else {
-            // Update quantity
-            const newQty = asset.quantity - withdrawQty;
-            const newValue = newQty * asset.currentPrice;
-            updateAsset(asset.id, {
-                quantity: newQty,
-                value: newValue,
+            if (withdrawQty === asset.quantity) {
+                await removeAsset(asset.id);
+            } else {
+                await updateAsset(asset.id, {
+                    quantity: remainingQty,
+                    value: remainingQty * asset.currentPrice,
+                });
+            }
+
+            if (usdCashAsset) {
+                const nextCashQuantity = usdCashAsset.quantity + saleValue;
+                await updateAsset(usdCashAsset.id, {
+                    quantity: nextCashQuantity,
+                    avgPrice: 1,
+                    currentPrice: 1,
+                    value: nextCashQuantity,
+                    change24h: 0,
+                    change24hPercent: 0,
+                    change24hValue: 0,
+                });
+            } else {
+                await addAsset({
+                    symbol: 'USD',
+                    name: 'US Dollar Cash',
+                    type: 'forex',
+                    quantity: saleValue,
+                    avgPrice: 1,
+                    currentPrice: 1,
+                    value: saleValue,
+                    change24h: 0,
+                    change24hPercent: 0,
+                    change24hValue: 0,
+                    allocation: 0,
+                });
+            }
+
+            await addTransaction({
+                type: 'sell',
+                amount: saleValue,
+                asset: asset.symbol,
+                symbol: asset.symbol,
+                timestamp: new Date(),
+                price: withdrawPx,
+                quantity: withdrawQty,
+                fee: 0,
             });
-            toast.success(`ถอน ${withdrawQty} ${asset.symbol} เรียบร้อยแล้ว`);
-        }
 
-        setIsProcessing(false);
-        handleClose();
+            toast.success(`ขาย ${withdrawQty} ${asset.symbol} เรียบร้อยแล้ว`);
+            handleClose();
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     if (!isOpen || !asset) return null;

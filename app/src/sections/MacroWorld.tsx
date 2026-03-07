@@ -48,6 +48,12 @@ interface LiquidityData {
   value: number;
 }
 
+interface MacroCachePayload {
+  indicators: MacroIndicator[];
+  liquidityData: LiquidityData[];
+  fetchedAt: string;
+}
+
 // FRED Series IDs for key indicators
 const FRED_SERIES = {
   FED_FUNDS_RATE: 'FEDFUNDS',      // Fed Funds Rate
@@ -59,98 +65,41 @@ const FRED_SERIES = {
   DXY: 'DTWEXBGS',                 // Dollar Index
 };
 
-// ═══════════════════ FALLBACK DATA ═══════════════════
-// Real market data as of March 2026 - used when APIs fail
+const MACRO_CACHE_KEY = 'macro-world-cache-v1';
 
-const FALLBACK_INDICATORS: Omit<MacroIndicator, 'isFallback'>[] = [
-  {
-    id: 'fed-funds',
-    name: 'Fed Funds Rate',
-    value: 4.50,
-    previous: 4.75,
-    change: -5.26,
-    country: 'USA',
-    impact: 'high',
-    trend: 'down',
-    unit: '%',
-    lastUpdated: '2026-02-28',
-  },
-  {
-    id: 'cpi',
-    name: 'US CPI (YoY)',
-    value: 2.8,
-    previous: 3.1,
-    change: -9.68,
-    country: 'USA',
-    impact: 'high',
-    trend: 'down',
-    unit: '%',
-    lastUpdated: '2026-02-15',
-  },
-  {
-    id: 'unemployment',
-    name: 'US Unemployment',
-    value: 4.2,
-    previous: 4.1,
-    change: 2.44,
-    country: 'USA',
-    impact: 'high',
-    trend: 'up',
-    unit: '%',
-    lastUpdated: '2026-02-28',
-  },
-  {
-    id: 'gdp',
-    name: 'US GDP Growth',
-    value: 2.3,
-    previous: 3.3,
-    change: -30.3,
-    country: 'USA',
-    impact: 'medium',
-    trend: 'stable',
-    unit: '%',
-    lastUpdated: '2026-01-31',
-  },
-  {
-    id: 'dxy',
-    name: 'Dollar Index (DXY)',
-    value: 106.4,
-    previous: 105.8,
-    change: 0.57,
-    country: 'USA',
-    impact: 'medium',
-    trend: 'up',
-    unit: '',
-    lastUpdated: '2026-03-03',
-  },
-  {
-    id: 'fed-balance',
-    name: 'Fed Balance Sheet',
-    value: 6.82,
-    previous: 6.98,
-    change: -2.29,
-    country: 'USA',
-    impact: 'high',
-    trend: 'down',
-    unit: 'T',
-    lastUpdated: '2026-02-28',
-  },
-];
+function loadMacroCache(): MacroCachePayload | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
 
-const FALLBACK_LIQUIDITY_DATA: LiquidityData[] = [
-  { date: '2025-03', value: 20.85 },
-  { date: '2025-04', value: 20.92 },
-  { date: '2025-05', value: 20.78 },
-  { date: '2025-06', value: 20.95 },
-  { date: '2025-07', value: 21.05 },
-  { date: '2025-08', value: 21.12 },
-  { date: '2025-09', value: 21.18 },
-  { date: '2025-10', value: 21.25 },
-  { date: '2025-11', value: 21.15 },
-  { date: '2025-12', value: 21.08 },
-  { date: '2026-01', value: 20.95 },
-  { date: '2026-02', value: 20.88 },
-];
+  try {
+    const raw = window.localStorage.getItem(MACRO_CACHE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as MacroCachePayload;
+    if (!Array.isArray(parsed.indicators) || !Array.isArray(parsed.liquidityData) || !parsed.fetchedAt) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveMacroCache(payload: MacroCachePayload) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(MACRO_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    return;
+  }
+}
 
 // ═══════════════════ API FUNCTIONS ═══════════════════
 
@@ -247,6 +196,8 @@ export function MacroWorld() {
   const [usingFallback, setUsingFallback] = useState(false);
 
   const fetchAllData = async () => {
+    const cachedPayload = loadMacroCache();
+
     try {
       setRefreshing(true);
       setUsingFallback(false);
@@ -384,25 +335,41 @@ export function MacroWorld() {
         });
       }
 
-      // Use fallback data if APIs fail
       if (apiSuccessCount < 3) {
-        console.warn('[MacroWorld] Using fallback data due to API failures');
-        setUsingFallback(true);
-        setIndicators(FALLBACK_INDICATORS.map(i => ({ ...i, isFallback: true })));
-        setLiquidityData(FALLBACK_LIQUIDITY_DATA);
+        if (cachedPayload) {
+          setUsingFallback(true);
+          setIndicators(cachedPayload.indicators.map((indicator) => ({ ...indicator, isFallback: true })));
+          setLiquidityData(cachedPayload.liquidityData);
+          setLastUpdated(new Date(cachedPayload.fetchedAt));
+        } else {
+          setIndicators(newIndicators);
+          setLiquidityData(m2History && m2History.length > 0 ? m2History : []);
+          setLastUpdated(new Date());
+          toast.error('ยังไม่สามารถโหลดข้อมูล macro แบบเรียลไทม์ได้ในขณะนี้');
+        }
       } else {
         setIndicators(newIndicators);
-        setLiquidityData(m2History && m2History.length > 0 ? m2History : FALLBACK_LIQUIDITY_DATA);
+        setLiquidityData(m2History && m2History.length > 0 ? m2History : []);
+        saveMacroCache({
+          indicators: newIndicators,
+          liquidityData: m2History && m2History.length > 0 ? m2History : [],
+          fetchedAt: new Date().toISOString(),
+        });
+        setLastUpdated(new Date());
       }
-      
-      setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching macro data:', error);
-      toast.error('ไม่สามารถโหลดข้อมูลเศรษฐกิจมหภาคได้ ใช้ข้อมูลล่าสุดแทน');
-      // Always use fallback on error
-      setUsingFallback(true);
-      setIndicators(FALLBACK_INDICATORS.map(i => ({ ...i, isFallback: true })));
-      setLiquidityData(FALLBACK_LIQUIDITY_DATA);
+      if (cachedPayload) {
+        toast.error('ไม่สามารถโหลดข้อมูลเศรษฐกิจมหภาคแบบสดได้ กำลังใช้ข้อมูลจริงล่าสุดที่เคยบันทึกไว้');
+        setUsingFallback(true);
+        setIndicators(cachedPayload.indicators.map((indicator) => ({ ...indicator, isFallback: true })));
+        setLiquidityData(cachedPayload.liquidityData);
+        setLastUpdated(new Date(cachedPayload.fetchedAt));
+      } else {
+        toast.error('ไม่สามารถโหลดข้อมูลเศรษฐกิจมหภาคได้ในขณะนี้');
+        setIndicators([]);
+        setLiquidityData([]);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -451,7 +418,7 @@ export function MacroWorld() {
           <h2 className="text-2xl font-bold">Macro Economics & World Monitor</h2>
           <p className="text-gray-500 text-sm">
             ข้อมูลเศรษฐกิจมหภาค {usingFallback && (
-              <span className="text-amber-600">(ใช้ข้อมูลสำรอง - อัปเดตล่าสุด มี.ค. 2026)</span>
+              <span className="text-amber-600">(ใช้ข้อมูลจริงล่าสุดที่ cache ไว้ในเครื่อง)</span>
             )}
           </p>
         </div>
@@ -483,7 +450,7 @@ export function MacroWorld() {
             className="bg-white rounded-2xl p-5 card-shadow relative"
           >
             {indicator.isFallback && (
-              <span className="absolute top-2 right-2 w-2 h-2 bg-amber-400 rounded-full" title="Fallback data" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-amber-400 rounded-full" title="Cached real data" />
             )}
             <div className="flex items-start justify-between mb-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${indicator.name.includes('Rate') ? 'bg-blue-100' :
@@ -538,13 +505,13 @@ export function MacroWorld() {
               <h3 className="font-semibold">Global Liquidity Visualizer (M2)</h3>
               <p className="text-sm text-gray-500">
                 M2 Money Supply 
-                {usingFallback && <span className="text-amber-600 ml-1">(ข้อมูลสำรอง)</span>}
+                {usingFallback && <span className="text-amber-600 ml-1">(cached real data)</span>}
               </p>
             </div>
           </div>
           <div className="flex gap-2">
             <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-              {usingFallback ? 'Fallback Data' : 'Real Data'}
+              {usingFallback ? 'Cached Real Data' : 'Real Data'}
             </span>
           </div>
         </div>
@@ -603,8 +570,8 @@ export function MacroWorld() {
           </div>
           <div>
             <p className="text-xs text-gray-500 mb-1">Data Source</p>
-            <p className="font-semibold">{usingFallback ? 'Fallback' : 'FRED'}</p>
-            <span className="text-xs text-gray-400">{usingFallback ? 'Latest Known' : 'Federal Reserve'}</span>
+            <p className="font-semibold">{usingFallback ? 'Cached FRED' : 'FRED'}</p>
+            <span className="text-xs text-gray-400">{usingFallback ? 'Stored from latest successful fetch' : 'Federal Reserve'}</span>
           </div>
         </div>
       </motion.div>
@@ -619,7 +586,7 @@ export function MacroWorld() {
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-semibold">ตัวชี้วัดเศรษฐกิจทั้งหมด</h3>
           <span className="text-xs text-gray-400">
-            ที่มา: {usingFallback ? 'Fallback Data (มี.ค. 2026)' : 'FRED API'}
+            ที่มา: {usingFallback ? 'Cached real data from FRED' : 'FRED API'}
           </span>
         </div>
 
@@ -649,7 +616,7 @@ export function MacroWorld() {
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{indicator.name}</p>
                       {indicator.isFallback && (
-                        <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" title="Fallback data" />
+                        <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" title="Cached real data" />
                       )}
                     </div>
                   </td>

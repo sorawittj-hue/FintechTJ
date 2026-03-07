@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { AIAnalysisService, type AIInsight, type MarketAnalysis, type SentimentScore, type Narrative } from '@/services/aiAnalysis';
 import { usePortfolio } from '@/context/PortfolioContext';
+import { useData } from '@/context/hooks';
 import { useNews } from './useNews';
 
 export interface UseAIResult {
@@ -46,6 +47,7 @@ const aiService = new AIAnalysisService();
 export function useAI(options: UseAIOptions = {}): UseAIResult {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const { portfolio } = usePortfolio();
+  const { state: dataState } = useData();
   useNews({ limit: 10, enabled: opts.enabled });
   
   const [insights, setInsights] = useState<AIInsight[]>([]);
@@ -63,15 +65,22 @@ export function useAI(options: UseAIOptions = {}): UseAIResult {
     setError(null);
     
     try {
-      // Build market data from news
       const marketData = {
-        prices: [], // Would come from price context
-        indices: [
-          { name: 'BTC', change: 3.45 },
-          { name: 'ETH', change: 4.12 },
-        ],
-        fearGreed: 65,
-        dominance: { btc: 52.3, eth: 18.5 },
+        prices: dataState.allPrices.map((price) => ({
+          timestamp: dataState.lastUpdate?.getTime() ?? dataState.marketData.lastUpdated?.getTime() ?? 0,
+          price: price.price,
+          volume: price.volume24h,
+          change24hPercent: price.change24hPercent,
+        })),
+        indices: dataState.marketData.indices.map((index) => ({
+          name: index.name,
+          change: index.changePercent,
+        })),
+        fearGreed: dataState.globalStats.fearGreedIndex,
+        dominance: {
+          btc: dataState.globalStats.btcDominance,
+          eth: 0,
+        },
       };
       
       const newInsights = await aiService.generateInsights(portfolio, marketData);
@@ -88,7 +97,7 @@ export function useAI(options: UseAIOptions = {}): UseAIResult {
         setLoading(false);
       }
     }
-  }, [portfolio, opts.enabled]);
+  }, [dataState.allPrices, dataState.globalStats.btcDominance, dataState.globalStats.fearGreedIndex, dataState.lastUpdate, dataState.marketData.indices, dataState.marketData.lastUpdated, portfolio, opts.enabled]);
   
   // Analyze sentiment
   const analyzeSentiment = useCallback(async (text: string): Promise<SentimentScore> => {

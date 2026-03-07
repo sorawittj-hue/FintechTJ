@@ -18,7 +18,7 @@ interface DepositDialogProps {
 }
 
 export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
-  const { portfolio, addTransaction } = usePortfolio();
+  const { portfolio, assets, addAsset, updateAsset, addTransaction } = usePortfolio();
   const [amount, setAmount] = useState('');
   const [selectedAsset, setSelectedAsset] = useState('USD');
   const [paymentMethod, setPaymentMethod] = useState<'bank' | 'card' | 'crypto'>('bank');
@@ -27,19 +27,85 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
   const quickAmounts = [1000, 5000, 10000, 25000];
 
   const handleDeposit = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
+    const depositAmount = parseFloat(amount);
+
+    if (!amount || depositAmount <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
 
     setIsProcessing(true);
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      const netAmount = depositAmount * 0.995;
+      const targetSymbol = paymentMethod === 'crypto' ? selectedAsset : 'USD';
+      const existingAsset = assets.find((asset) => asset.symbol.toUpperCase() === targetSymbol.toUpperCase());
 
-    addTransaction('deposit', parseFloat(amount), selectedAsset);
-    setIsProcessing(false);
-    setAmount('');
-    onClose();
+      if (paymentMethod === 'crypto' && !existingAsset) {
+        toast.error('Please add the crypto asset to your portfolio before depositing into it');
+        return;
+      }
+
+      if (targetSymbol === 'USD') {
+        if (existingAsset) {
+          const nextQuantity = existingAsset.quantity + netAmount;
+          await updateAsset(existingAsset.id, {
+            quantity: nextQuantity,
+            avgPrice: 1,
+            currentPrice: 1,
+            value: nextQuantity,
+            change24h: 0,
+            change24hPercent: 0,
+            change24hValue: 0,
+          });
+        } else {
+          await addAsset({
+            symbol: 'USD',
+            name: 'US Dollar Cash',
+            type: 'forex',
+            quantity: netAmount,
+            avgPrice: 1,
+            currentPrice: 1,
+            value: netAmount,
+            change24h: 0,
+            change24hPercent: 0,
+            change24hValue: 0,
+            allocation: 0,
+          });
+        }
+      } else if (existingAsset) {
+        const referencePrice = existingAsset.currentPrice > 0 ? existingAsset.currentPrice : existingAsset.avgPrice;
+        const addedQuantity = netAmount / Math.max(referencePrice, 0.0000001);
+        const nextQuantity = existingAsset.quantity + addedQuantity;
+        const nextCost = (existingAsset.quantity * existingAsset.avgPrice) + netAmount;
+
+        await updateAsset(existingAsset.id, {
+          quantity: nextQuantity,
+          avgPrice: nextQuantity > 0 ? nextCost / nextQuantity : existingAsset.avgPrice,
+          currentPrice: referencePrice,
+          value: nextQuantity * referencePrice,
+        });
+      }
+
+      await addTransaction({
+        type: 'deposit',
+        amount: netAmount,
+        asset: targetSymbol,
+        symbol: targetSymbol,
+        timestamp: new Date(),
+        price: targetSymbol === 'USD' ? 1 : (existingAsset?.currentPrice || existingAsset?.avgPrice || 1),
+        quantity: targetSymbol === 'USD'
+          ? netAmount
+          : netAmount / Math.max(existingAsset?.currentPrice || existingAsset?.avgPrice || 1, 0.0000001),
+        fee: depositAmount - netAmount,
+      });
+
+      setAmount('');
+      setSelectedAsset('USD');
+      onClose();
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const cryptoAssets = portfolio.assets.filter(a => a.type === 'crypto');

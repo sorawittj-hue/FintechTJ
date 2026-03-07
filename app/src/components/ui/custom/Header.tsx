@@ -12,6 +12,17 @@ const TICKER_LABELS: Record<string, string> = {
   SOL: 'SOL',
 };
 
+function formatFeedAge(ageSeconds: number | null): string {
+  if (ageSeconds === null) return '—';
+  if (ageSeconds < 5) return 'just now';
+  if (ageSeconds < 60) return `${ageSeconds}s`;
+
+  const minutes = Math.floor(ageSeconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+
+  return `${(minutes / 60).toFixed(1)}h`;
+}
+
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -22,7 +33,7 @@ export function Header() {
     return saved ? JSON.parse(saved) : false;
   });
   const { portfolio } = usePortfolio();
-  const { prices, isWebSocketConnected } = usePrice();
+  const { prices, isWebSocketConnected, isPriceFeedStale, lastUpdateAgeSeconds, connectionState, latencyMs } = usePrice();
   const previousPricesRef = useRef<Record<string, number>>({});
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -65,11 +76,16 @@ export function Header() {
     });
 
     if (Object.keys(newFlash).length > 0) {
-      setPriceFlash(newFlash);
+      const applyFlashId = window.setTimeout(() => {
+        setPriceFlash(newFlash);
+      }, 0);
+
       if (flashTimeoutRef.current) {
         clearTimeout(flashTimeoutRef.current);
       }
       flashTimeoutRef.current = setTimeout(() => setPriceFlash({}), 1500);
+
+      return () => window.clearTimeout(applyFlashId);
     }
   }, [tickers]);
 
@@ -92,6 +108,32 @@ export function Header() {
   };
 
   const portfolioIsPositive = portfolio.totalChange24hPercent >= 0;
+  const feedStatus = useMemo(() => {
+    if (!isWebSocketConnected) {
+      return {
+        label: connectionState === 'reconnecting' ? 'SYNCING' : 'CONNECTING',
+        dotClass: 'bg-amber-500',
+        textClass: 'text-amber-600',
+        badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+      };
+    }
+
+    if (isPriceFeedStale) {
+      return {
+        label: 'DELAYED',
+        dotClass: 'bg-orange-500',
+        textClass: 'text-orange-600',
+        badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',
+      };
+    }
+
+    return {
+      label: 'LIVE',
+      dotClass: 'bg-green-500',
+      textClass: 'text-green-600',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    };
+  }, [connectionState, isPriceFeedStale, isWebSocketConnected]);
 
   return (
     <motion.header
@@ -107,8 +149,15 @@ export function Header() {
 
         {/* Left: Live Market Tickers */}
         <div className="hidden lg:flex items-center gap-4">
-          {tickers.length > 0 ? (
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${feedStatus.badgeClass}`}>
+              <div className={`w-2 h-2 rounded-full ${feedStatus.dotClass} ${isWebSocketConnected && !isPriceFeedStale ? 'animate-pulse' : ''}`} />
+              <span className="text-xs font-semibold">{feedStatus.label}</span>
+              <span className="text-[10px] opacity-80">{formatFeedAge(lastUpdateAgeSeconds)}</span>
+            </div>
+
+            {tickers.length > 0 ? (
+              <>
               {tickers.map((ticker) => {
                 const flash = priceFlash[ticker.symbol];
                 const isUp = ticker.change24hPercent >= 0;
@@ -132,13 +181,14 @@ export function Header() {
                   </div>
                 );
               })}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <RefreshCw size={12} className={isWebSocketConnected ? '' : 'animate-spin'} />
-              {isWebSocketConnected ? 'รอข้อมูลราคา...' : 'กำลังเชื่อมต่อราคา...'}
-            </div>
-          )}
+              </>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-gray-400 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
+                <RefreshCw size={12} className={isWebSocketConnected ? '' : 'animate-spin'} />
+                {isWebSocketConnected ? 'รอข้อมูลราคา...' : 'กำลังเชื่อมต่อราคา...'}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Mobile: Spacer */}
@@ -160,9 +210,12 @@ export function Header() {
 
           {/* Live Clock */}
           <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            <div className={`w-1.5 h-1.5 rounded-full ${feedStatus.dotClass} ${isWebSocketConnected && !isPriceFeedStale ? 'animate-pulse' : ''}`} />
             <span className="text-xs font-mono font-medium text-gray-700 tabular-nums">
               {formatTime(currentTime)}
+            </span>
+            <span className="text-[10px] text-gray-400">
+              {latencyMs > 0 ? `${latencyMs}ms` : connectionState}
             </span>
           </div>
 

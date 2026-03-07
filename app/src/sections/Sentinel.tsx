@@ -111,14 +111,49 @@ export const Sentinel = React.memo(function Sentinel() {
     setActiveTab(tab);
   }, []);
 
-  // Memoized monitors data
-  const monitors = useMemo(() => [
-    { name: 'Price Alerts', count: 12, status: 'active' },
-    { name: 'Volume Spikes', count: 8, status: 'active' },
-    { name: 'Pattern Detection', count: 5, status: 'active' },
-    { name: 'News Sentiment', count: 3, status: 'active' },
-    { name: 'Risk Thresholds', count: 6, status: 'active' },
-  ], []);
+  const activeAlerts = useMemo(() => dataState.alerts.filter((alert) => alert.isActive), [dataState.alerts]);
+
+  const riskExposure = useMemo(() => {
+    const volatility = Math.abs(dataState.portfolioSummary.totalChange24hPercent);
+    if (volatility >= 5) return { label: 'High', color: 'text-red-500' };
+    if (volatility >= 2) return { label: 'Moderate', color: 'text-yellow-500' };
+    return { label: 'Controlled', color: 'text-green-500' };
+  }, [dataState.portfolioSummary.totalChange24hPercent]);
+
+  const monitoringStats = useMemo(() => {
+    const priceCoverage = dataState.prices.size;
+    const marketSources = [
+      priceCoverage > 0,
+      dataState.marketData.indices.length > 0,
+      dataState.globalStats.lastUpdated !== null,
+      dataState.alerts.length > 0,
+    ].filter(Boolean).length;
+
+    return {
+      marketsTracked: dataState.marketData.indices.length + (priceCoverage > 0 ? 1 : 0),
+      assetsMonitored: dataState.assets.length,
+      dataSources: marketSources,
+      stopLossesSet: activeAlerts.filter((alert) => alert.type === 'price' || alert.type === 'portfolio').length,
+      alertsGenerated: alerts.length,
+      patternsDetected: activeAlerts.filter((alert) => alert.type === 'pattern').length,
+      feedLabel: dataState.connectionStatus.state === 'connected'
+        ? 'Live'
+        : dataState.connectionStatus.state === 'reconnecting'
+          ? 'Reconnecting'
+          : 'Degraded',
+      feedColor: dataState.connectionStatus.state === 'connected'
+        ? 'text-green-500'
+        : dataState.connectionStatus.state === 'reconnecting'
+          ? 'text-yellow-500'
+          : 'text-red-500',
+      activeMonitors: [
+        { name: 'Price Alerts', count: activeAlerts.filter((alert) => alert.type === 'price').length },
+        { name: 'Volume Alerts', count: activeAlerts.filter((alert) => alert.type === 'volume').length },
+        { name: 'Pattern Detection', count: activeAlerts.filter((alert) => alert.type === 'pattern').length },
+        { name: 'Portfolio Guards', count: activeAlerts.filter((alert) => alert.type === 'portfolio').length },
+      ],
+    };
+  }, [activeAlerts, alerts.length, dataState.alerts.length, dataState.assets.length, dataState.connectionStatus.state, dataState.globalStats.lastUpdated, dataState.marketData.indices.length, dataState.prices.size]);
 
   return (
     <div className="space-y-6">
@@ -161,15 +196,15 @@ export const Sentinel = React.memo(function Sentinel() {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-400">Markets Tracked</span>
-              <span>142</span>
+              <span>{monitoringStats.marketsTracked}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-400">Assets Monitored</span>
-              <span>2,847</span>
+              <span>{monitoringStats.assetsMonitored}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-400">Data Sources</span>
-              <span>56</span>
+              <span>{monitoringStats.dataSources}</span>
             </div>
           </div>
         </motion.div>
@@ -192,15 +227,15 @@ export const Sentinel = React.memo(function Sentinel() {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Portfolio Value</span>
-              <span className="font-medium">$120,169</span>
+              <span className="font-medium">${dataState.portfolioSummary.totalValue.toLocaleString()}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Stop Losses Set</span>
-              <span className="font-medium text-green-500">8 Active</span>
+              <span className="font-medium text-green-500">{monitoringStats.stopLossesSet} Active</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Risk Exposure</span>
-              <span className="font-medium text-yellow-500">Moderate</span>
+              <span className={`font-medium ${riskExposure.color}`}>{riskExposure.label}</span>
             </div>
           </div>
         </motion.div>
@@ -223,15 +258,15 @@ export const Sentinel = React.memo(function Sentinel() {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Alerts Generated</span>
-              <span className="font-medium">24 Today</span>
+              <span className="font-medium">{monitoringStats.alertsGenerated}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Patterns Detected</span>
-              <span className="font-medium">7 Active</span>
+              <span className="font-medium">{monitoringStats.patternsDetected} Active</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Uptime</span>
-              <span className="font-medium text-green-500">99.97%</span>
+              <span className="text-gray-500">Data Feed</span>
+              <span className={`font-medium ${monitoringStats.feedColor}`}>{monitoringStats.feedLabel}</span>
             </div>
           </div>
         </motion.div>
@@ -276,7 +311,7 @@ export const Sentinel = React.memo(function Sentinel() {
         </div>
 
         <div className="space-y-3">
-          {filteredAlerts.map((alert, index) => (
+          {filteredAlerts.length > 0 ? filteredAlerts.map((alert, index) => (
             <motion.div
               key={alert.id}
               initial={{ x: -20, opacity: 0 }}
@@ -333,7 +368,12 @@ export const Sentinel = React.memo(function Sentinel() {
                 </div>
               </div>
             </motion.div>
-          ))}
+          )) : (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+              <p className="text-sm font-medium text-gray-700">ยังไม่มี alert จริงใน Sentinel</p>
+              <p className="text-xs text-gray-500 mt-2">เมื่อคุณสร้าง price, pattern หรือ portfolio alerts รายการจะแสดงที่นี่แบบเรียลไทม์</p>
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -347,10 +387,10 @@ export const Sentinel = React.memo(function Sentinel() {
         <div className="bg-white rounded-3xl p-6 card-shadow">
           <h3 className="font-semibold mb-4">Active Monitors</h3>
           <div className="space-y-3">
-            {monitors.map((monitor) => (
+            {monitoringStats.activeMonitors.map((monitor) => (
               <div key={monitor.name} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <div className={`w-2 h-2 rounded-full ${monitor.count > 0 ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
                   <span className="text-sm">{monitor.name}</span>
                 </div>
                 <span className="text-sm font-medium">{monitor.count} active</span>
@@ -370,12 +410,12 @@ export const Sentinel = React.memo(function Sentinel() {
           </p>
           <div className="grid grid-cols-2 gap-4">
             <div className="p-3 rounded-xl bg-white/10">
-              <p className="text-2xl font-bold">847</p>
-              <p className="text-xs opacity-70">Alerts this week</p>
+              <p className="text-2xl font-bold">{unreadCount}</p>
+              <p className="text-xs opacity-70">Unread alerts</p>
             </div>
             <div className="p-3 rounded-xl bg-white/10">
-              <p className="text-2xl font-bold">94%</p>
-              <p className="text-xs opacity-70">Accuracy rate</p>
+              <p className="text-2xl font-bold">{dataState.assets.length}</p>
+              <p className="text-xs opacity-70">Tracked portfolio assets</p>
             </div>
           </div>
         </div>

@@ -18,14 +18,16 @@ interface WithdrawDialogProps {
 }
 
 export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
-  const { portfolio, addTransaction } = usePortfolio();
+  const { portfolio, assets, updateAsset, removeAsset, addTransaction } = usePortfolio();
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'bank' | 'card'>('bank');
   const [isProcessing, setIsProcessing] = useState(false);
   const [bankAccount, setBankAccount] = useState('');
   const [routingNumber, setRoutingNumber] = useState('');
 
-  const maxWithdraw = portfolio.totalValue * 0.9;
+  const cashAsset = assets.find((asset) => asset.symbol.toUpperCase() === 'USD');
+  const availableCash = cashAsset?.value ?? 0;
+  const maxWithdraw = availableCash;
 
   const quickAmounts = [
     { label: '25%', value: portfolio.totalValue * 0.25 },
@@ -36,14 +38,20 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
 
   const handleWithdraw = async () => {
     const withdrawAmount = parseFloat(amount);
+    const netWithdraw = withdrawAmount + 15;
 
     if (!amount || withdrawAmount <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
 
-    if (withdrawAmount > maxWithdraw) {
-      toast.error(`Maximum withdraw amount is $${maxWithdraw.toLocaleString()} (90% of portfolio)`);
+    if (!cashAsset) {
+      toast.error('No USD cash balance available in your portfolio');
+      return;
+    }
+
+    if (netWithdraw > maxWithdraw) {
+      toast.error(`Maximum withdraw amount is $${Math.max(maxWithdraw - 15, 0).toLocaleString()} after fees`);
       return;
     }
 
@@ -54,14 +62,41 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
 
     setIsProcessing(true);
 
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    try {
+      const nextQuantity = cashAsset.quantity - netWithdraw;
 
-    addTransaction('withdraw', withdrawAmount, 'USD');
-    setIsProcessing(false);
-    setAmount('');
-    setBankAccount('');
-    setRoutingNumber('');
-    onClose();
+      if (nextQuantity <= 0.000001) {
+        await removeAsset(cashAsset.id);
+      } else {
+        await updateAsset(cashAsset.id, {
+          quantity: nextQuantity,
+          avgPrice: 1,
+          currentPrice: 1,
+          value: nextQuantity,
+          change24h: 0,
+          change24hPercent: 0,
+          change24hValue: 0,
+        });
+      }
+
+      await addTransaction({
+        type: 'withdraw',
+        amount: withdrawAmount,
+        asset: 'USD',
+        symbol: 'USD',
+        timestamp: new Date(),
+        price: 1,
+        quantity: withdrawAmount,
+        fee: 15,
+      });
+
+      setAmount('');
+      setBankAccount('');
+      setRoutingNumber('');
+      onClose();
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -109,7 +144,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
                     <div>
                       <p className="font-medium text-yellow-800">Withdrawal Limit</p>
                       <p className="text-sm text-yellow-700">
-                        You can withdraw up to <span className="font-bold">${maxWithdraw.toLocaleString()}</span> (90% of portfolio)
+                        You can withdraw up to <span className="font-bold">${Math.max(maxWithdraw - 15, 0).toLocaleString()}</span> from your USD cash balance
                       </p>
                     </div>
                   </div>
@@ -141,7 +176,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
                     ))}
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Available balance: ${portfolio.totalValue.toLocaleString()}
+                    Available USD cash: ${availableCash.toLocaleString()}
                   </p>
                 </div>
 

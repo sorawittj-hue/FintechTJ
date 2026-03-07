@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -24,17 +24,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import {
   calculatePosition,
-  calculateRiskReward,
   detectLiquidationHunt,
   calculateMarketRiskScore,
   analyzeSmartMoneyFlow,
   VolatilityRadar,
-  shouldAllowTrading,
   type PositionRequest,
-  type PositionResult,
   type MarketDataContext,
   type SqueezeSignal
 } from '@/lib/trading';
+import { useData } from '@/context/hooks';
 
 // ============================================
 // 🛡️ POSITION SIZER COMPONENT
@@ -48,13 +46,18 @@ function PositionSizerPanel() {
     leverage: 10,
     positionType: 'LONG'
   });
-  
-  const [result, setResult] = useState<PositionResult | null>(null);
+
+  const result = useMemo(() => {
+    try {
+      return calculatePosition(params);
+    } catch {
+      return null;
+    }
+  }, [params]);
 
   const calculate = useCallback(() => {
     try {
       const calc = calculatePosition(params);
-      setResult(calc);
       if (!calc.isSafe) {
         toast.warning(calc.warningMessage || 'Position ไม่ปลอดภัย!', { duration: 5000 });
       } else {
@@ -64,10 +67,6 @@ function PositionSizerPanel() {
       toast.error(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     }
   }, [params]);
-
-  useEffect(() => {
-    calculate();
-  }, [calculate]);
 
   return (
     <div className="space-y-6">
@@ -289,28 +288,19 @@ function SqueezeDetectorPanel() {
     priceChange24h: 2,
     symbol: 'BTCUSDT'
   });
-  
-  const [signal, setSignal] = useState<SqueezeSignal | null>(null);
-  const [riskScore, setRiskScore] = useState(0);
-  const [smartMoney, setSmartMoney] = useState<{ direction: 'UP' | 'DOWN' | 'SIDEWAYS'; confidence: number; reasoning: string } | null>(null);
+
+  const signal = useMemo<SqueezeSignal>(() => detectLiquidationHunt(marketData), [marketData]);
+  const riskScore = useMemo(() => calculateMarketRiskScore(marketData), [marketData]);
+  const smartMoney = useMemo(() => analyzeSmartMoneyFlow(marketData), [marketData]);
 
   const analyze = useCallback(() => {
     const sig = detectLiquidationHunt(marketData);
-    const score = calculateMarketRiskScore(marketData);
-    const sm = analyzeSmartMoneyFlow(marketData);
-    
-    setSignal(sig);
-    setRiskScore(score);
-    setSmartMoney(sm);
-
     if (sig.probability > 70) {
       toast.warning(sig.advice, { duration: 6000 });
+    } else {
+      toast.success('อัปเดตการวิเคราะห์ตลาดแล้ว');
     }
   }, [marketData]);
-
-  useEffect(() => {
-    analyze();
-  }, [analyze]);
 
   const getSignalIcon = (type: string) => {
     switch (type) {
@@ -514,12 +504,22 @@ function SqueezeDetectorPanel() {
 // 🚨 CIRCUIT BREAKER COMPONENT
 // ============================================
 function CircuitBreakerPanel() {
+  const { state: dataState } = useData();
   const [radar] = useState(() => new VolatilityRadar());
   const [currentPrice, setCurrentPrice] = useState(65000);
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [alert, setAlert] = useState<ReturnType<typeof radar.updatePrice> | null>(null);
   const [priceHistory, setPriceHistory] = useState<number[]>([]);
-  const [isSimulating, setIsSimulating] = useState(false);
+
+  const normalizedSymbol = useMemo(
+    () => symbol.toUpperCase().replace(/USDT$/, ''),
+    [symbol]
+  );
+
+  const livePrice = useMemo(
+    () => dataState.allPrices.find((price) => price.symbol.toUpperCase() === normalizedSymbol),
+    [dataState.allPrices, normalizedSymbol]
+  );
 
   const updatePrice = useCallback((price: number) => {
     const newAlert = radar.updatePrice(price, symbol);
@@ -531,43 +531,16 @@ function CircuitBreakerPanel() {
     }
   }, [radar, symbol]);
 
-  const simulateFlashCrash = useCallback(() => {
-    setIsSimulating(true);
-    let step = 0;
-    const basePrice = currentPrice;
-    
-    const interval = setInterval(() => {
-      step++;
-      // จำลองราคาตก 3% ใน 1 นาที
-      const crashPrice = basePrice * (1 - (step * 0.005));
-      setCurrentPrice(crashPrice);
-      updatePrice(crashPrice);
-      
-      if (step >= 5) {
-        clearInterval(interval);
-        setIsSimulating(false);
-      }
-    }, 1000);
-  }, [currentPrice, updatePrice]);
+  const applyLivePrice = useCallback(() => {
+    if (!livePrice) {
+      toast.error('ยังไม่มีราคา live สำหรับสัญลักษณ์นี้');
+      return;
+    }
 
-  const simulateShortSqueeze = useCallback(() => {
-    setIsSimulating(true);
-    let step = 0;
-    const basePrice = currentPrice;
-    
-    const interval = setInterval(() => {
-      step++;
-      // จำลองราคาพุ่ง 4% ใน 1 นาที
-      const squeezePrice = basePrice * (1 + (step * 0.008));
-      setCurrentPrice(squeezePrice);
-      updatePrice(squeezePrice);
-      
-      if (step >= 5) {
-        clearInterval(interval);
-        setIsSimulating(false);
-      }
-    }, 1000);
-  }, [currentPrice, updatePrice]);
+    setCurrentPrice(livePrice.price);
+    updatePrice(livePrice.price);
+    toast.success(`ใช้ราคา live ของ ${normalizedSymbol} แล้ว`);
+  }, [livePrice, normalizedSymbol, updatePrice]);
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -598,6 +571,20 @@ function CircuitBreakerPanel() {
                 onChange={(e) => setSymbol(e.target.value)}
                 className="mt-1"
               />
+              <div className="mt-2 flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={applyLivePrice}
+                  disabled={!livePrice}
+                >
+                  Use live price
+                </Button>
+                <span className="text-xs text-gray-400">
+                  {livePrice ? `Live source available for ${normalizedSymbol}` : 'No live source for this symbol yet'}
+                </span>
+              </div>
             </div>
 
             <div>
@@ -612,25 +599,18 @@ function CircuitBreakerPanel() {
                 }}
                 className="mt-1"
               />
+              <p className="text-xs text-gray-400 mt-2">
+                {livePrice
+                  ? `Live feed synced at ${livePrice.price.toLocaleString()} for ${normalizedSymbol}. Editing this field applies a manual stress-test override.`
+                  : 'No live feed found for this symbol yet. Manual input is treated as a sandbox stress-test value.'}
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Button 
-                onClick={simulateFlashCrash} 
-                disabled={isSimulating}
-                variant="destructive"
-              >
-                <TrendingDown className="w-4 h-4 mr-2" />
-                จำลอง Flash Crash
-              </Button>
-              <Button 
-                onClick={simulateShortSqueeze} 
-                disabled={isSimulating}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <TrendingUp className="w-4 h-4 mr-2" />
-                จำลอง Short Squeeze
-              </Button>
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-sm font-medium text-amber-800 mb-1">Stress-test input only</p>
+              <p className="text-xs text-amber-700">
+                This panel now reads live price data when available. If you manually override the price, the analysis is treated as a sandbox scenario rather than a real market event.
+              </p>
             </div>
 
             <div className="p-4 bg-gray-50 rounded-xl">

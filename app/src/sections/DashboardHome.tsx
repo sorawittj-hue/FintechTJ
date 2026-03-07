@@ -14,7 +14,6 @@ import {
   Bitcoin,
   Droplet,
   DollarSign,
-  Target,
   Shield,
   Loader2,
   Globe,
@@ -92,9 +91,144 @@ const LivePrice = memo(function LivePrice({ symbol, price, change, isFlashing }:
 });
 
 // ---------- Main Dashboard ----------
+const PORTFOLIO_HISTORY_KEY = 'dashboard-portfolio-history-v1';
+
+type PortfolioHistoryPoint = {
+  timestamp: number;
+  value: number;
+};
+
+type DashboardDataHealth = {
+  requestedSources: number;
+  successSources: number;
+  failedSources: string[];
+  fetchedAt: Date | null;
+};
+
+const EMPTY_DASHBOARD_HEALTH: DashboardDataHealth = {
+  requestedSources: 4,
+  successSources: 0,
+  failedSources: [],
+  fetchedAt: null,
+};
+
+function formatFeedAge(ageSeconds: number | null): string {
+  if (ageSeconds === null) return '—';
+  if (ageSeconds < 5) return 'just now';
+  if (ageSeconds < 60) return `${ageSeconds}s`;
+
+  const minutes = Math.floor(ageSeconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+
+  return `${(minutes / 60).toFixed(1)}h`;
+}
+
+function getDayKey(timestamp: number): string {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function loadPortfolioHistory(): PortfolioHistoryPoint[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const saved = window.localStorage.getItem(PORTFOLIO_HISTORY_KEY);
+    if (!saved) {
+      return [];
+    }
+
+    return (JSON.parse(saved) as PortfolioHistoryPoint[])
+      .filter((point) => Number.isFinite(point.timestamp) && Number.isFinite(point.value) && point.value > 0)
+      .slice(-30);
+  } catch {
+    return [];
+  }
+}
+
+function savePortfolioHistory(history: PortfolioHistoryPoint[]) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(PORTFOLIO_HISTORY_KEY, JSON.stringify(history));
+  } catch {
+    return;
+  }
+}
+
+function upsertPortfolioHistory(history: PortfolioHistoryPoint[], value: number, timestamp = Date.now()): PortfolioHistoryPoint[] {
+  if (!Number.isFinite(value) || value <= 0) {
+    return history;
+  }
+
+  const nextPoint = { timestamp, value };
+  const lastPoint = history[history.length - 1];
+
+  if (!lastPoint) {
+    return [nextPoint];
+  }
+
+  if (getDayKey(lastPoint.timestamp) === getDayKey(timestamp)) {
+    if (lastPoint.value === value) {
+      return history;
+    }
+
+    return [...history.slice(0, -1), nextPoint];
+  }
+
+  return [...history, nextPoint].slice(-30);
+}
+
+function buildFallbackChartData(currentValue: number, portfolioChangePercent: number) {
+  const baseValue = currentValue || 100000;
+  const now = new Date();
+  const data = [];
+  let value = baseValue * 0.85;
+
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    const dailyChange = Math.sin((i + 1) * 0.45 + portfolioChangePercent * 0.05) * 0.012 + 0.003;
+    value = value * (1 + dailyChange);
+    data.push({
+      date: date.toLocaleDateString('th-TH', { month: 'short', day: 'numeric' }),
+      value: Math.round(value),
+    });
+  }
+
+  if (data.length > 0) {
+    data[data.length - 1].value = baseValue;
+  }
+
+  return data;
+}
+
+function buildChartDataFromHistory(history: PortfolioHistoryPoint[], currentValue: number, portfolioChangePercent: number) {
+  if (history.length < 2) {
+    return buildFallbackChartData(currentValue, portfolioChangePercent);
+  }
+
+  return history.map((point) => ({
+    date: new Date(point.timestamp).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' }),
+    value: Math.round(point.value),
+  }));
+}
+
 export const DashboardHome = memo(function DashboardHome() {
   const { portfolio, setIsDepositOpen, setIsAlertOpen } = usePortfolio();
-  const { allPrices, lastUpdate: lastPriceUpdate, refreshPrices } = usePrice();
+  const {
+    allPrices,
+    lastUpdate: lastPriceUpdate,
+    refreshPrices,
+    isWebSocketConnected,
+    isPriceFeedStale,
+    connectionState,
+    latencyMs,
+    lastUpdateAgeSeconds,
+  } = usePrice();
   const { state: dataState } = useData();
 
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([]);
@@ -103,6 +237,8 @@ export const DashboardHome = memo(function DashboardHome() {
   const [whaleActivity, setWhaleActivity] = useState<WhaleTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [dashboardHealth, setDashboardHealth] = useState<DashboardDataHealth>(EMPTY_DASHBOARD_HEALTH);
+  const [dashboardNotice, setDashboardNotice] = useState<{ tone: 'warning' | 'error'; message: string } | null>(null);
   const [priceFlash, setPriceFlash] = useState<Record<string, boolean>>({});
   const [showProFeatures, setShowProFeatures] = useState(false);
   const prevPricesRef = useRef<Record<string, number>>({});
@@ -110,23 +246,31 @@ export const DashboardHome = memo(function DashboardHome() {
 
   const lastFetchRef = useRef<number>(0);
   const isFetchingRef = useRef(false);
+  const latestDashboardDataRef = useRef({
+    commodities: [] as CommodityPrice[],
+    stocks: [] as { symbol: string; price: number; change: number }[],
+    whales: [] as WhaleTransaction[],
+  });
+  const dashboardHealthRef = useRef<DashboardDataHealth>(EMPTY_DASHBOARD_HEALTH);
+  const portfolioHistoryRef = useRef<PortfolioHistoryPoint[]>(loadPortfolioHistory());
 
-  const fetchAllData = useCallback(async (isRefresh = false) => {
+  const fetchAllData = useCallback(async (isRefresh = false): Promise<DashboardDataHealth> => {
     // Prevent concurrent fetches
     if (isFetchingRef.current) {
       console.log('[Dashboard] Skipping fetch - already in progress');
-      return;
+      return dashboardHealthRef.current;
     }
 
     // Prevent rapid successive fetches (minimum 5 seconds between calls)
     const now = Date.now();
     if (now - lastFetchRef.current < 5000 && !isRefresh) {
       console.log('[Dashboard] Skipping fetch - too soon');
-      return;
+      return dashboardHealthRef.current;
     }
 
     isFetchingRef.current = true;
     lastFetchRef.current = now;
+    setDashboardNotice(null);
 
     try {
       if (isRefresh) setRefreshing(true);
@@ -139,25 +283,81 @@ export const DashboardHome = memo(function DashboardHome() {
         fetchWhaleTransactions(500000, 5),
       ]);
 
+      const failedSources: string[] = [];
+      let successSources = 0;
+
       if (commodityData.status === 'fulfilled' && commodityData.value.length > 0) {
         setCommodities(commodityData.value);
+        latestDashboardDataRef.current.commodities = commodityData.value;
+        successSources += 1;
+      } else {
+        failedSources.push('Commodities');
       }
 
       // Build stock data
       const stocks: { symbol: string; price: number; change: number }[] = [];
       if (nvdaData.status === 'fulfilled' && nvdaData.value) {
         stocks.push({ symbol: 'NVDA', price: nvdaData.value.price, change: nvdaData.value.changePercent });
+        successSources += 1;
+      } else {
+        failedSources.push('NVDA');
       }
       if (aaplData.status === 'fulfilled' && aaplData.value) {
         stocks.push({ symbol: 'AAPL', price: aaplData.value.price, change: aaplData.value.changePercent });
+        successSources += 1;
+      } else {
+        failedSources.push('AAPL');
       }
-      setStockData(stocks);
+      if (stocks.length > 0) {
+        setStockData(stocks);
+        latestDashboardDataRef.current.stocks = stocks;
+      }
 
       if (whales.status === 'fulfilled') {
         setWhaleActivity(whales.value);
+        latestDashboardDataRef.current.whales = whales.value;
+        successSources += 1;
+      } else {
+        failedSources.push('Whale Flow');
       }
+
+      const nextHealth: DashboardDataHealth = {
+        requestedSources: 4,
+        successSources,
+        failedSources,
+        fetchedAt: new Date(),
+      };
+
+      dashboardHealthRef.current = nextHealth;
+      setDashboardHealth(nextHealth);
+
+      const hasExistingDashboardData =
+        latestDashboardDataRef.current.commodities.length > 0 ||
+        latestDashboardDataRef.current.stocks.length > 0 ||
+        latestDashboardDataRef.current.whales.length > 0;
+
+      if (successSources === 0) {
+        setDashboardNotice({
+          tone: 'error',
+          message: hasExistingDashboardData
+            ? 'รีเฟรชข้อมูล dashboard ไม่สำเร็จ กำลังคงข้อมูลเดิมไว้เพื่อไม่ให้จอว่าง'
+            : 'ยังไม่สามารถโหลดข้อมูลตลาดเสริมได้ในขณะนี้',
+        });
+      } else if (failedSources.length > 0) {
+        setDashboardNotice({
+          tone: 'warning',
+          message: `โหลดข้อมูลเสริมได้ ${successSources}/4 แหล่ง ขาด: ${failedSources.join(', ')}`,
+        });
+      }
+
+      return nextHealth;
     } catch (error) {
       console.error('Dashboard fetch error:', error);
+      setDashboardNotice({
+        tone: 'error',
+        message: 'เกิดข้อผิดพลาดระหว่างอัปเดต dashboard กำลังแสดงข้อมูลล่าสุดเท่าที่มีอยู่',
+      });
+      return dashboardHealthRef.current;
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -191,6 +391,26 @@ export const DashboardHome = memo(function DashboardHome() {
 
     setCryptoPrices(nextCryptoPrices);
   }, [allPrices]);
+
+  useEffect(() => {
+    latestDashboardDataRef.current = {
+      commodities,
+      stocks: stockData,
+      whales: whaleActivity,
+    };
+  }, [commodities, stockData, whaleActivity]);
+
+  const portfolioHistory = useMemo(
+    () => upsertPortfolioHistory(portfolioHistoryRef.current, portfolio.totalValue),
+    [portfolio.totalValue]
+  );
+
+  useEffect(() => {
+    if (portfolioHistory !== portfolioHistoryRef.current) {
+      portfolioHistoryRef.current = portfolioHistory;
+      savePortfolioHistory(portfolioHistory);
+    }
+  }, [portfolioHistory]);
 
   useEffect(() => {
     return () => {
@@ -262,9 +482,10 @@ export const DashboardHome = memo(function DashboardHome() {
         value: a.value,
         type: a.type,
         change24hPercent: a.change24hPercent,
-      }))
+      })),
+      portfolioHistory.map((point) => point.value)
     )
-  ), [portfolio.totalValue, dataState.assets]);
+  ), [portfolio.totalValue, dataState.assets, portfolioHistory]);
 
   const fearGreedIndex = useMemo(() => {
     const btcChange = cryptoPrices.find(c => c.symbol === 'BTC')?.change24hPercent || 0;
@@ -305,7 +526,6 @@ export const DashboardHome = memo(function DashboardHome() {
 
   // Calculate Rebalance Engine data
   const rebalanceAssets: Asset[] = useMemo(() => {
-    const totalValue = portfolio.totalValue || 1;
     // Target allocation: 40% BTC, 30% ETH, 20% Stocks, 10% Commodities
     const targets: Record<string, number> = {
       'BTC': 40,
@@ -320,7 +540,7 @@ export const DashboardHome = memo(function DashboardHome() {
       currentValue: asset.value,
       targetPercentage: targets[asset.symbol] || (100 - Object.values(targets).reduce((a, b) => a + b, 0)) / Math.max(1, portfolio.assets.length - 5),
     }));
-  }, [portfolio.assets, portfolio.totalValue]);
+  }, [portfolio.assets]);
 
   // Calculate Macro Defcon conditions
   const macroConditions: MacroConditions = useMemo(() => {
@@ -334,40 +554,117 @@ export const DashboardHome = memo(function DashboardHome() {
     };
   }, [cryptoPrices, fearGreedIndex]);
 
-  // BTC 24h chart data
   const chartData = useMemo(() => {
-    const baseValue = portfolio.totalValue || 100000;
-    const now = new Date();
-    // Generate realistic looking historical data
-    const data = [];
-    let value = baseValue * 0.85; // Start at 85% of current
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      const dailyChange = Math.sin((i + 1) * 0.45 + portfolio.totalChange24hPercent * 0.05) * 0.012 + 0.003;
-      value = value * (1 + dailyChange);
-      data.push({
-        date: date.toLocaleDateString('th-TH', { month: 'short', day: 'numeric' }),
-        value: Math.round(value),
-      });
+    return buildChartDataFromHistory(portfolioHistory, portfolio.totalValue, portfolio.totalChange24hPercent);
+  }, [portfolio.totalChange24hPercent, portfolio.totalValue, portfolioHistory]);
+
+  const dashboardCoveragePercent = useMemo(
+    () => dashboardHealth.requestedSources > 0
+      ? Math.round((dashboardHealth.successSources / dashboardHealth.requestedSources) * 100)
+      : 0,
+    [dashboardHealth]
+  );
+
+  const priceFeedLabel = useMemo(() => {
+    if (!isWebSocketConnected) {
+      return connectionState === 'reconnecting' ? 'RECONNECTING PRICE FEED' : 'CONNECTING PRICE FEED';
     }
-    // Last point is current value
-    data[data.length - 1].value = baseValue;
-    return data;
-  }, [portfolio.totalValue]);
+
+    if (isPriceFeedStale) {
+      return 'DELAYED PRICE FEED';
+    }
+
+    return 'LIVE MARKET DATA';
+  }, [connectionState, isPriceFeedStale, isWebSocketConnected]);
+
+  const priceFeedBadgeClass = useMemo(() => {
+    if (!isWebSocketConnected) {
+      return 'bg-amber-500/20 text-amber-300';
+    }
+
+    if (isPriceFeedStale) {
+      return 'bg-orange-500/20 text-orange-200';
+    }
+
+    return 'bg-green-500/20 text-green-300';
+  }, [isPriceFeedStale, isWebSocketConnected]);
+
+  const livePriceStatus = useMemo(() => {
+    if (!isWebSocketConnected) {
+      return { label: 'SYNCING', dotClass: 'bg-amber-500', textClass: 'text-amber-600' };
+    }
+
+    if (isPriceFeedStale) {
+      return { label: 'DELAYED', dotClass: 'bg-orange-500', textClass: 'text-orange-600' };
+    }
+
+    return { label: 'LIVE', dotClass: 'bg-green-500', textClass: 'text-green-600' };
+  }, [isPriceFeedStale, isWebSocketConnected]);
+
+  const dataHealthCards = useMemo(() => ([
+    {
+      label: 'Price Feed',
+      value: !isWebSocketConnected ? 'Syncing' : isPriceFeedStale ? 'Delayed' : 'Live',
+      sub: `${connectionState} · ${latencyMs > 0 ? `${latencyMs}ms` : 'latency n/a'}`,
+      icon: Activity,
+      tone: !isWebSocketConnected ? 'text-amber-600' : isPriceFeedStale ? 'text-orange-600' : 'text-emerald-600',
+      bg: !isWebSocketConnected ? 'bg-amber-50' : isPriceFeedStale ? 'bg-orange-50' : 'bg-emerald-50',
+    },
+    {
+      label: 'Price Age',
+      value: formatFeedAge(lastUpdateAgeSeconds),
+      sub: lastPriceUpdate ? lastPriceUpdate.toLocaleTimeString('th-TH') : 'awaiting first tick',
+      icon: RefreshCw,
+      tone: isPriceFeedStale ? 'text-orange-600' : 'text-sky-600',
+      bg: isPriceFeedStale ? 'bg-orange-50' : 'bg-sky-50',
+    },
+    {
+      label: 'Coverage',
+      value: `${dashboardCoveragePercent}%`,
+      sub: `${dashboardHealth.successSources}/${dashboardHealth.requestedSources} market sources`,
+      icon: Globe,
+      tone: dashboardCoveragePercent >= 75 ? 'text-emerald-600' : dashboardCoveragePercent > 0 ? 'text-amber-600' : 'text-red-600',
+      bg: dashboardCoveragePercent >= 75 ? 'bg-emerald-50' : dashboardCoveragePercent > 0 ? 'bg-amber-50' : 'bg-red-50',
+    },
+    {
+      label: 'Portfolio History',
+      value: portfolioHistory.length > 0 ? `${portfolioHistory.length}d` : '0d',
+      sub: portfolioHistory.length > 0 ? 'tracked locally from real portfolio value' : 'collecting baseline',
+      icon: BarChart2,
+      tone: 'text-violet-600',
+      bg: 'bg-violet-50',
+    },
+  ]), [
+    connectionState,
+    dashboardCoveragePercent,
+    dashboardHealth.requestedSources,
+    dashboardHealth.successSources,
+    isPriceFeedStale,
+    isWebSocketConnected,
+    lastPriceUpdate,
+    lastUpdateAgeSeconds,
+    latencyMs,
+    portfolioHistory.length,
+  ]);
 
   const handleRefresh = useCallback(async () => {
     if (isFetchingRef.current) {
       return;
     }
 
+    setDashboardNotice(null);
+
     const results = await Promise.allSettled([
       refreshPrices(),
       fetchAllData(true),
     ]);
 
-    if (results.some((result) => result.status === 'rejected')) {
-      toast.error('รีเฟรชข้อมูลบางส่วนไม่สำเร็จ');
+    const dashboardResult = results[1];
+    const hasRejected = results.some((result) => result.status === 'rejected');
+    const hasPartialFailure = dashboardResult.status === 'fulfilled' && dashboardResult.value.failedSources.length > 0;
+
+    if (hasRejected || hasPartialFailure) {
+      toast.warning('รีเฟรชข้อมูลได้บางส่วน');
       return;
     }
 
@@ -405,8 +702,8 @@ export const DashboardHome = memo(function DashboardHome() {
         <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-xs text-gray-400 font-medium">LIVE MARKET DATA</span>
+              <div className={`w-2 h-2 rounded-full ${!isWebSocketConnected ? 'bg-amber-400' : isPriceFeedStale ? 'bg-orange-300' : 'bg-green-400'} ${isWebSocketConnected ? 'animate-pulse' : ''}`} />
+              <span className="text-xs text-gray-400 font-medium">{priceFeedLabel}</span>
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold mb-1">
               พอร์ตโฟลิโอการลงทุน
@@ -414,6 +711,19 @@ export const DashboardHome = memo(function DashboardHome() {
             <p className="text-gray-400 text-sm lg:text-base">
               US Stocks • Crypto • Gold • Silver • Oil — Real-time
             </p>
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${priceFeedBadgeClass}`}>
+                {connectionState}
+              </span>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/10 text-gray-200">
+                Price age {formatFeedAge(lastUpdateAgeSeconds)}
+              </span>
+              {dashboardHealth.fetchedAt && (
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/10 text-gray-200">
+                  Macro sync {dashboardHealth.successSources}/{dashboardHealth.requestedSources}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-3 mt-4">
               <div className="text-3xl lg:text-4xl font-bold text-white">
                 ฿{portfolio.totalValue.toLocaleString('th-TH', { minimumFractionDigits: 0 })}
@@ -468,11 +778,45 @@ export const DashboardHome = memo(function DashboardHome() {
             รีเฟรช
           </Button>
           {lastPriceUpdate && (
-            <span className="text-xs text-gray-500 ml-auto">
-              อัปเดต: {lastPriceUpdate.toLocaleTimeString('th-TH')}
+            <span className={`text-xs ml-auto ${isPriceFeedStale ? 'text-amber-300' : 'text-gray-400'}`}>
+              ราคา: {lastPriceUpdate.toLocaleTimeString('th-TH')} · {formatFeedAge(lastUpdateAgeSeconds)}
             </span>
           )}
         </div>
+      </motion.div>
+
+      {dashboardNotice && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-2xl border px-4 py-3 text-sm ${dashboardNotice.tone === 'error'
+            ? 'bg-red-50 border-red-200 text-red-700'
+            : 'bg-amber-50 border-amber-200 text-amber-700'}`}
+        >
+          {dashboardNotice.message}
+        </motion.div>
+      )}
+
+      <motion.div
+        initial={{ y: 16, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.08 }}
+        className="grid grid-cols-2 xl:grid-cols-4 gap-3"
+      >
+        {dataHealthCards.map((card) => (
+          <div key={card.label} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">{card.label}</p>
+                <p className={`text-xl font-bold mt-1 ${card.tone}`}>{card.value}</p>
+                <p className="text-xs text-gray-400 mt-1">{card.sub}</p>
+              </div>
+              <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center`}>
+                <card.icon size={18} className={card.tone} />
+              </div>
+            </div>
+          </div>
+        ))}
       </motion.div>
 
       {/* ─── Professional Features: DEFCON, Whale Tracker, Rebalancing ─── */}
@@ -639,11 +983,15 @@ export const DashboardHome = memo(function DashboardHome() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold text-gray-900">Live Prices</h3>
-              <p className="text-xs text-gray-500">อัปเดตทุก 30 วินาที</p>
+              <p className="text-xs text-gray-500">
+                {lastPriceUpdate
+                  ? `อัปเดตล่าสุด ${lastPriceUpdate.toLocaleTimeString('th-TH')} · age ${formatFeedAge(lastUpdateAgeSeconds)}`
+                  : 'รอ price feed แรก'}
+              </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs text-green-600 font-medium">LIVE</span>
+              <div className={`w-2 h-2 rounded-full ${livePriceStatus.dotClass} ${isWebSocketConnected ? 'animate-pulse' : ''}`} />
+              <span className={`text-xs font-medium ${livePriceStatus.textClass}`}>{livePriceStatus.label}</span>
             </div>
           </div>
 

@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import { toast } from 'sonner';
 import {
   ShieldAlert,
   Siren,
@@ -12,77 +11,51 @@ import {
   TrendingDown,
   Info
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useData, usePortfolio } from '@/context/hooks';
 
-// Demo Data
-const RISK_EVENTS_DEMO = [
-  {
-    id: 'e1',
-    title: 'Middle East Tension Escalates',
-    description: 'Bilateral tensions rise in the region affecting oil supply routes.',
-    category: 'war' as 'war' | 'earthquake' | 'political' | 'economic',
-    severity: 'high' as 'critical' | 'high' | 'medium' | 'low',
-    country: 'Regional',
-    timestamp: '2h ago'
-  },
-  {
-    id: 'e2',
-    title: 'Central Bank Rate Decision',
-    description: 'Unexpected hawkish turn in latest meeting minutes.',
-    category: 'economic' as 'war' | 'earthquake' | 'political' | 'economic',
-    severity: 'medium' as 'critical' | 'high' | 'medium' | 'low',
-    country: 'Global',
-    timestamp: '4h ago'
-  },
-  {
-    id: 'e3',
-    title: 'Pacific Rim Seismic Activity',
-    description: 'Magnitude 6.2 earthquake detected near major tech hubs.',
-    category: 'earthquake' as 'war' | 'earthquake' | 'political' | 'economic',
-    severity: 'low' as 'critical' | 'high' | 'medium' | 'low',
-    country: 'Japan',
-    timestamp: '6h ago'
-  },
-  {
-    id: 'e4',
-    title: 'Political Election Volatility',
-    description: 'Polls show narrowing margin in upcoming national election.',
-    category: 'political' as 'war' | 'earthquake' | 'political' | 'economic',
-    severity: 'critical' as 'critical' | 'high' | 'medium' | 'low',
-    country: 'UK',
-    timestamp: '8h ago'
-  }
-];
+type RiskCategory = 'war' | 'earthquake' | 'political' | 'economic';
+type RiskSeverity = 'critical' | 'high' | 'medium' | 'low';
+type RiskTrend = 'stable' | 'improving' | 'deteriorating';
 
-const COUNTRY_RISK_DEMO = [
-  {
-    country: 'United States',
-    flag: '🇺🇸',
-    overallRisk: 15,
-    politicalRisk: 20,
-    economicRisk: 10,
-    socialRisk: 15,
-    trend: 'stable' as 'stable' | 'improving' | 'deteriorating'
-  },
-  {
-    country: 'China',
-    flag: '🇨🇳',
-    overallRisk: 45,
-    politicalRisk: 50,
-    economicRisk: 40,
-    socialRisk: 45,
-    trend: 'improving' as 'stable' | 'improving' | 'deteriorating'
-  },
-  {
-    country: 'Russia',
-    flag: '🇷🇺',
-    overallRisk: 85,
-    politicalRisk: 90,
-    economicRisk: 80,
-    socialRisk: 85,
-    trend: 'deteriorating' as 'stable' | 'improving' | 'deteriorating'
-  }
-];
+type RiskEventItem = {
+  id: string;
+  title: string;
+  description: string;
+  category: RiskCategory;
+  severity: RiskSeverity;
+  country: string;
+  timestamp: string;
+  createdAt: number;
+};
+
+type RiskDomain = {
+  country: string;
+  flag: string;
+  overallRisk: number;
+  signalsRisk: number;
+  marketRisk: number;
+  operationalRisk: number;
+  trend: RiskTrend;
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function formatRelativeTime(dateValue?: Date | null) {
+  if (!dateValue) return 'just now';
+  const deltaMs = Date.now() - dateValue.getTime();
+  const deltaMinutes = Math.max(0, Math.floor(deltaMs / 60000));
+
+  if (deltaMinutes < 1) return 'just now';
+  if (deltaMinutes < 60) return `${deltaMinutes}m ago`;
+
+  const deltaHours = Math.floor(deltaMinutes / 60);
+  if (deltaHours < 24) return `${deltaHours}h ago`;
+
+  return `${Math.floor(deltaHours / 24)}d ago`;
+}
 
 const defconLevels = [
   { level: 5, name: 'Fade Out', color: 'bg-blue-500', text: 'text-blue-500', desc: 'Low risk environment' },
@@ -93,11 +66,141 @@ const defconLevels = [
 ];
 
 export function DefconMonitor() {
-  const [currentDefcon, setCurrentDefcon] = useState(3);
+  const { state: dataState } = useData();
+  const { portfolio } = usePortfolio();
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'war' | 'earthquake' | 'political' | 'economic'>('all');
 
-  const filteredEvents = RISK_EVENTS_DEMO.filter(
-    (event) => selectedCategory === 'all' || event.category === selectedCategory
+  const riskEvents = useMemo<RiskEventItem[]>(() => {
+    const events: RiskEventItem[] = [];
+    const activeAlerts = dataState.alerts.filter((alert) => alert.isActive);
+
+    if (dataState.connectionStatus.state !== 'connected') {
+      events.push({
+        id: `feed-${dataState.connectionStatus.state}`,
+        title: 'Market feed degraded',
+        description: `Live market feed is ${dataState.connectionStatus.state}, which may delay price-sensitive monitoring.`,
+        category: 'economic',
+        severity: dataState.connectionStatus.state === 'disconnected' ? 'critical' : 'high',
+        country: 'System',
+        timestamp: formatRelativeTime(dataState.lastUpdate),
+        createdAt: dataState.lastUpdate?.getTime() ?? 0,
+      });
+    }
+
+    activeAlerts.forEach((alert) => {
+      const category: RiskCategory = alert.type === 'pattern'
+        ? 'political'
+        : alert.type === 'portfolio'
+          ? 'war'
+          : alert.type === 'volume'
+            ? 'earthquake'
+            : 'economic';
+      const severity: RiskSeverity = alert.value >= 10 ? 'critical' : alert.value >= 5 ? 'high' : alert.value >= 2 ? 'medium' : 'low';
+      const alertTime = alert.triggeredAt ?? alert.createdAt;
+
+      events.push({
+        id: alert.id,
+        title: `${alert.symbol} ${alert.type} alert`,
+        description: `${alert.symbol} moved ${alert.condition} ${alert.value}. Sentinel marked this rule as still active.`,
+        category,
+        severity,
+        country: alert.symbol,
+        timestamp: formatRelativeTime(alertTime),
+        createdAt: alertTime.getTime(),
+      });
+    });
+
+    const broadLoss = dataState.marketData.topLosers[0];
+    if (broadLoss && broadLoss.change24hPercent <= -5) {
+      events.push({
+        id: `loser-${broadLoss.symbol}`,
+        title: `${broadLoss.symbol} downside pressure intensifying`,
+        description: `Top market loser is down ${Math.abs(broadLoss.change24hPercent).toFixed(2)}% over 24h, signalling elevated cross-market stress.`,
+        category: 'economic',
+        severity: broadLoss.change24hPercent <= -10 ? 'critical' : 'high',
+        country: 'Global',
+        timestamp: formatRelativeTime(dataState.marketData.lastUpdated),
+        createdAt: dataState.marketData.lastUpdated?.getTime() ?? 0,
+      });
+    }
+
+    if (portfolio.totalChange24hPercent <= -3) {
+      events.push({
+        id: 'portfolio-drawdown',
+        title: 'Portfolio drawdown alert',
+        description: `Portfolio is down ${Math.abs(portfolio.totalChange24hPercent).toFixed(2)}% over 24h, which increases defensive monitoring needs.`,
+        category: 'war',
+        severity: portfolio.totalChange24hPercent <= -6 ? 'critical' : 'high',
+        country: 'Portfolio',
+        timestamp: formatRelativeTime(dataState.lastUpdate),
+        createdAt: dataState.lastUpdate?.getTime() ?? 0,
+      });
+    }
+
+    return events
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 8);
+  }, [dataState.alerts, dataState.connectionStatus.state, dataState.lastUpdate, dataState.marketData.lastUpdated, dataState.marketData.topLosers, portfolio.totalChange24hPercent]);
+
+  const currentDefcon = useMemo(() => {
+    const criticalCount = riskEvents.filter((event) => event.severity === 'critical').length;
+    const highCount = riskEvents.filter((event) => event.severity === 'high').length;
+    const mediumCount = riskEvents.filter((event) => event.severity === 'medium').length;
+
+    const score = (criticalCount * 2.5)
+      + (highCount * 1.5)
+      + (mediumCount * 0.75)
+      + (dataState.connectionStatus.state === 'disconnected' ? 2 : dataState.connectionStatus.state === 'reconnecting' ? 1 : 0)
+      + (portfolio.totalChange24hPercent <= -5 ? 1.5 : portfolio.totalChange24hPercent <= -2 ? 0.5 : 0)
+      + (dataState.globalStats.fearGreedIndex > 0 && dataState.globalStats.fearGreedIndex < 25 ? 1 : 0);
+
+    if (score >= 6) return 1;
+    if (score >= 4.5) return 2;
+    if (score >= 3) return 3;
+    if (score >= 1.5) return 4;
+    return 5;
+  }, [dataState.connectionStatus.state, dataState.globalStats.fearGreedIndex, portfolio.totalChange24hPercent, riskEvents]);
+
+  const riskDomains = useMemo<RiskDomain[]>(() => {
+    const activeAlerts = dataState.alerts.filter((alert) => alert.isActive).length;
+    const largestAllocation = portfolio.assets.reduce((max, asset) => Math.max(max, asset.allocation), 0);
+    const negativeIndices = dataState.marketData.indices.filter((index) => index.changePercent < 0).length;
+    const feedPenalty = dataState.connectionStatus.state === 'connected' ? 0 : dataState.connectionStatus.state === 'reconnecting' ? 20 : 35;
+
+    return [
+      {
+        country: 'Portfolio',
+        flag: '💼',
+        overallRisk: clamp(Math.abs(portfolio.totalChange24hPercent) * 9 + largestAllocation * 0.4, 0, 100),
+        signalsRisk: clamp(activeAlerts * 10, 0, 100),
+        marketRisk: clamp(Math.abs(portfolio.totalChange24hPercent) * 12, 0, 100),
+        operationalRisk: clamp(largestAllocation * 0.8, 0, 100),
+        trend: portfolio.totalChange24hPercent <= -2 ? 'deteriorating' : portfolio.totalChange24hPercent >= 2 ? 'improving' : 'stable',
+      },
+      {
+        country: 'Market Feed',
+        flag: '📡',
+        overallRisk: clamp(feedPenalty + (activeAlerts * 6), 0, 100),
+        signalsRisk: clamp(activeAlerts * 12, 0, 100),
+        marketRisk: clamp(negativeIndices * 8, 0, 100),
+        operationalRisk: clamp(feedPenalty * 1.8, 0, 100),
+        trend: dataState.connectionStatus.state === 'connected' ? 'improving' : dataState.connectionStatus.state === 'reconnecting' ? 'stable' : 'deteriorating',
+      },
+      {
+        country: 'Global Markets',
+        flag: '🌍',
+        overallRisk: clamp((dataState.marketData.topLosers[0]?.change24hPercent ? Math.abs(dataState.marketData.topLosers[0].change24hPercent) * 6 : 0) + (dataState.globalStats.fearGreedIndex > 0 ? Math.max(0, 50 - dataState.globalStats.fearGreedIndex) : 0), 0, 100),
+        signalsRisk: clamp(dataState.marketData.topLosers.length * 6, 0, 100),
+        marketRisk: clamp(negativeIndices * 10, 0, 100),
+        operationalRisk: clamp(dataState.globalStats.fearGreedIndex > 0 ? Math.max(0, 60 - dataState.globalStats.fearGreedIndex) : 25, 0, 100),
+        trend: negativeIndices >= 2 ? 'deteriorating' : negativeIndices === 0 ? 'improving' : 'stable',
+      },
+    ];
+  }, [dataState.alerts, dataState.connectionStatus.state, dataState.globalStats.fearGreedIndex, dataState.marketData.indices, dataState.marketData.topLosers, portfolio.assets, portfolio.totalChange24hPercent]);
+
+  const filteredEvents = useMemo(
+    () => riskEvents.filter((event) => selectedCategory === 'all' || event.category === selectedCategory),
+    [riskEvents, selectedCategory]
   );
 
   return (
@@ -129,21 +232,19 @@ export function DefconMonitor() {
             </div>
             <div>
               <h3 className="font-semibold">Defcon Level</h3>
-              <p className="text-sm text-gray-500">Current global threat assessment</p>
+              <p className="text-sm text-gray-500">Calculated from live alerts, feed health, and market stress</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Last updated: 5 min ago</span>
+            <span className="text-sm text-gray-500">Last updated: {formatRelativeTime(dataState.lastUpdate)}</span>
           </div>
         </div>
 
         <div className="grid grid-cols-5 gap-4">
           {defconLevels.map((level) => (
-            <motion.button
+            <motion.div
               key={level.level}
-              onClick={() => { setCurrentDefcon(level.level); toast.info(`Defcon level set to ${level.level}: ${level.name}`); }}
               whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
               className={`relative p-4 rounded-2xl transition-all ${currentDefcon === level.level
                 ? `${level.color} text-white shadow-lg`
                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
@@ -161,7 +262,7 @@ export function DefconMonitor() {
                   <div className={`w-3 h-3 rounded-full ${level.color}`} />
                 </motion.div>
               )}
-            </motion.button>
+            </motion.div>
           ))}
         </div>
 
@@ -174,7 +275,7 @@ export function DefconMonitor() {
               </p>
               <p className="text-sm text-yellow-700 mt-1">
                 {defconLevels.find(l => l.level === currentDefcon)?.desc}.
-                Multiple geopolitical tensions detected. Monitor portfolio exposure to affected regions.
+                {riskEvents.length > 0 ? ' Live system signals suggest elevated monitoring is warranted.' : ' No active system risk signals are currently firing.'}
               </p>
             </div>
           </div>
@@ -218,7 +319,7 @@ export function DefconMonitor() {
           </div>
 
           <div className="space-y-3 max-h-80 overflow-y-auto">
-            {filteredEvents.map((event, index) => (
+            {filteredEvents.length > 0 ? filteredEvents.map((event, index) => (
               <motion.div
                 key={event.id}
                 initial={{ x: -20, opacity: 0 }}
@@ -263,7 +364,12 @@ export function DefconMonitor() {
                   </span>
                 </div>
               </motion.div>
-            ))}
+            )) : (
+              <div className="p-6 rounded-xl border border-dashed border-gray-200 bg-gray-50 text-center">
+                <p className="text-sm font-medium text-gray-700">No live risk events in this category</p>
+                <p className="text-xs text-gray-500 mt-2">The monitor will list feed issues, triggered alerts, and market stress once they appear.</p>
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -280,15 +386,15 @@ export function DefconMonitor() {
                 <ShieldAlert className="text-blue-500" size={20} />
               </div>
               <div>
-                <h3 className="font-semibold">Country Risk Index</h3>
-                <p className="text-sm text-gray-500">Comprehensive risk assessment by country</p>
+                <h3 className="font-semibold">Risk Domain Index</h3>
+                <p className="text-sm text-gray-500">Operational, market, and portfolio risk mapped from live app state</p>
               </div>
             </div>
             <Info size={18} className="text-gray-400" />
           </div>
 
           <div className="space-y-4">
-            {COUNTRY_RISK_DEMO.map((country, index) => (
+            {riskDomains.map((country, index) => (
               <motion.div
                 key={country.country}
                 initial={{ x: 20, opacity: 0 }}
@@ -320,46 +426,46 @@ export function DefconMonitor() {
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-gray-500">Political</span>
-                      <span>{country.politicalRisk}</span>
+                      <span className="text-gray-500">Signals</span>
+                      <span>{country.signalsRisk}</span>
                     </div>
                     <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${country.politicalRisk < 30 ? 'bg-green-500' :
-                          country.politicalRisk < 50 ? 'bg-yellow-500' :
-                            country.politicalRisk < 70 ? 'bg-orange-500' : 'bg-red-500'
+                        className={`h-full rounded-full ${country.signalsRisk < 30 ? 'bg-green-500' :
+                          country.signalsRisk < 50 ? 'bg-yellow-500' :
+                            country.signalsRisk < 70 ? 'bg-orange-500' : 'bg-red-500'
                           }`}
-                        style={{ width: `${country.politicalRisk}%` }}
+                        style={{ width: `${country.signalsRisk}%` }}
                       />
                     </div>
                   </div>
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-gray-500">Economic</span>
-                      <span>{country.economicRisk}</span>
+                      <span className="text-gray-500">Market</span>
+                      <span>{country.marketRisk}</span>
                     </div>
                     <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${country.economicRisk < 30 ? 'bg-green-500' :
-                          country.economicRisk < 50 ? 'bg-yellow-500' :
-                            country.economicRisk < 70 ? 'bg-orange-500' : 'bg-red-500'
+                        className={`h-full rounded-full ${country.marketRisk < 30 ? 'bg-green-500' :
+                          country.marketRisk < 50 ? 'bg-yellow-500' :
+                            country.marketRisk < 70 ? 'bg-orange-500' : 'bg-red-500'
                           }`}
-                        style={{ width: `${country.economicRisk}%` }}
+                        style={{ width: `${country.marketRisk}%` }}
                       />
                     </div>
                   </div>
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-gray-500">Social</span>
-                      <span>{country.socialRisk}</span>
+                      <span className="text-gray-500">Operational</span>
+                      <span>{country.operationalRisk}</span>
                     </div>
                     <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${country.socialRisk < 30 ? 'bg-green-500' :
-                          country.socialRisk < 50 ? 'bg-yellow-500' :
-                            country.socialRisk < 70 ? 'bg-orange-500' : 'bg-red-500'
+                        className={`h-full rounded-full ${country.operationalRisk < 30 ? 'bg-green-500' :
+                          country.operationalRisk < 50 ? 'bg-yellow-500' :
+                            country.operationalRisk < 70 ? 'bg-orange-500' : 'bg-red-500'
                           }`}
-                        style={{ width: `${country.socialRisk}%` }}
+                        style={{ width: `${country.operationalRisk}%` }}
                       />
                     </div>
                   </div>

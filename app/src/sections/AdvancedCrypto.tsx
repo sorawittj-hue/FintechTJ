@@ -19,44 +19,44 @@ import {
   ResponsiveContainer,
   Cell
 } from 'recharts';
-import type { UnlockEvent } from '@/types';
-
-const UNLOCK_EVENTS_DEMO: UnlockEvent[] = [
-  { project: 'Ethereum', date: 'Dec 15, 2024', type: 'staking', value: 850000000, amount: 240000 },
-  { project: 'Solana', date: 'Jan 02, 2025', type: 'investors', value: 320000000, amount: 2200000 },
-  { project: 'Aptos', date: 'Dec 12, 2024', type: 'team', value: 125000000, amount: 11000000 },
-  { project: 'Sui', date: 'Dec 03, 2024', type: 'community', value: 45000000, amount: 24000000 },
-];
 
 export const AdvancedCrypto = React.memo(function AdvancedCrypto() {
   const { state: dataState } = useData();
+  const { topGainers, topLosers } = dataState.marketData;
+  type MarketCoin = (typeof topGainers)[number];
 
-  // Use top symbols as "Crypto Data"
   const cryptoData = useMemo(() => {
-    return dataState.marketData.topGainers.concat(dataState.marketData.topLosers).slice(0, 6).map((coin, i) => ({
+    const uniqueCoins = new Map<string, MarketCoin>();
+
+    topGainers
+      .concat(topLosers)
+      .forEach((coin) => {
+        if (!uniqueCoins.has(coin.symbol)) {
+          uniqueCoins.set(coin.symbol, coin);
+        }
+      });
+
+    return Array.from(uniqueCoins.values()).slice(0, 6).map((coin) => ({
       id: coin.symbol,
       name: coin.symbol,
       symbol: coin.symbol,
       price: coin.price,
-      marketCap: 1000000000 * (10 - i), // Placeholder formula
-      fdvMcRatio: 1.2 + (i * 0.5), // Placeholder formula
-      decentralizationScore: 85 - (i * 5), // Placeholder formula
+      change24hPercent: coin.change24hPercent,
+      volume24h: coin.volume24h,
     }));
-  }, [dataState.marketData]);
+  }, [topGainers, topLosers]);
 
-  const unlockEvents = useMemo(() => UNLOCK_EVENTS_DEMO, []);
+  const unlockEvents = useMemo(() => [], []);
 
-  // Memoized high risk unlocks calculation
   const highRiskUnlocks = useMemo(() =>
-    unlockEvents.filter(e => e.value > 500000000),
+    unlockEvents,
     [unlockEvents]
   );
 
-  // Memoized chart data with colors
   const chartData = useMemo(() =>
     cryptoData.map(entry => ({
       ...entry,
-      fill: entry.fdvMcRatio > 5 ? '#ef4444' : entry.fdvMcRatio > 2 ? '#f59e0b' : '#22c55e'
+      fill: entry.change24hPercent > 0 ? '#22c55e' : '#ef4444'
     })),
     [cryptoData]
   );
@@ -102,46 +102,52 @@ export const AdvancedCrypto = React.memo(function AdvancedCrypto() {
               <Coins className="text-purple-500" size={20} />
             </div>
             <div>
-              <h3 className="font-semibold">FDV/MC Ratio Analysis</h3>
-              <p className="text-sm text-gray-500">Fully Diluted Valuation vs Market Cap</p>
+              <h3 className="font-semibold">Real-time Crypto Momentum</h3>
+              <p className="text-sm text-gray-500">Live price change snapshot from current market feeds</p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <span className="px-2 py-1 bg-red-100 text-red-700 rounded">{'High Risk: >5x'}</span>
-            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded">Medium: 2-5x</span>
-            <span className="px-2 py-1 bg-green-100 text-green-700 rounded">{'Low: <2x'}</span>
+            <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Positive 24h</span>
+            <span className="px-2 py-1 bg-red-100 text-red-700 rounded">Negative 24h</span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* FDV/MC Chart */}
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} layout="vertical" margin={{ left: 60 }}>
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                <YAxis
-                  type="category"
-                  dataKey="symbol"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fontWeight: 500 }}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                  formatter={(value: number) => [`${value}x`, 'FDV/MC Ratio']}
-                />
-                <Bar dataKey="fdvMcRatio" radius={[0, 4, 4, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} layout="vertical" margin={{ left: 60 }}>
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="symbol"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fontWeight: 500 }}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                    formatter={(value: number) => [`${value.toFixed(2)}%`, '24h Change']}
+                  />
+                  <Bar dataKey="change24hPercent" radius={[0, 4, 4, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full rounded-2xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-center px-6">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">No live crypto market snapshot yet</p>
+                  <p className="text-xs text-gray-500 mt-2">This chart only renders when real market gainers or losers are available.</p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Crypto Details */}
           <div className="space-y-3">
-            {cryptoData.map((crypto, index) => (
+            {cryptoData.length > 0 ? cryptoData.map((crypto, index) => (
               <motion.div
                 key={crypto.id}
                 initial={{ x: 20, opacity: 0 }}
@@ -150,26 +156,27 @@ export const AdvancedCrypto = React.memo(function AdvancedCrypto() {
                 className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold ${crypto.fdvMcRatio > 5 ? 'bg-red-500' :
-                    crypto.fdvMcRatio > 2 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold ${crypto.change24hPercent >= 0 ? 'bg-green-500' : 'bg-red-500'}`}>
                     {crypto.symbol[0]}
                   </div>
                   <div>
                     <p className="font-medium text-sm">{crypto.name}</p>
-                    <p className="text-xs text-gray-500">${(crypto.marketCap / 1e9).toFixed(2)}B MC</p>
+                    <p className="text-xs text-gray-500">${crypto.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`font-semibold ${crypto.fdvMcRatio > 5 ? 'text-red-500' :
-                    crypto.fdvMcRatio > 2 ? 'text-yellow-600' : 'text-green-500'
-                    }`}>
-                    {crypto.fdvMcRatio}x
+                  <p className={`font-semibold ${crypto.change24hPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {crypto.change24hPercent >= 0 ? '+' : ''}{crypto.change24hPercent.toFixed(2)}%
                   </p>
-                  <p className="text-xs text-gray-500">FDV/MC</p>
+                  <p className="text-xs text-gray-500">24h change</p>
                 </div>
               </motion.div>
-            ))}
+            )) : (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+                <p className="text-sm font-medium text-gray-700">No live crypto assets to analyze</p>
+                <p className="text-xs text-gray-500 mt-2">Once market movers load, this panel will show real prices and momentum only.</p>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>
@@ -198,48 +205,10 @@ export const AdvancedCrypto = React.memo(function AdvancedCrypto() {
           </div>
 
           <div className="space-y-4">
-            {unlockEvents.map((event, index) => (
-              <motion.div
-                key={index}
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.3 + index * 0.1, duration: 0.4 }}
-                className="p-4 rounded-2xl border border-gray-100 hover:border-red-200 hover:bg-red-50/30 transition-all"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold">
-                      {event.project[0]}
-                    </div>
-                    <div>
-                      <p className="font-medium">{event.project}</p>
-                      <p className="text-xs text-gray-500">{event.date} • {event.type}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-red-500">
-                      ${(event.value / 1e6).toFixed(1)}M
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {(event.amount / 1e6).toFixed(1)}M tokens
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-gray-500">Unlock Pressure</span>
-                    <span className="text-red-500 font-medium">High</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full"
-                      style={{ width: `${Math.min((event.value / 1e9) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+              <p className="text-sm font-medium text-gray-700">Unlock data source is not connected</p>
+              <p className="text-xs text-gray-500 mt-2">This module no longer shows hardcoded token unlock events. Connect a real tokenomics provider to populate this panel.</p>
+            </div>
           </div>
         </motion.div>
 
@@ -264,47 +233,11 @@ export const AdvancedCrypto = React.memo(function AdvancedCrypto() {
           </div>
 
           <div className="space-y-4">
-            {cryptoData.map((crypto, index) => (
-              <motion.div
-                key={crypto.id}
-                initial={{ x: 20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.4 + index * 0.1, duration: 0.4 }}
-                className="p-4 rounded-2xl bg-gray-50"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold">{crypto.symbol}</span>
-                    <span className="text-xs text-gray-500">{crypto.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Shield size={14} className={
-                      crypto.decentralizationScore >= 70 ? 'text-green-500' :
-                        crypto.decentralizationScore >= 50 ? 'text-yellow-500' : 'text-red-500'
-                    } />
-                    <span className={`font-semibold ${crypto.decentralizationScore >= 70 ? 'text-green-500' :
-                      crypto.decentralizationScore >= 50 ? 'text-yellow-600' : 'text-red-500'
-                      }`}>
-                      {crypto.decentralizationScore}/100
-                    </span>
-                  </div>
-                </div>
-
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${crypto.decentralizationScore}%` }}
-                    transition={{ delay: 0.5 + index * 0.1, duration: 0.8 }}
-                    className={`h-full rounded-full ${crypto.decentralizationScore >= 70 ? 'bg-green-500' :
-                      crypto.decentralizationScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Market Cap: ${(crypto.marketCap / 1e9).toFixed(2)}B
-                </p>
-              </motion.div>
-            ))}
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+              <Shield size={28} className="mx-auto mb-2 text-gray-300" />
+              <p className="text-sm font-medium text-gray-700">Decentralization scoring unavailable</p>
+              <p className="text-xs text-gray-500 mt-2">Real holder-distribution and on-chain concentration data are not connected yet, so placeholder scores have been removed.</p>
+            </div>
           </div>
         </motion.div>
       </div>

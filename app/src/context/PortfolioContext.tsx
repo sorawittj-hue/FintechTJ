@@ -42,13 +42,13 @@ interface PortfolioContextType {
   totalProfitLossPercent: number;
   totalChange24h: number;
   totalChange24hPercent: number;
-  addAsset: (asset: Omit<Asset, 'id'>) => void;
-  removeAsset: (id: string) => void;
-  updateAsset: (id: string, updates: Partial<Asset>) => void;
-  addTransaction: (type: 'deposit' | 'withdraw', amount: number, asset: string) => void;
-  removeTransaction: (id: string) => void;
-  clearTransactions: () => void;
-  resetPortfolio: () => void;
+  addAsset: (asset: Omit<Asset, 'id'>) => Promise<void>;
+  removeAsset: (id: string) => Promise<void>;
+  updateAsset: (id: string, updates: Partial<Asset>) => Promise<void>;
+  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  removeTransaction: (id: string) => Promise<void>;
+  clearTransactions: () => Promise<void>;
+  resetPortfolio: () => Promise<void>;
   updateAssetPrices: (prices: Map<string, CryptoPrice>) => void;
   setIsDepositOpen: (open: boolean) => void;
   setIsWithdrawOpen: (open: boolean) => void;
@@ -94,25 +94,10 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     transactions,
   }), [portfolioSummary, assets, transactions]);
 
-  // Wrapper for addTransaction to match old API
-  const handleAddTransaction = useCallback((type: 'deposit' | 'withdraw', amount: number, assetSymbol: string) => {
-    addDataTransaction({
-      type,
-      amount,
-      asset: assetSymbol,
-      symbol: assetSymbol,
-      timestamp: new Date(),
-    });
-  }, [addDataTransaction]);
-
-
-
   // Reset portfolio - clear all assets and transactions
-  const resetPortfolio = useCallback(() => {
-    clearTransactions();
-    assets.forEach(asset => {
-      removeAsset(asset.id);
-    });
+  const resetPortfolio = useCallback(async () => {
+    await clearTransactions();
+    await Promise.all(assets.map((asset) => removeAsset(asset.id)));
   }, [assets, clearTransactions, removeAsset]);
 
   const value = useMemo<PortfolioContextType>(() => ({
@@ -128,7 +113,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     addAsset,
     removeAsset,
     updateAsset,
-    addTransaction: handleAddTransaction,
+    addTransaction: addDataTransaction,
     removeTransaction,
     clearTransactions,
     resetPortfolio,
@@ -152,7 +137,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     addAsset,
     removeAsset,
     updateAsset,
-    handleAddTransaction,
+    addDataTransaction,
     removeTransaction,
     clearTransactions,
     resetPortfolio,
