@@ -29,7 +29,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 // Symbols to track
 const TRACKED_SYMBOLS = ['BTC', 'ETH', 'SOL', 'AVAX', 'DOT', 'LINK', 'UNI', 'AAVE', 'DOGE', 'ADA', 'XRP'];
 
-function getRSIColor(rsi: number): string {
+function getRSIColor(rsi: number | null): string {
+  if (rsi === null) return '#9ca3af';
   if (rsi <= 30) return '#22c55e'; // Extreme fear - oversold (buy opportunity)
   if (rsi <= 40) return '#84cc16'; // Fear
   if (rsi <= 60) return '#eab308'; // Neutral
@@ -37,7 +38,8 @@ function getRSIColor(rsi: number): string {
   return '#ef4444'; // Extreme greed - overbought
 }
 
-function getRSISignal(rsi: number): string {
+function getRSISignal(rsi: number | null): string {
+  if (rsi === null) return 'Awaiting';
   if (rsi <= 30) return 'Oversold';
   if (rsi <= 40) return 'Weak';
   if (rsi <= 60) return 'Neutral';
@@ -70,10 +72,10 @@ export function QuantLab() {
       const realData = rsiHeatmap.data.find(r => r.symbol === symbol);
       return {
         symbol,
-        rsi: realData?.rsi ?? 50,
-        signal: realData?.signal ?? 'neutral',
-        trend: realData?.trend ?? 'sideways',
-        isReal: !!realData && realData.rsi !== 50,
+        rsi: realData?.rsi ?? null,
+        signal: realData?.signal ?? null,
+        trend: realData?.trend ?? null,
+        isReal: !!realData,
       };
     });
   }, [rsiHeatmap]);
@@ -102,7 +104,8 @@ export function QuantLab() {
         price: coin.price,
         change: coin.change24h,
         changePercent: coin.change24hPercent.toFixed(2),
-        rsi: rsiInfo?.rsi ?? 50
+        rsi: rsiInfo?.rsi ?? null,
+        hasRsi: rsiInfo?.isReal ?? false,
       };
     });
   }, [dataState.marketData, combinedRsiData]);
@@ -203,7 +206,7 @@ export function QuantLab() {
             </div>
             <div>
               <h3 className="font-semibold">RSI Heatmap</h3>
-              <p className="text-sm text-gray-500">Relative Strength Index across assets (Real-time)</p>
+              <p className="text-sm text-gray-500">Relative Strength Index across assets with enough real candle coverage</p>
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs">
@@ -222,6 +225,13 @@ export function QuantLab() {
           </div>
         </div>
 
+        <Alert className="mb-4 border-amber-200 bg-amber-50 text-amber-800">
+          <Info size={16} />
+          <AlertDescription>
+            Assets only show RSI when enough real historical candles are available. Missing symbols stay in an awaiting-data state instead of being assigned a neutral placeholder.
+          </AlertDescription>
+        </Alert>
+
         <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
           {combinedRsiData.map((item, index) => (
             <motion.button
@@ -236,7 +246,7 @@ export function QuantLab() {
               style={{ backgroundColor: getRSIColor(item.rsi) }}
             >
               <p className="font-bold text-lg">{item.symbol}</p>
-              <p className="text-2xl font-bold mt-1">{item.rsi}</p>
+              <p className="text-2xl font-bold mt-1">{item.rsi === null ? '—' : item.rsi}</p>
               <p className="text-xs opacity-80 mt-1">{getRSISignal(item.rsi)}</p>
               <div className="absolute top-2 right-2">
                 {item.trend === 'up' && <TrendingUp size={14} className="opacity-60" />}
@@ -251,9 +261,8 @@ export function QuantLab() {
             </motion.button>
           ))}
         </div>
-
         <p className="text-xs text-gray-400 mt-4 text-center">
-          Click any asset to view detailed technical analysis • Live data: {rsiHeatmap.data.filter(r => r.rsi !== 50).length} assets
+          Click any asset to view detailed technical analysis • Real RSI coverage: {rsiHeatmap.data.length}/{TRACKED_SYMBOLS.length} assets
         </p>
       </motion.div>
 
@@ -273,7 +282,7 @@ export function QuantLab() {
               </div>
               <div>
                 <h3 className="font-semibold">{selectedSymbol}/USD Technical</h3>
-                <p className="text-sm text-gray-500">{indicatorsLoading ? 'Calculating...' : 'Real-time Indicators'}</p>
+                <p className="text-sm text-gray-500">{indicatorsLoading ? 'Calculating...' : 'Current indicator snapshot'}</p>
               </div>
             </div>
             <div className="flex gap-1">
@@ -281,8 +290,7 @@ export function QuantLab() {
                 <button
                   key={tf}
                   onClick={() => toast.info(`Switched to ${tf} timeframe`)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium ${tf === '4H' ? 'bg-[#ee7d54] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium ${tf === '4H' ? 'bg-[#ee7d54] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                 >
                   {tf}
                 </button>
@@ -351,18 +359,18 @@ export function QuantLab() {
             <div>
               <p className="text-xs text-gray-500">RSI (14)</p>
               <p className={`font-semibold ${rsi && rsi.value > 70 ? 'text-red-500' : rsi && rsi.value < 30 ? 'text-green-500' : 'text-yellow-600'}`}>
-                {rsi ? rsi.value.toFixed(1) : '59.4'}
+                {rsi ? rsi.value.toFixed(1) : '—'}
               </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">MACD</p>
-              <p className={`font-semibold ${macd && macd.histogram > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {macd ? (macd.histogram > 0 ? '+' : '') + macd.histogram.toFixed(1) : '+245.3'}
+              <p className={`font-semibold ${macd && macd.histogram > 0 ? 'text-green-500' : macd ? 'text-red-500' : 'text-gray-500'}`}>
+                {macd ? (macd.histogram > 0 ? '+' : '') + macd.histogram.toFixed(1) : '—'}
               </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">BB Width</p>
-              <p className="font-semibold">{bollinger ? bollinger.bandwidth.toFixed(2) + '%' : '4.2%'}</p>
+              <p className="font-semibold">{bollinger ? bollinger.bandwidth.toFixed(2) + '%' : '—'}</p>
             </div>
           </div>
         </motion.div>
@@ -381,7 +389,7 @@ export function QuantLab() {
               </div>
               <div>
                 <h3 className="font-semibold">Technical Signals</h3>
-                <p className="text-sm text-gray-500">Multi-timeframe analysis</p>
+                <p className="text-sm text-gray-500">Rule-based readout from currently available indicators</p>
               </div>
             </div>
             <Info size={18} className="text-gray-400" />
@@ -395,10 +403,7 @@ export function QuantLab() {
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.5 + index * 0.1, duration: 0.4 }}
                 onClick={() => setSelectedSymbol(stock.symbol)}
-                className={`flex items-center justify-between p-4 rounded-2xl transition-colors cursor-pointer ${selectedSymbol === stock.symbol
-                  ? 'bg-purple-50 border border-purple-200'
-                  : 'bg-gray-50 hover:bg-gray-100'
-                  }`}
+                className={`flex items-center justify-between p-4 rounded-2xl transition-colors cursor-pointer ${selectedSymbol === stock.symbol ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50 hover:bg-gray-100'}`}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-bold text-sm">
@@ -413,27 +418,21 @@ export function QuantLab() {
                 <div className="flex items-center gap-6">
                   <div className="text-right">
                     <p className="text-xs text-gray-500">RSI</p>
-                    <p className={`font-semibold ${stock.rsi > 70 ? 'text-red-500' :
-                      stock.rsi < 30 ? 'text-green-500' : 'text-gray-700'
-                      }`}>
-                      {stock.rsi}
+                    <p className={`font-semibold ${stock.rsi !== null && stock.rsi > 70 ? 'text-red-500' : stock.rsi !== null && stock.rsi < 30 ? 'text-green-500' : 'text-gray-700'}`}>
+                      {stock.rsi === null ? '—' : stock.rsi}
                     </p>
                   </div>
 
                   <div className="text-right">
-                    <p className="text-xs text-gray-500">Signal</p>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${stock.rsi > 60 ? 'bg-green-100 text-green-700' :
-                      stock.rsi < 40 ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                      {stock.rsi > 60 ? 'Buy' : stock.rsi < 40 ? 'Sell' : 'Hold'}
+                    <p className="text-xs text-gray-500">Readout</p>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${stock.rsi !== null && stock.rsi > 60 ? 'bg-green-100 text-green-700' : stock.rsi !== null && stock.rsi < 40 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+                      {stock.rsi === null ? 'Awaiting Data' : stock.rsi > 60 ? 'Bullish Lean' : stock.rsi < 40 ? 'Bearish Lean' : 'Neutral'}
                     </span>
                   </div>
 
                   <div className="text-right">
                     <p className="text-xs text-gray-500">24h</p>
-                    <span className={`text-sm font-medium ${stock.change >= 0 ? 'text-green-500' : 'text-red-500'
-                      }`}>
+                    <span className={`text-sm font-medium ${stock.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                       {stock.change >= 0 ? '+' : ''}{stock.changePercent}%
                     </span>
                   </div>
@@ -442,15 +441,21 @@ export function QuantLab() {
             ))}
           </div>
 
+          {!indicators && (
+            <div className="mt-6 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
+              Current technical readout is unavailable until enough live indicator history loads for the selected symbol.
+            </div>
+          )}
+
           {indicators && (
             <div className="mt-6 p-4 rounded-2xl bg-gradient-to-r from-[#ee7d54]/10 to-purple-100">
               <div className="flex items-center gap-2 mb-2">
                 <Brain size={16} className="text-[#ee7d54]" />
-                <span className="font-medium text-sm">AI Technical Analysis ({selectedSymbol})</span>
+                <span className="font-medium text-sm">Technical Readout ({selectedSymbol})</span>
               </div>
               <p className="text-sm text-gray-600">
-                Based on current technical indicators, {selectedSymbol} shows
-                {' '}{indicators.rsi.trend === 'up' ? 'bullish' : indicators.rsi.trend === 'down' ? 'bearish' : 'neutral'} momentum
+                Based on the currently available indicators, {selectedSymbol} shows {' '}
+                {indicators.rsi.trend === 'up' ? 'bullish' : indicators.rsi.trend === 'down' ? 'bearish' : 'neutral'} momentum
                 with RSI at {indicators.rsi.value.toFixed(1)}.
                 {indicators.rsi.signal === 'oversold' && 'Potential oversold bounce opportunity.'}
                 {indicators.rsi.signal === 'overbought' && 'Consider taking profits if position is profitable.'}

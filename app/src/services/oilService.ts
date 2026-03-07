@@ -55,6 +55,7 @@ export interface EIAInventoryReport {
     marketImpact: 'bearish' | 'bullish' | 'mixed';
     consensusExpectation: number;
     surprise: number;
+    isFallback?: boolean;
 }
 
 export interface TechnicalIndicators {
@@ -181,6 +182,7 @@ export interface OilHistoricalData {
     low: number;
     close: number;
     volume: number;
+    isFallback?: boolean;
 }
 
 export interface PriceAlert {
@@ -433,6 +435,7 @@ async function fetchWTIHistory(range: string = '3mo'): Promise<OilHistoricalData
                     low: +(quotes.low?.[i] || 0).toFixed(2),
                     close: +(quotes.close?.[i] || 0).toFixed(2),
                     volume: quotes.volume?.[i] || 0,
+                    isFallback: false,
                 })).filter((d: OilHistoricalData) => d.close > 0);
 
                 OilStorage.setCache({ history: data });
@@ -464,6 +467,7 @@ function generateFallbackHistory(): OilHistoricalData[] {
             low: +(close - Math.random() * 1.5).toFixed(2),
             close: +close.toFixed(2),
             volume: 250000 + Math.floor(Math.random() * 100000),
+            isFallback: true,
         });
     }
     return data;
@@ -705,6 +709,7 @@ function getLatestEIA(): EIAInventoryReport {
         marketImpact: 'mixed',
         consensusExpectation: 2.1,
         surprise: +(baseBuild + randomFactor - 2.1).toFixed(1),
+        isFallback: true,
     };
 }
 
@@ -886,8 +891,8 @@ function generateAlphaSignal(
     if (geo.overallScore > 70) { score += 10; factors.push(`High geopolitical risk (${geo.overallScore}/100) — supply premium`); }
     else if (geo.overallScore < 30) { score -= 5; factors.push('Low geopolitical risk — no supply premium'); }
 
-    if (seasonal.historicalBias === 'bullish') { score += 7; factors.push(`Seasonal bullish: ${seasonal.avgReturnThisMonth}% avg return, ${seasonal.winRate}% win rate`); }
-    else if (seasonal.historicalBias === 'bearish') { score -= 7; factors.push(`Seasonal bearish: ${seasonal.avgReturnThisMonth}% avg return`); }
+    if (seasonal.historicalBias === 'bullish') { score += 7; factors.push(`Seasonal context bullish: ${seasonal.avgReturnThisMonth}% avg return with ${seasonal.winRate}% positive-month history`); }
+    else if (seasonal.historicalBias === 'bearish') { score -= 7; factors.push(`Seasonal context bearish: ${seasonal.avgReturnThisMonth}% avg return historically`); }
 
     if (cot.positioning === 'extremely_short') { score += 8; factors.push('COT: Extreme short positioning — contrarian bullish'); }
     else if (cot.positioning === 'extremely_long') { score -= 8; factors.push('COT: Extreme long positioning — contrarian bearish'); }
@@ -1231,6 +1236,7 @@ export interface OilIntelligenceState {
     lastUpdate: Date | null;
     error: string | null;
     usingFallback: boolean;
+    signalStatusMessage: string | null;
     alerts: PriceAlert[];
     eiaCalendar: EIACalendarEvent[];
 }
@@ -1248,7 +1254,7 @@ export function useOilIntelligence() {
         correlations: [], opec: null, geo: null, seasonal: null,
         cot: null, supplyDemand: null, signal: null,
         loading: true, lastUpdate: null, error: null, 
-        usingFallback: false, alerts: [], eiaCalendar: []
+        usingFallback: false, signalStatusMessage: null, alerts: [], eiaCalendar: []
     });
 
     const [refreshTick, setRefreshTick] = useState(0);
@@ -1283,8 +1289,14 @@ export function useOilIntelligence() {
                     service.getSupplyDemand()
                 ]);
                 
+                const hasFallbackHistory = history.some(bar => bar.isFallback);
+                const hasFallbackEIA = eia.isFallback === true;
+                const hasPlaceholderMacroInputs = true;
+                const canGenerateSignal = !price.isFallback && !hasFallbackHistory && !hasFallbackEIA && !hasPlaceholderMacroInputs;
                 const technicals = service.computeTechnicals(history, price.price);
-                const signal = service.generateSignal(price, technicals, eia, opec, geo, seasonal, cot, supplyDemand);
+                const signal = canGenerateSignal
+                    ? service.generateSignal(price, technicals, eia, opec, geo, seasonal, cot, supplyDemand)
+                    : null;
                 const alerts = OilStorage.getAlerts();
                 const eiaCalendar = getEIACalendar();
 
@@ -1293,7 +1305,10 @@ export function useOilIntelligence() {
                         price, history, technicals, eia, correlations,
                         opec, geo, seasonal, cot, supplyDemand, signal,
                         loading: false, lastUpdate: new Date(), error: null,
-                        usingFallback: price.isFallback || false,
+                        usingFallback: price.isFallback || hasFallbackHistory || hasFallbackEIA || hasPlaceholderMacroInputs,
+                        signalStatusMessage: canGenerateSignal
+                            ? null
+                            : 'WTI alpha setup withheld because one or more key price, inventory, or macro inputs still rely on fallback or placeholder data.',
                         alerts,
                         eiaCalendar
                     });

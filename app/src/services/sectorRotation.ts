@@ -462,19 +462,22 @@ async function calculateSectorPerformance(): Promise<SectorPerformance[]> {
     fetchCoinGeckoPrices(CRYPTO_SECTORS.flatMap(s => s.symbols)),
   ]);
 
-  // Check if we have enough real data
-  const hasRealData = Object.keys(prices).length >= 10;
-
-  if (!hasRealData) {
-    console.warn('[SectorRotation] Using fallback data due to API failures');
-    return FALLBACK_PERFORMANCE.map(p => ({ ...p, isFallback: true }));
+  if (Object.keys(prices).length === 0) {
+    console.warn('[SectorRotation] No live sector pricing available');
+    return [];
   }
 
-  return CRYPTO_SECTORS.map(sector => {
+  const performance: SectorPerformance[] = [];
+
+  CRYPTO_SECTORS.forEach((sector) => {
     // Get prices for sector symbols
     const sectorPrices = sector.symbols
       .map(s => prices[s.toUpperCase()])
       .filter(Boolean);
+
+    if (sectorPrices.length === 0) {
+      return;
+    }
 
     // Calculate metrics
     const avgChange24h = sectorPrices.length > 0
@@ -503,7 +506,7 @@ async function calculateSectorPerformance(): Promise<SectorPerformance[]> {
     // Rotation score based on momentum and volume
     const rotationScore = Math.min(100, Math.max(-100, momentum));
 
-    return {
+    performance.push({
       sectorId: sector.id,
       sectorName: sector.name,
       currentPrice: 100 + avgChange24h, // Normalized index
@@ -524,14 +527,20 @@ async function calculateSectorPerformance(): Promise<SectorPerformance[]> {
       moneyFlowIndex: Math.min(100, Math.max(0, 50 + avgChange24h)),
       timestamp: new Date(),
       isFallback: false,
-    };
+    });
   });
+
+  return performance;
 }
 
 /**
  * Calculate capital flows between sectors
  */
 function calculateSectorFlows(performance: SectorPerformance[]): SectorFlow[] {
+  if (performance.length < 2) {
+    return [];
+  }
+
   const flows: SectorFlow[] = [];
 
   // Find sectors with strongest rotation
@@ -568,6 +577,10 @@ function calculateSectorFlows(performance: SectorPerformance[]): SectorFlow[] {
  * Generate rotation signals from performance data
  */
 function generateRotationSignals(performance: SectorPerformance[]): RotationSignal[] {
+  if (performance.length < 2) {
+    return [];
+  }
+
   const signals: RotationSignal[] = [];
   const sortedByRotation = [...performance].sort((a, b) => b.rotationScore - a.rotationScore);
 
@@ -661,18 +674,35 @@ export class SectorRotationService {
     this.isLoading = true;
 
     try {
-      this.performance = await calculateSectorPerformance();
-      this.usingFallback = this.performance.some(p => p.isFallback);
-      this.flows = calculateSectorFlows(this.performance);
-      this.signals = generateRotationSignals(this.performance);
+      const nextPerformance = await calculateSectorPerformance();
+
+      if (nextPerformance.length > 0) {
+        this.performance = nextPerformance;
+        this.flows = calculateSectorFlows(nextPerformance);
+        this.signals = generateRotationSignals(nextPerformance);
+        this.usingFallback = false;
+      } else if (this.performance.length > 0) {
+        this.usingFallback = true;
+      } else {
+        this.performance = [];
+        this.flows = [];
+        this.signals = [];
+        this.usingFallback = true;
+      }
+
       this.notifySubscribers();
     } catch (error) {
       console.warn('[SectorRotation] Failed to update data:', error);
-      // Use fallback on error
-      this.performance = FALLBACK_PERFORMANCE.map(p => ({ ...p, isFallback: true }));
-      this.usingFallback = true;
-      this.flows = calculateSectorFlows(this.performance);
-      this.signals = generateRotationSignals(this.performance);
+
+      if (this.performance.length > 0) {
+        this.usingFallback = true;
+      } else {
+        this.performance = [];
+        this.flows = [];
+        this.signals = [];
+        this.usingFallback = true;
+      }
+
       this.notifySubscribers();
     } finally {
       this.isLoading = false;
@@ -724,7 +754,7 @@ export class SectorRotationService {
       : 0;
 
     return {
-      totalSectors: CRYPTO_SECTORS.length,
+      totalSectors: this.performance.length,
       rotatingSectors,
       avgMomentum: Math.round(avgMomentum),
       totalCapitalFlow,
@@ -767,6 +797,7 @@ export function useSectorRotation() {
   const [signals, setSignals] = useState<RotationSignal[]>([]);
   const [stats, setStats] = useState<SectorRotationStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   useEffect(() => {
     const service = SectorRotationService.getInstance();
@@ -775,6 +806,7 @@ export function useSectorRotation() {
       setPerformance(data.performance);
       setFlows(data.flows);
       setSignals(data.signals);
+      setUsingFallback(data.usingFallback);
       setStats(service.getStats());
       setLoading(false);
     });
@@ -791,6 +823,7 @@ export function useSectorRotation() {
     stats,
     sectors: SectorRotationService.getInstance().getSectors(),
     loading,
+    usingFallback,
     refresh: () => SectorRotationService.getInstance().refresh(),
   };
 }

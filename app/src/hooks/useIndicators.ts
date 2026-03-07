@@ -321,18 +321,18 @@ export function useRSIHeatmap(symbols: string[]) {
               trend: rsi.trend,
             };
           } catch {
-            return {
-              symbol,
-              rsi: 50,
-              signal: 'neutral' as const,
-              trend: 'sideways' as const,
-            };
+            return null;
           }
         })
       );
 
       if (mounted) {
-        setRsiData(results);
+        setRsiData(results.filter((result): result is {
+          symbol: string;
+          rsi: number;
+          signal: 'oversold' | 'neutral' | 'overbought';
+          trend: 'up' | 'down' | 'sideways';
+        } => result !== null));
         setLoading(false);
       }
     };

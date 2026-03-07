@@ -1,4 +1,6 @@
 import { useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import React from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -65,7 +67,8 @@ function loadPortfolioHistory(): PortfolioHistoryPoint[] {
   }
 }
 
-export const PortfolioOverview = React.memo(function PortfolioOverview() {
+export default function PortfolioOverview() {
+  const { t } = useTranslation();
   const { portfolio, setIsDepositOpen, setIsWithdrawOpen } = usePortfolio();
   const {
     isLoading: isLoadingPrices,
@@ -303,7 +306,7 @@ export const PortfolioOverview = React.memo(function PortfolioOverview() {
             <span className={`text-sm font-medium ${statsConfig.change24h.color}`}>
               {statsConfig.change24h.percent}
             </span>
-            <span className="text-xs text-gray-400">vs yesterday</span>
+            <span className="text-xs text-gray-400">rolling 24h</span>
           </div>
         </motion.div>
 
@@ -388,8 +391,8 @@ export const PortfolioOverview = React.memo(function PortfolioOverview() {
             ) : (
               <div className="h-full rounded-2xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-center px-6">
                 <div>
-                  <p className="text-sm font-medium text-gray-700">ยังไม่มีประวัติพอร์ตจริงเพียงพอสำหรับกราฟ</p>
-                  <p className="text-xs text-gray-500 mt-2">เมื่อพอร์ตของคุณถูกบันทึกต่อเนื่อง กราฟนี้จะแสดงข้อมูลจริงแทนการจำลอง</p>
+                  <p className="text-sm font-medium text-gray-700">{t('portfolio.noRealHistory')}</p>
+                  <p className="text-xs text-gray-500 mt-2">{t('portfolio.realDataNote')}</p>
                 </div>
               </div>
             )}

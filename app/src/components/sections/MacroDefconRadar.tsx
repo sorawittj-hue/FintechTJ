@@ -45,6 +45,7 @@ export function MacroDefconRadar({
   const colors = getDefconColor(defcon.level);
 
   const recommendedAllocation = getRecommendedAllocation(defcon.level);
+  const usesRealBtcInputs = conditions.btcVolatilitySource === 'daily_ohlcv' && conditions.btcTrendSource === 'daily_ohlcv';
 
   return (
     <Card className={`${colors.bg} ${colors.border} border-2 ${className}`}>
@@ -56,19 +57,29 @@ export function MacroDefconRadar({
               Macro Defcon Radar
             </CardTitle>
             <CardDescription>
-              Market risk assessment & strategic positioning
+              {usesRealBtcInputs
+                ? 'Market risk assessment using BTC daily OHLCV inputs'
+                : 'Market risk assessment using mixed real data and estimated BTC proxies'}
             </CardDescription>
           </div>
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className={`px-4 py-2 rounded-full ${colors.bg} ${colors.text} border ${colors.border}`}
-          >
-            <div className="flex items-center gap-2">
-              <Gauge className="w-4 h-4" />
-              <span className="font-bold text-lg">DEFCON {defcon.level}</span>
+          <div className="flex items-center gap-2">
+            <div className={`px-3 py-1 rounded-full text-xs font-medium border ${usesRealBtcInputs
+              ? 'bg-green-50 text-green-700 border-green-200'
+              : 'bg-amber-50 text-amber-700 border-amber-200'
+              }`}>
+              {usesRealBtcInputs ? 'BTC daily OHLCV' : 'Estimated BTC inputs'}
             </div>
-          </motion.div>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`px-4 py-2 rounded-full ${colors.bg} ${colors.text} border ${colors.border}`}
+            >
+              <div className="flex items-center gap-2">
+                <Gauge className="w-4 h-4" />
+                <span className="font-bold text-lg">DEFCON {defcon.level}</span>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </CardHeader>
 

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -38,6 +39,7 @@ import { useData } from '@/context/hooks';
 // 🛡️ POSITION SIZER COMPONENT
 // ============================================
 function PositionSizerPanel() {
+  const { t } = useTranslation();
   const [params, setParams] = useState<PositionRequest>({
     accountBalance: 10000,
     riskPercentage: 2,
@@ -59,12 +61,12 @@ function PositionSizerPanel() {
     try {
       const calc = calculatePosition(params);
       if (!calc.isSafe) {
-        toast.warning(calc.warningMessage || 'Position ไม่ปลอดภัย!', { duration: 5000 });
+        toast.warning(calc.warningMessage || t('institutional.positionNotSafe'), { duration: 5000 });
       } else {
-        toast.success('คำนวณสำเร็จ - Position ปลอดภัย');
+        toast.success(t('institutional.positionSafe'));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
+      toast.error(err instanceof Error ? err.message : t('institutional.errorOccurred'));
     }
   }, [params]);
 
@@ -76,7 +78,7 @@ function PositionSizerPanel() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Calculator className="w-5 h-5 text-[#ee7d54]" />
-              พารามิเตอร์การเทรด
+              {t('institutional.tradingParameters')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -102,7 +104,7 @@ function PositionSizerPanel() {
 
             {/* Account Balance */}
             <div>
-              <label className="text-sm font-medium text-gray-600">ทุนทั้งหมด (USDT)</label>
+              <label className="text-sm font-medium text-gray-600">{t('institutional.totalCapital')}</label>
               <Input
                 type="number"
                 value={params.accountBalance}
@@ -114,7 +116,7 @@ function PositionSizerPanel() {
             {/* Risk Percentage with Slider */}
             <div>
               <div className="flex justify-between mb-2">
-                <label className="text-sm font-medium text-gray-600">ความเสี่ยงที่รับได้</label>
+                <label className="text-sm font-medium text-gray-600">{t('institutional.acceptableRisk')}</label>
                 <span className="text-sm font-bold text-[#ee7d54]">{params.riskPercentage}%</span>
               </div>
               <Slider
@@ -125,13 +127,13 @@ function PositionSizerPanel() {
                 step={0.5}
               />
               <p className="text-xs text-gray-400 mt-1">
-                แนะนำ: 1-2% ต่อเทรดสำหรับมืออาชีพ
+                {t('institutional.riskRecommendation')}
               </p>
             </div>
 
             {/* Entry Price */}
             <div>
-              <label className="text-sm font-medium text-gray-600">ราคาเข้า</label>
+              <label className="text-sm font-medium text-gray-600">{t('institutional.entryPrice')}</label>
               <Input
                 type="number"
                 value={params.entryPrice}
@@ -142,7 +144,7 @@ function PositionSizerPanel() {
 
             {/* Stop Loss */}
             <div>
-              <label className="text-sm font-medium text-gray-600">ราคาตัดขาดทุน (Stop Loss)</label>
+              <label className="text-sm font-medium text-gray-600">{t('institutional.stopLossPrice')}</label>
               <Input
                 type="number"
                 value={params.stopLossPrice}
@@ -150,14 +152,14 @@ function PositionSizerPanel() {
                 className="mt-1"
               />
               <p className="text-xs text-gray-400 mt-1">
-                ระยะ Stop Loss: {((Math.abs(params.entryPrice - params.stopLossPrice) / params.entryPrice) * 100).toFixed(2)}%
+                {t('institutional.stopLossDistance')}: {((Math.abs(params.entryPrice - params.stopLossPrice) / params.entryPrice) * 100).toFixed(2)}%
               </p>
             </div>
 
             {/* Leverage */}
             <div>
               <div className="flex justify-between mb-2">
-                <label className="text-sm font-medium text-gray-600">เลเวอเรจ</label>
+                <label className="text-sm font-medium text-gray-600">{t('institutional.leverage')}</label>
                 <span className="text-sm font-bold">{params.leverage}x</span>
               </div>
               <Slider
@@ -171,7 +173,7 @@ function PositionSizerPanel() {
 
             <Button onClick={calculate} className="w-full bg-[#ee7d54] hover:bg-[#d96a43]">
               <Calculator className="w-4 h-4 mr-2" />
-              คำนวณ Position
+              {t('institutional.calculatePosition')}
             </Button>
           </CardContent>
         </Card>
@@ -181,11 +183,11 @@ function PositionSizerPanel() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Target className="w-5 h-5 text-[#ee7d54]" />
-              ผลการคำนวณ
+              {t('institutional.calculationResult')}
               {result && (
                 <Badge variant={result.isSafe ? 'default' : 'destructive'} className="ml-2">
                   {result.isSafe ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                  {result.isSafe ? 'ปลอดภัย' : 'เสี่ยง!'}
+                  {result.isSafe ? t('institutional.safe') : t('institutional.risky')}
                 </Badge>
               )}
             </CardTitle>
@@ -209,24 +211,24 @@ function PositionSizerPanel() {
                     <p className="text-xs text-gray-400">{result.positionSizeCoins} coins</p>
                   </div>
                   <div className="p-4 bg-purple-50 rounded-xl">
-                    <p className="text-xs text-gray-500">Margin ที่ต้องใช้</p>
+                    <p className="text-xs text-gray-500">{t('institutional.marginRequired')}</p>
                     <p className="text-xl font-bold text-purple-600">${result.marginRequired.toLocaleString()}</p>
-                    <p className="text-xs text-gray-400">{((result.marginRequired / params.accountBalance) * 100).toFixed(1)}% ของทุน</p>
+                    <p className="text-xs text-gray-400">{((result.marginRequired / params.accountBalance) * 100).toFixed(1)}% {t('institutional.ofCapital')}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-red-50 rounded-xl">
-                    <p className="text-xs text-gray-500">ราคา Liquidation</p>
+                    <p className="text-xs text-gray-500">{t('institutional.liquidationPrice')}</p>
                     <p className="text-xl font-bold text-red-600">${result.liquidationPrice.toLocaleString()}</p>
                     <p className="text-xs text-gray-400">
-                      {((Math.abs(params.entryPrice - result.liquidationPrice) / params.entryPrice) * 100).toFixed(2)}% จากราคาเข้า
+                      {((Math.abs(params.entryPrice - result.liquidationPrice) / params.entryPrice) * 100).toFixed(2)}% {t('institutional.fromEntry')}
                     </p>
                   </div>
                   <div className="p-4 bg-orange-50 rounded-xl">
                     <p className="text-xs text-gray-500">Potential Loss</p>
                     <p className="text-xl font-bold text-orange-600">-${result.potentialLoss.toLocaleString()}</p>
-                    <p className="text-xs text-gray-400">ถ้าโดน Stop Loss</p>
+                    <p className="text-xs text-gray-400">{t('institutional.ifStopLoss')}</p>
                   </div>
                 </div>
 
@@ -267,7 +269,7 @@ function PositionSizerPanel() {
             ) : (
               <div className="text-center py-8 text-gray-400">
                 <Calculator className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p>กรอกข้อมูลและกดคำนวณ</p>
+                <p>{t('institutional.fillDataAndCalculate')}</p>
               </div>
             )}
           </CardContent>
@@ -281,6 +283,7 @@ function PositionSizerPanel() {
 // 💥 SQUEEZE DETECTOR COMPONENT
 // ============================================
 function SqueezeDetectorPanel() {
+  const { t } = useTranslation();
   const [marketData, setMarketData] = useState<MarketDataContext>({
     fundingRate: 0.0001,
     longShortRatio: 1.2,
@@ -298,7 +301,7 @@ function SqueezeDetectorPanel() {
     if (sig.probability > 70) {
       toast.warning(sig.advice, { duration: 6000 });
     } else {
-      toast.success('อัปเดตการวิเคราะห์ตลาดแล้ว');
+      toast.success(t('institutional.scenarioAnalysisUpdated'));
     }
   }, [marketData]);
 
@@ -330,12 +333,12 @@ function SqueezeDetectorPanel() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Activity className="w-5 h-5 text-[#ee7d54]" />
-              ข้อมูลตลาด
+              {t('institutional.marketData')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-600">สัญลักษณ์</label>
+              <label className="text-sm font-medium text-gray-600">{t('institutional.symbol')}</label>
               <Input
                 value={marketData.symbol}
                 onChange={(e) => setMarketData(m => ({ ...m, symbol: e.target.value }))}
@@ -355,7 +358,7 @@ function SqueezeDetectorPanel() {
                 max={100}
                 step={1}
               />
-              <p className="text-xs text-gray-400 mt-1">ติดลบ = Short จ่าย Long</p>
+              <p className="text-xs text-gray-400 mt-1">{t('institutional.fundingRateNote')}</p>
             </div>
 
             <div>
@@ -370,7 +373,7 @@ function SqueezeDetectorPanel() {
                 max={5}
                 step={0.1}
               />
-              <p className="text-xs text-gray-400 mt-1">{'> 1 = รายย่อย Long มาก'}</p>
+              <p className="text-xs text-gray-400 mt-1">{t('institutional.longShortRatioNote')}</p>
             </div>
 
             <div>
@@ -403,7 +406,7 @@ function SqueezeDetectorPanel() {
 
             <Button onClick={analyze} className="w-full bg-[#ee7d54] hover:bg-[#d96a43]">
               <Activity className="w-4 h-4 mr-2" />
-              วิเคราะห์ตลาด
+              Analyze Scenario
             </Button>
           </CardContent>
         </Card>
@@ -413,7 +416,7 @@ function SqueezeDetectorPanel() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Zap className="w-5 h-5 text-[#ee7d54]" />
-              สัญญาณ Squeeze & Liquidation Hunt
+              Heuristic Squeeze Scenario
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -436,21 +439,24 @@ function SqueezeDetectorPanel() {
                           {signal.type === 'LONG_SQUEEZE_WARNING' && '🚨 Long Liquidation Warning'}
                           {signal.type === 'EXTREME_FEAR' && '😰 Extreme Fear'}
                           {signal.type === 'EXTREME_GREED' && '🤑 Extreme Greed'}
-                          {signal.type === 'NEUTRAL' && '✅ ตลาดปกติ'}
+                          {signal.type === 'NEUTRAL' && '✅ Neutral Scenario'}
                         </h3>
                         <Badge variant={signal.probability > 70 ? 'destructive' : 'default'}>
-                          ความน่าจะเป็น {signal.probability}%
+                          Scenario score {signal.probability}%
                         </Badge>
                       </div>
                       <p className="text-lg">{signal.advice}</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Derived from the manual input set on this page. This is a heuristic stress scenario, not verified live liquidation-flow detection.
+                      </p>
                       <div className="flex gap-4 mt-3 text-sm">
                         <span className="flex items-center gap-1">
                           <span className="w-2 h-2 rounded-full bg-current" />
-                          ฝูงชน: {signal.details.crowdSentiment === 'LONG_HEAVY' ? 'Long เยอะ' : signal.details.crowdSentiment === 'SHORT_HEAVY' ? 'Short เยอะ' : 'สมดุล'}
+                          {t('institutional.crowd')}: {signal.details.crowdSentiment === 'LONG_HEAVY' ? t('institutional.longHeavy') : signal.details.crowdSentiment === 'SHORT_HEAVY' ? t('institutional.shortHeavy') : t('institutional.balanced')}
                         </span>
                         <span className="flex items-center gap-1">
                           <span className="w-2 h-2 rounded-full bg-current" />
-                          Smart Money: {signal.details.smartMoneyDirection === 'UP' ? 'ขึ้น' : signal.details.smartMoneyDirection === 'DOWN' ? 'ลง' : 'ไม่ชัด'}
+                          {t('institutional.smartMoneyDirection')}: {signal.details.smartMoneyDirection === 'UP' ? t('institutional.up') : signal.details.smartMoneyDirection === 'DOWN' ? t('institutional.down') : t('institutional.unclear')}
                         </span>
                       </div>
                     </div>
@@ -460,7 +466,7 @@ function SqueezeDetectorPanel() {
                 {/* Risk Score */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-gray-50 rounded-xl">
-                    <p className="text-sm text-gray-500 mb-2">Market Risk Score</p>
+                    <p className="text-sm text-gray-500 mb-2">Heuristic Market Stress Score</p>
                     <div className="flex items-center gap-3">
                       <div className="flex-1 h-4 bg-gray-200 rounded-full overflow-hidden">
                         <motion.div
@@ -477,16 +483,16 @@ function SqueezeDetectorPanel() {
 
                   {smartMoney && (
                     <div className="p-4 bg-gray-50 rounded-xl">
-                      <p className="text-sm text-gray-500 mb-2">Smart Money Flow</p>
+                      <p className="text-sm text-gray-500 mb-2">Heuristic Flow Readout</p>
                       <div className="flex items-center gap-2">
                         {smartMoney.direction === 'UP' && <TrendingUp className="w-5 h-5 text-green-500" />}
                         {smartMoney.direction === 'DOWN' && <TrendingDown className="w-5 h-5 text-red-500" />}
                         {smartMoney.direction === 'SIDEWAYS' && <Activity className="w-5 h-5 text-gray-500" />}
                         <span className="font-bold">
-                          {smartMoney.direction === 'UP' ? 'ไหลเข้า (Accumulate)' : 
-                           smartMoney.direction === 'DOWN' ? 'ไหลออก (Distribute)' : ' sideways'}
+                          {smartMoney.direction === 'UP' ? t('institutional.flowingIn') : 
+                           smartMoney.direction === 'DOWN' ? t('institutional.flowingOut') : ' sideways'}
                         </span>
-                        <Badge variant="outline">{smartMoney.confidence}% confidence</Badge>
+                        <Badge variant="outline">{smartMoney.confidence}% heuristic fit</Badge>
                       </div>
                     </div>
                   )}
@@ -504,6 +510,7 @@ function SqueezeDetectorPanel() {
 // 🚨 CIRCUIT BREAKER COMPONENT
 // ============================================
 function CircuitBreakerPanel() {
+  const { t } = useTranslation();
   const { state: dataState } = useData();
   const [radar] = useState(() => new VolatilityRadar());
   const [currentPrice, setCurrentPrice] = useState(65000);
@@ -533,13 +540,13 @@ function CircuitBreakerPanel() {
 
   const applyLivePrice = useCallback(() => {
     if (!livePrice) {
-      toast.error('ยังไม่มีราคา live สำหรับสัญลักษณ์นี้');
+      toast.error(t('institutional.noLivePrice'));
       return;
     }
 
     setCurrentPrice(livePrice.price);
     updatePrice(livePrice.price);
-    toast.success(`ใช้ราคา live ของ ${normalizedSymbol} แล้ว`);
+    toast.success(t('institutional.usingLivePrice', { symbol: normalizedSymbol }));
   }, [livePrice, normalizedSymbol, updatePrice]);
 
   const getLevelColor = (level: string) => {
@@ -565,7 +572,7 @@ function CircuitBreakerPanel() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-600">สัญลักษณ์</label>
+              <label className="text-sm font-medium text-gray-600">{t('institutional.symbol')}</label>
               <Input
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
@@ -588,7 +595,7 @@ function CircuitBreakerPanel() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-600">ราคาปัจจุบัน</label>
+              <label className="text-sm font-medium text-gray-600">{t('institutional.currentPrice')}</label>
               <Input
                 type="number"
                 value={currentPrice}
@@ -614,22 +621,22 @@ function CircuitBreakerPanel() {
             </div>
 
             <div className="p-4 bg-gray-50 rounded-xl">
-              <p className="text-sm font-medium text-gray-600 mb-2">การตั้งค่า Threshold</p>
+              <p className="text-sm font-medium text-gray-600 mb-2">{t('institutional.thresholdSettings')}</p>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span>Elevated (เฝ้าระวัง)</span>
+                  <span>{t('institutional.elevated')}</span>
                   <span className="font-medium">≥ 0.8%</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>High (อันตราย)</span>
+                  <span>{t('institutional.high')}</span>
                   <span className="font-medium text-yellow-600">≥ 1.5%</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Extreme (วิกฤต)</span>
+                  <span>{t('institutional.extreme')}</span>
                   <span className="font-medium text-orange-600">≥ 3.0%</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Critical (หยุดเทรด)</span>
+                  <span>{t('institutional.critical')}</span>
                   <span className="font-medium text-red-600">≥ 5.0%</span>
                 </div>
               </div>
@@ -642,7 +649,7 @@ function CircuitBreakerPanel() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <AlertTriangle className="w-5 h-5 text-[#ee7d54]" />
-              สถานะความผันผวน
+              {t('institutional.volatilityStatus')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -652,11 +659,11 @@ function CircuitBreakerPanel() {
                 <div className={`p-6 rounded-2xl text-white ${getLevelColor(alert.level)}`}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm opacity-80">ระดับความผันผวน</p>
+                      <p className="text-sm opacity-80">{t('institutional.volatilityLevel')}</p>
                       <p className="text-3xl font-bold mt-1">{alert.level}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm opacity-80">การเปลี่ยนแปลง 1 นาที</p>
+                      <p className="text-sm opacity-80">{t('institutional.oneMinuteChange')}</p>
                       <p className={`text-2xl font-bold ${alert.dropPct >= 0 ? 'text-green-200' : 'text-red-200'}`}>
                         {alert.dropPct >= 0 ? '+' : ''}{alert.dropPct}%
                       </p>
@@ -678,15 +685,15 @@ function CircuitBreakerPanel() {
 
                 {/* Recommended Action */}
                 <div className="p-4 bg-gray-50 rounded-xl">
-                  <p className="text-sm text-gray-500 mb-2">คำแนะนำการกระทำ</p>
+                  <p className="text-sm text-gray-500 mb-2">{t('institutional.actionAdvice')}</p>
                   <div className="flex items-center gap-2">
                     <ArrowRight className="w-4 h-4 text-[#ee7d54]" />
                     <span className="font-medium">
-                      {alert.action === 'HALT_TRADING' && 'หยุดเทรดทันที!'}
-                      {alert.action === 'CLOSE_ALL' && 'ปิด Position ทั้งหมด'}
-                      {alert.action === 'REDUCE_POSITION' && 'ลดขนาด Position'}
-                      {alert.action === 'CAUTION' && 'เฝ้าระวังและระวัง'}
-                      {alert.action === 'MONITOR' && 'ติดตามสถานการณ์'}
+                      {alert.action === 'HALT_TRADING' && t('institutional.haltTradingImmediately')}
+                      {alert.action === 'CLOSE_ALL' && t('institutional.closeAllPositions')}
+                      {alert.action === 'REDUCE_POSITION' && t('institutional.reducePositionSize')}
+                      {alert.action === 'CAUTION' && t('institutional.watchAndBeCareful')}
+                      {alert.action === 'MONITOR' && t('institutional.monitorSituation')}
                     </span>
                   </div>
                 </div>
@@ -715,7 +722,7 @@ function CircuitBreakerPanel() {
             ) : (
               <div className="text-center py-8 text-gray-400">
                 <Shield className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p>กำลังรอข้อมูลราคา...</p>
+                <p>{t('institutional.waitingForPriceData')}</p>
               </div>
             )}
           </CardContent>
@@ -729,6 +736,7 @@ function CircuitBreakerPanel() {
 // 🏛️ MAIN PAGE
 // ============================================
 export default function InstitutionalTrading() {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -741,15 +749,15 @@ export default function InstitutionalTrading() {
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Shield className="w-6 h-6 text-[#ee7d54]" />
-            Institutional Trading Suite
+            {t('institutional.title')}
           </h2>
           <p className="text-gray-500 text-sm">
-            เครื่องมือระดับสถาบันการเงินสำหรับการเทรด Futures
+            {t('institutional.subtitle')}
           </p>
         </div>
         <Badge variant="outline" className="px-3 py-1">
           <Zap className="w-3 h-3 mr-1" />
-          Pro Tools
+          Sandbox Tools
         </Badge>
       </motion.div>
 
@@ -758,17 +766,17 @@ export default function InstitutionalTrading() {
         <TabsList className="grid w-full grid-cols-3 lg:w-[500px]">
           <TabsTrigger value="position" className="flex items-center gap-2">
             <Calculator className="w-4 h-4" />
-            <span className="hidden sm:inline">Position Sizer</span>
+            <span className="hidden sm:inline">{t('institutional.positionSizer')}</span>
             <span className="sm:hidden">Position</span>
           </TabsTrigger>
           <TabsTrigger value="squeeze" className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
-            <span className="hidden sm:inline">Squeeze Detector</span>
+            <span className="hidden sm:inline">{t('institutional.squeezeDetector')}</span>
             <span className="sm:hidden">Squeeze</span>
           </TabsTrigger>
           <TabsTrigger value="circuit" className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
-            <span className="hidden sm:inline">Circuit Breaker</span>
+            <span className="hidden sm:inline">{t('institutional.circuitBreaker')}</span>
             <span className="sm:hidden">Circuit</span>
           </TabsTrigger>
         </TabsList>
@@ -782,8 +790,7 @@ export default function InstitutionalTrading() {
             >
               <div className="mb-4 p-4 bg-blue-50 rounded-xl text-sm text-blue-700">
                 <Info className="w-4 h-4 inline mr-2" />
-                <strong>Position Sizer:</strong> คำนวณขนาด Position ที่เหมาะสมตามหลักการจัดการความเสี่ยง 
-                ช่วยป้องกันการล้างพอร์ตจากการคำนวณผิด
+                <strong>Position Sizer:</strong> {t('institutional.positionSizerDesc')}
               </div>
               <PositionSizerPanel />
             </motion.div>
@@ -797,8 +804,7 @@ export default function InstitutionalTrading() {
             >
               <div className="mb-4 p-4 bg-yellow-50 rounded-xl text-sm text-yellow-700">
                 <Info className="w-4 h-4 inline mr-2" />
-                <strong>Squeeze Detector:</strong> วิเคราะห์ Open Interest, Funding Rate และ Long/Short Ratio 
-                เพื่อหาโอกาสเกิดการ "บีบให้ล้างพอร์ต" (Short/Long Squeeze)
+                <strong>Squeeze Detector:</strong> {t('institutional.squeezeDetectorDesc')}
               </div>
               <SqueezeDetectorPanel />
             </motion.div>
@@ -812,8 +818,7 @@ export default function InstitutionalTrading() {
             >
               <div className="mb-4 p-4 bg-red-50 rounded-xl text-sm text-red-700">
                 <Info className="w-4 h-4 inline mr-2" />
-                <strong>Circuit Breaker:</strong> ตรวจจับ Flash Crash และความผันผวนผิดปกติแบบ Real-time 
-                เตือนผู้ใช้ให้ยกเลิกออเดอร์เมื่อตลาดผันผวนรุนแรง
+                <strong>Circuit Breaker:</strong> {t('institutional.circuitBreakerDesc')}
               </div>
               <CircuitBreakerPanel />
             </motion.div>

@@ -60,7 +60,6 @@ export interface SocialMention {
   content: string;
   sentiment: 'positive' | 'neutral' | 'negative';
   sentimentScore: number; // -1 to 1
-  engagement: number;
   relatedNarratives: string[];
   timestamp: Date;
 }
@@ -243,7 +242,6 @@ function newsToSocialMentions(news: NewsItem[]): SocialMention[] {
     content: article.title,
     sentiment: article.sentiment || 'neutral',
     sentimentScore: article.sentiment === 'positive' ? 0.5 : article.sentiment === 'negative' ? -0.5 : 0,
-    engagement: Math.floor(Math.random() * 1000), // Would come from social APIs
     relatedNarratives: detectRelatedNarratives(article),
     timestamp: new Date(article.publishedAt),
   }));
@@ -272,11 +270,11 @@ function determineNarrativeCycle(narratives: NarrativeTrend[]): NarrativeCycle {
   if (narratives.length === 0) {
     return {
       phase: 'accumulation',
-      confidence: 50,
+      confidence: 42,
       description: 'Insufficient data to determine cycle phase',
       keyIndicators: ['Waiting for more data'],
       duration: 0,
-      nextPhaseProbability: 50,
+      nextPhaseProbability: 40,
     };
   }
 
@@ -287,7 +285,7 @@ function determineNarrativeCycle(narratives: NarrativeTrend[]): NarrativeCycle {
   let phase: NarrativeCycle['phase'] = 'accumulation';
   let description = '';
   let indicators: string[] = [];
-  let confidence = 60;
+  let confidence = 52;
 
   if (avgSentiment > 30 && avgMomentum > 20) {
     phase = 'markup';
@@ -297,7 +295,7 @@ function determineNarrativeCycle(narratives: NarrativeTrend[]): NarrativeCycle {
       'Growing news volume',
       'Multiple narratives gaining traction',
     ];
-    confidence = 75;
+    confidence = 64;
   } else if (avgSentiment > 50 && avgMomentum < 0) {
     phase = 'distribution';
     description = 'Narrative distribution phase - sentiment peaked, momentum declining';
@@ -306,7 +304,7 @@ function determineNarrativeCycle(narratives: NarrativeTrend[]): NarrativeCycle {
       'Declining momentum',
       'Peak narrative coverage',
     ];
-    confidence = 70;
+    confidence = 60;
   } else if (avgSentiment < -20) {
     phase = 'markdown';
     description = 'Narrative markdown phase - negative sentiment dominating';
@@ -315,7 +313,7 @@ function determineNarrativeCycle(narratives: NarrativeTrend[]): NarrativeCycle {
       'Declining news volume',
       'Narratives fading from coverage',
     ];
-    confidence = 65;
+    confidence = 57;
   } else {
     phase = 'accumulation';
     description = 'Narrative accumulation phase - early signs of emerging trends';
@@ -324,7 +322,7 @@ function determineNarrativeCycle(narratives: NarrativeTrend[]): NarrativeCycle {
       'Low but steady news volume',
       'Early stage narratives developing',
     ];
-    confidence = 60;
+    confidence = 52;
   }
 
   return {
@@ -333,7 +331,7 @@ function determineNarrativeCycle(narratives: NarrativeTrend[]): NarrativeCycle {
     description,
     keyIndicators: indicators,
     duration: Math.floor(totalVolume / 10),
-    nextPhaseProbability: phase === 'accumulation' ? 65 : phase === 'markup' ? 45 : 55,
+    nextPhaseProbability: phase === 'accumulation' ? 52 : phase === 'markup' ? 41 : 47,
   };
 }
 

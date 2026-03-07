@@ -86,7 +86,7 @@ export function NarrativeCycle() {
             </div>
             <div>
               <h1 className="text-3xl font-bold">Narrative Cycle</h1>
-              <p className="text-gray-500">Market narrative & sentiment tracking</p>
+              <p className="text-gray-500">Heuristic narrative and sentiment tracking from recent news coverage</p>
             </div>
           </div>
         </div>
@@ -109,10 +109,13 @@ export function NarrativeCycle() {
                     <Brain size={24} className="text-purple-300" />
                     <h3 className="text-xl font-bold">Current Cycle: <span className="capitalize">{cycle.phase}</span></h3>
                     <Badge className="bg-white/20 text-white">
-                      {cycle.confidence}% confidence
+                      {cycle.confidence}% model strength
                     </Badge>
                   </div>
                   <p className="text-purple-200">{cycle.description}</p>
+                  <p className="text-xs text-purple-300 mt-2">
+                    Phase and score are heuristic outputs from narrative volume, sentiment, and source breadth. They are not predictive certainty.
+                  </p>
                   <div className="flex items-center gap-4 mt-4">
                     <span className="flex items-center gap-1 text-sm text-purple-300">
                       <Clock size={14} />
@@ -120,7 +123,7 @@ export function NarrativeCycle() {
                     </span>
                     <span className="flex items-center gap-1 text-sm text-purple-300">
                       <Activity size={14} />
-                      {cycle.nextPhaseProbability}% next phase prob.
+                      {cycle.nextPhaseProbability}% transition watch score
                     </span>
                   </div>
                 </div>
@@ -257,7 +260,7 @@ export function NarrativeCycle() {
                         ))}
                       </div>
                       <p className="text-xs text-gray-500 mt-2">
-                        Market Impact: {narrative.marketImpact}% • Cycle: {narrative.cyclePhase}
+                        Heuristic impact score: {narrative.marketImpact}% • Cycle stage: {narrative.cyclePhase}
                       </p>
                     </motion.div>
                   )}
@@ -294,7 +297,7 @@ export function NarrativeCycle() {
                       </div>
                       <p className="text-sm mt-1">{mention.content}</p>
                       <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                        <span>{mention.engagement.toLocaleString()} engagements</span>
+                        <span className="capitalize">{mention.source} source</span>
                         <span>{mention.timestamp.toLocaleTimeString()}</span>
                       </div>
                     </div>

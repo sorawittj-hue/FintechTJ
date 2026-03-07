@@ -10,50 +10,52 @@ import {
   Newspaper,
   Sparkles,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
 const ONBOARDING_KEY = 'nava2-onboarding-completed';
 
-const steps = [
+const STEP_CONFIG = [
   {
     id: 1,
-    title: 'ยินดีต้อนรับสู่ Nava² Finance',
-    description: 'แอพจัดการพอร์ตการลงทุนที่เข้าใจง่าย ใช้ฟรี และอัปเดตข้อมูลแบบเรียลไทม์',
+    titleKey: 'onboarding.welcome',
+    descKey: 'onboarding.welcomeDesc',
     icon: Sparkles,
     color: 'from-[#ee7d54] to-[#f59e0b]',
   },
   {
     id: 2,
-    title: 'ภาพรวมพอร์ต',
-    description: 'ดูมูลค่าพอร์ต กำไร/ขาดทุน และแนวโน้มการลงทุนของคุณได้ที่หน้าแรก',
+    titleKey: 'onboarding.portfolioOverview',
+    descKey: 'onboarding.portfolioOverviewDesc',
     icon: LayoutDashboard,
     color: 'from-blue-500 to-cyan-500',
   },
   {
     id: 3,
-    title: 'จัดการพอร์ต',
-    description: 'เพิ่ม แก้ไข หรือลบสินทรัพย์ในพอร์ตของคุณ ติดตามผลการลงทุนแบบเรียลไทม์',
+    titleKey: 'onboarding.managePortfolio',
+    descKey: 'onboarding.managePortfolioDesc',
     icon: Wallet,
     color: 'from-green-500 to-emerald-500',
   },
   {
     id: 4,
-    title: 'ติดตามตลาด',
-    description: 'ดูราคาคริปโตและหุ้นแบบเรียลไทม์ พร้อมข้อมูลการขึ้นลงและปริมาณการซื้อขาย',
+    titleKey: 'onboarding.trackMarkets',
+    descKey: 'onboarding.trackMarketsDesc',
     icon: TrendingUp,
     color: 'from-purple-500 to-pink-500',
   },
   {
     id: 5,
-    title: 'ข่าวสารสำคัญ',
-    description: 'อัปเดตข่าวสารและเหตุการณ์ที่ส่งผลต่อตลาด พร้อมการวิเคราะห์เบื้องต้น',
+    titleKey: 'onboarding.importantNews',
+    descKey: 'onboarding.importantNewsDesc',
     icon: Newspaper,
     color: 'from-orange-500 to-red-500',
   },
 ];
 
 export function Onboarding() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [hasCompleted, setHasCompleted] = useState(true);
@@ -78,7 +80,7 @@ export function Onboarding() {
   };
 
   const handleNext = () => {
-    if (currentStep < steps.length - 1) {
+    if (currentStep < STEP_CONFIG.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
       handleComplete();
@@ -102,7 +104,7 @@ export function Onboarding() {
     setIsOpen(true);
   };
 
-  const step = steps[currentStep];
+  const step = STEP_CONFIG[currentStep];
   const Icon = step.icon;
 
   // ถ้ายังไม่เคยดูและยังไม่เปิด
@@ -133,7 +135,7 @@ export function Onboarding() {
                 <motion.div
                   className="h-full bg-gradient-to-r from-[#ee7d54] to-[#f59e0b]"
                   initial={{ width: 0 }}
-                  animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                  animate={{ width: `${((currentStep + 1) / STEP_CONFIG.length) * 100}%` }}
                   transition={{ duration: 0.3 }}
                 />
               </div>
@@ -150,7 +152,7 @@ export function Onboarding() {
               <div className="p-8">
                 {/* Step Counter */}
                 <p className="text-xs text-gray-400 mb-4">
-                  ขั้นตอนที่ {currentStep + 1} จาก {steps.length}
+                  {t('onboarding.stepOf', { current: currentStep + 1, total: STEP_CONFIG.length })}
                 </p>
 
                 {/* Icon */}
@@ -173,10 +175,10 @@ export function Onboarding() {
                   className="text-center"
                 >
                   <h2 className="text-xl font-bold text-gray-900 mb-3">
-                    {step.title}
+                    {t(step.titleKey)}
                   </h2>
                   <p className="text-gray-500 leading-relaxed">
-                    {step.description}
+                    {t(step.descKey)}
                   </p>
                 </motion.div>
 
@@ -189,12 +191,12 @@ export function Onboarding() {
                     className={currentStep === 0 ? 'invisible' : ''}
                   >
                     <ChevronLeft size={16} className="mr-1" />
-                    ก่อนหน้า
+                    {t('common.previous')}
                   </Button>
 
                   {/* Dots */}
                   <div className="flex items-center gap-2">
-                    {steps.map((_, index) => (
+                    {STEP_CONFIG.map((_, index) => (
                       <button
                         key={index}
                         onClick={() => setCurrentStep(index)}
@@ -211,18 +213,18 @@ export function Onboarding() {
                     onClick={handleNext}
                     className="bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] hover:opacity-90"
                   >
-                    {currentStep === steps.length - 1 ? 'เริ่มต้นใช้งาน' : 'ถัดไป'}
-                    {currentStep !== steps.length - 1 && <ChevronRight size={16} className="ml-1" />}
+                    {currentStep === STEP_CONFIG.length - 1 ? t('onboarding.getStarted') : t('common.next')}
+                    {currentStep !== STEP_CONFIG.length - 1 && <ChevronRight size={16} className="ml-1" />}
                   </Button>
                 </div>
 
                 {/* Skip Button */}
-                {currentStep < steps.length - 1 && (
+                {currentStep < STEP_CONFIG.length - 1 && (
                   <button
                     onClick={handleSkip}
                     className="w-full text-center text-sm text-gray-400 hover:text-gray-600 mt-4"
                   >
-                    ข้ามการแนะนำ
+                    {t('onboarding.skipIntro')}
                   </button>
                 )}
               </div>

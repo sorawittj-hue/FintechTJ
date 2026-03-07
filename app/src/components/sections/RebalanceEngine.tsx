@@ -11,7 +11,6 @@ import {
   Shield
 } from 'lucide-react';
 import { 
-  generateRebalanceActions, 
   getRebalanceSummary,
   type Asset,
   type RebalanceAction 
@@ -43,6 +42,7 @@ export function RebalanceEngine({
   const [selectedActions, setSelectedActions] = useState<string[]>([]);
 
   const summary = getRebalanceSummary(assets, thresholdPct);
+  const hasTargetPlan = summary.hasTargetPlan;
   const hasActions = summary.actions.length > 0;
 
   const handleExecuteRebalance = () => {
@@ -83,11 +83,13 @@ export function RebalanceEngine({
               Dynamic Rebalancing Engine
             </CardTitle>
             <CardDescription>
-              Automatic portfolio rebalancing recommendations
+              {hasTargetPlan
+                ? 'Automatic portfolio rebalancing recommendations'
+                : 'Current allocation monitor until a full target plan is configured'}
             </CardDescription>
           </div>
-          <Badge variant={hasActions ? "destructive" : "secondary"}>
-            {summary.actions.length} Actions Needed
+          <Badge variant={!hasTargetPlan ? 'secondary' : hasActions ? 'destructive' : 'secondary'}>
+            {!hasTargetPlan ? 'Monitor Only' : `${summary.actions.length} Actions Needed`}
           </Badge>
         </div>
       </CardHeader>
@@ -102,17 +104,19 @@ export function RebalanceEngine({
               </div>
               <div>
                 <div className="text-sm text-gray-600">Portfolio Drift</div>
-                <div className="text-2xl font-bold">{summary.portfolioDrift}%</div>
+                <div className="text-2xl font-bold">{hasTargetPlan ? `${summary.portfolioDrift}%` : '—'}</div>
               </div>
             </div>
             <div className="text-right">
               <div className="text-sm text-gray-600">Status</div>
               <div className={`text-sm font-semibold ${
+                !hasTargetPlan ? 'text-blue-600' :
                 summary.portfolioDrift >= 15 ? 'text-red-600' :
                 summary.portfolioDrift >= 10 ? 'text-orange-600' :
                 'text-green-600'
               }`}>
-                {summary.portfolioDrift >= 15 ? '⚠️ High Drift' :
+                {!hasTargetPlan ? 'ℹ️ Monitor Mode' :
+                 summary.portfolioDrift >= 15 ? '⚠️ High Drift' :
                  summary.portfolioDrift >= 10 ? '⚡ Moderate Drift' :
                  '✅ Balanced'}
               </div>
@@ -120,7 +124,7 @@ export function RebalanceEngine({
           </div>
           
           <Progress 
-            value={Math.min(summary.portfolioDrift, 20)} 
+            value={hasTargetPlan ? Math.min(summary.portfolioDrift, 20) : 0} 
             className="h-2"
           />
           
@@ -130,7 +134,24 @@ export function RebalanceEngine({
         </div>
 
         {/* Rebalancing Actions */}
-        {hasActions ? (
+        {!hasTargetPlan ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="p-6 text-center bg-blue-50 rounded-xl border border-blue-200"
+          >
+            <AlertCircle className="w-10 h-10 text-blue-500 mx-auto mb-3" />
+            <h4 className="text-lg font-semibold text-blue-800 mb-1">
+              Rebalancing is locked until you set a target plan
+            </h4>
+            <p className="text-sm text-blue-700">
+              Configure target allocations that cover all tracked assets and sum to 100% before this engine suggests BUY/SELL actions.
+            </p>
+            <p className="text-xs text-blue-700/80 mt-2">
+              Targets configured: {summary.configuredTargetCount}/{assets.length}
+            </p>
+          </motion.div>
+        ) : hasActions ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-semibold flex items-center gap-2">
@@ -221,25 +242,28 @@ export function RebalanceEngine({
         <div className="pt-4 border-t">
           <h4 className="font-semibold mb-3 flex items-center gap-2">
             <Shield className="w-4 h-4" />
-            Current vs Target Allocation
+            {hasTargetPlan ? 'Current vs Target Allocation' : 'Current Allocation'}
           </h4>
           <div className="space-y-3">
             {assets.map((asset) => {
               const totalValue = assets.reduce((sum, a) => sum + a.currentValue, 0);
               const currentPct = totalValue > 0 ? (asset.currentValue / totalValue) * 100 : 0;
-              const deviation = currentPct - asset.targetPercentage;
+              const hasTarget = typeof asset.targetPercentage === 'number' && Number.isFinite(asset.targetPercentage);
+              const deviation = hasTarget ? currentPct - (asset.targetPercentage ?? 0) : null;
               
               return (
                 <div key={asset.symbol} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">{asset.symbol}</span>
                     <span className={`text-xs ${
-                      Math.abs(deviation) >= thresholdPct 
+                      deviation !== null && Math.abs(deviation) >= thresholdPct 
                         ? 'text-red-600 font-semibold' 
                         : 'text-gray-600'
                     }`}>
-                      Current: {currentPct.toFixed(1)}% | Target: {asset.targetPercentage}%
-                      {Math.abs(deviation) >= thresholdPct && (
+                      {hasTarget
+                        ? `Current: ${currentPct.toFixed(1)}% | Target: ${asset.targetPercentage}%`
+                        : `Current: ${currentPct.toFixed(1)}%`}
+                      {deviation !== null && Math.abs(deviation) >= thresholdPct && (
                         <span className="ml-2">
                           ({deviation > 0 ? '+' : ''}{deviation.toFixed(1)}%)
                         </span>
@@ -248,22 +272,24 @@ export function RebalanceEngine({
                   </div>
                   <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
                     {/* Target allocation marker */}
-                    <div 
-                      className="absolute h-full bg-blue-500 opacity-30"
-                      style={{ 
-                        left: `${asset.targetPercentage}%`,
-                        width: '2px'
-                      }}
-                    />
+                    {hasTarget && (
+                      <div 
+                        className="absolute h-full bg-blue-500 opacity-30"
+                        style={{ 
+                          left: `${asset.targetPercentage}%`,
+                          width: '2px'
+                        }}
+                      />
+                    )}
                     {/* Current allocation bar */}
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${currentPct}%` }}
                       transition={{ duration: 0.5 }}
                       className={`h-full ${
-                        Math.abs(deviation) >= thresholdPct 
+                        deviation !== null && Math.abs(deviation) >= thresholdPct 
                           ? 'bg-red-500' 
-                          : 'bg-green-500'
+                          : hasTargetPlan ? 'bg-green-500' : 'bg-blue-500'
                       }`}
                     />
                   </div>
@@ -302,13 +328,18 @@ export function MiniRebalanceWidget({ assets, thresholdPct = 5, className }: Min
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">Portfolio Drift</span>
             <span className={`font-semibold ${
-              summary.portfolioDrift >= 10 ? 'text-red-600' : 'text-green-600'
+              !summary.hasTargetPlan ? 'text-blue-600' : summary.portfolioDrift >= 10 ? 'text-red-600' : 'text-green-600'
             }`}>
-              {summary.portfolioDrift}%
+              {summary.hasTargetPlan ? `${summary.portfolioDrift}%` : 'Monitor only'}
             </span>
           </div>
           
-          {summary.actions.length > 0 ? (
+          {!summary.hasTargetPlan ? (
+            <div className="flex items-center gap-2 text-sm text-blue-600">
+              <AlertCircle className="w-4 h-4" />
+              <span>Set target allocations to enable rebalancing</span>
+            </div>
+          ) : summary.actions.length > 0 ? (
             <div className="space-y-2">
               <div className="text-xs text-gray-600">
                 {summary.actions.length} action{summary.actions.length > 1 ? 's' : ''} needed:

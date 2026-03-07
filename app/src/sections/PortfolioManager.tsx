@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -61,21 +62,22 @@ const getTransactionBadgeClass = (type: string) => {
 const getTransactionLabel = (type: string) => {
   switch (type) {
     case 'buy':
-      return 'ซื้อ';
+      return t('portfolio.buy');
     case 'sell':
-      return 'ขาย';
+      return t('portfolio.sell');
     case 'deposit':
-      return 'ฝาก';
+      return t('portfolio.deposit');
     case 'withdraw':
-      return 'ถอน';
+      return t('portfolio.withdraw');
     case 'transfer':
-      return 'โอน';
+      return t('portfolio.transfer');
     default:
       return type;
   }
 };
 
 export function PortfolioManager() {
+  const { t } = useTranslation();
   const {
     portfolio,
     assets,
@@ -137,10 +139,10 @@ export function PortfolioManager() {
   }, [allocationData, hasAssets, portfolio.totalValue]);
 
   const diversityMessage = useMemo(() => {
-    if (!hasAssets) return 'เริ่มต้นสร้างพอร์ต';
-    if (diversityScore >= 8) return 'พอร์ตกระจายดีมาก';
-    if (diversityScore >= 6) return 'พอร์ตกำลังกระจายตัวดี';
-    return 'ควรกระจายสินทรัพย์เพิ่ม';
+    if (!hasAssets) return t('portfolio.startingPortfolio');
+    if (diversityScore >= 8) return t('portfolio.portfolioWellDiversified');
+    if (diversityScore >= 6) return t('portfolio.portfolioWellDiversified2');
+    return t('portfolio.shouldDiversifyMore');
   }, [diversityScore, hasAssets]);
 
   return (
@@ -150,16 +152,16 @@ export function PortfolioManager() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Briefcase className="text-[#ee7d54]" />
-            พอร์ตโฟลิโอของคุณ
+            {t('portfolio.title')}
           </h1>
-          <p className="text-gray-500 dark:text-gray-400">จัดการสินทรัพย์ทั้งหมดในที่เดียว</p>
+          <p className="text-gray-500 dark:text-gray-400">{t('portfolio.subtitle')}</p>
         </div>
         <Button
           onClick={() => setShowAddDialog(true)}
           className="bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] hover:opacity-90"
         >
           <Plus size={16} className="mr-2" />
-          เพิ่มสินทรัพย์
+          {t('portfolio.addAsset')}
         </Button>
       </div>
 
@@ -167,7 +169,7 @@ export function PortfolioManager() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="dark:bg-gray-900 dark:border-gray-800">
           <CardContent className="p-4">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">มูลค่ารวม</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('portfolio.totalValue')}</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">
               ${portfolio.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
@@ -178,7 +180,7 @@ export function PortfolioManager() {
         </Card>
         <Card className="dark:bg-gray-900 dark:border-gray-800">
           <CardContent className="p-4">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">กำไร/ขาดทุนรวม</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('portfolio.totalProfitLoss')}</p>
             <p className={`text-xl font-bold ${portfolio.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {portfolio.totalProfitLoss >= 0 ? '+' : ''}
               ${portfolio.totalProfitLoss.toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -190,9 +192,9 @@ export function PortfolioManager() {
         </Card>
         <Card className="dark:bg-gray-900 dark:border-gray-800">
           <CardContent className="p-4">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">จำนวนสินทรัพย์</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{assets.length}</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">{allocationData.length} ประเภท</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('portfolio.assetCount')}</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{assets.length}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">{allocationData.length} {t('portfolio.assetTypes')}</p>
           </CardContent>
         </Card>
         <Card className="dark:bg-gray-900 dark:border-gray-800">
@@ -206,10 +208,10 @@ export function PortfolioManager() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4 lg:w-[400px]">
-          <TabsTrigger value="overview">ภาพรวม</TabsTrigger>
-          <TabsTrigger value="holdings">สินทรัพย์</TabsTrigger>
-          <TabsTrigger value="allocation">สัดส่วน</TabsTrigger>
-          <TabsTrigger value="transactions">ธุรกรรม</TabsTrigger>
+          <TabsTrigger value="overview">{t('portfolio.overview')}</TabsTrigger>
+          <TabsTrigger value="holdings">{t('portfolio.holdings')}</TabsTrigger>
+          <TabsTrigger value="allocation">{t('portfolio.allocation')}</TabsTrigger>
+          <TabsTrigger value="transactions">{t('portfolio.transactions')}</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -220,7 +222,7 @@ export function PortfolioManager() {
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
                   <PieChart size={16} />
-                  สัดส่วนตามประเภท
+                  {t('portfolio.allocationByType')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -266,12 +268,12 @@ export function PortfolioManager() {
                   <div className="h-64 flex flex-col items-center justify-center text-center text-gray-400 gap-3">
                     <PieChart size={32} className="opacity-40" />
                     <div>
-                      <p className="font-medium text-gray-600">ยังไม่มีข้อมูลการกระจายพอร์ต</p>
-                      <p className="text-sm">เพิ่มสินทรัพย์แรกเพื่อดูสัดส่วนการลงทุน</p>
+                      <p className="font-medium text-gray-600">{t('portfolio.noAllocationData')}</p>
+                      <p className="text-sm">{t('portfolio.addFirstAssetForAllocation')}</p>
                     </div>
                     <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] hover:opacity-90">
                       <Plus size={16} className="mr-2" />
-                      เพิ่มสินทรัพย์แรก
+                      {t('portfolio.addFirstAssetButton')}
                     </Button>
                   </div>
                 )}
@@ -283,7 +285,7 @@ export function PortfolioManager() {
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Target size={16} />
-                  สินทรัพย์ทำกำไรสูงสุด
+                  {t('portfolio.topPerformers')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -312,8 +314,8 @@ export function PortfolioManager() {
                   )) : (
                     <div className="py-12 text-center text-gray-400">
                       <Target size={32} className="mx-auto mb-3 opacity-30" />
-                      <p className="font-medium text-gray-600">ยังไม่มีสินทรัพย์ให้เปรียบเทียบ</p>
-                      <p className="text-sm">เมื่อเพิ่มสินทรัพย์แล้ว ระบบจะแสดงตัวที่ทำผลตอบแทนดีที่สุดให้ทันที</p>
+                      <p className="font-medium text-gray-600">{t('portfolio.noAssetsToCompare')}</p>
+                      <p className="text-sm">{t('portfolio.addAssetsToSeeComparison')}</p>
                     </div>
                   )}
                 </div>
@@ -331,12 +333,12 @@ export function PortfolioManager() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-100">
-                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">สินทรัพย์</th>
-                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">ราคา</th>
-                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">จำนวน</th>
-                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">มูลค่า</th>
-                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">P&L</th>
-                        <th className="text-center py-3 px-4 text-xs font-medium text-gray-500">จัดการ</th>
+                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.asset')}</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.price')}</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.quantity')}</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.value')}</th>
+                        <th className="text-center py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.manage')}</th>
+                        <th className="text-center py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.manage')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -365,7 +367,7 @@ export function PortfolioManager() {
                           <td className="text-right py-3 px-4">
                             <p className="font-medium">${asset.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                             <p className="text-xs text-gray-400">
-                              {asset.portfolioWeight.toFixed(1)}% ของพอร์ต
+                              {asset.portfolioWeight.toFixed(1)}% {t('portfolio.ofPortfolio')}
                             </p>
                           </td>
                           <td className="text-right py-3 px-4">
@@ -381,14 +383,14 @@ export function PortfolioManager() {
                               <button
                                 onClick={() => setWithdrawAssetId(asset.id)}
                                 className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-                                title="ถอน/ขาย"
+                                title={t('portfolio.withdrawSell')}
                               >
                                 <Minus size={14} />
                               </button>
                               <button
                                 onClick={() => {
                                   removeAsset(asset.id);
-                                  toast.success(`ลบ ${asset.symbol} ออกจากพอร์ตแล้ว`);
+                                  toast.success(t('portfolio.assetRemoved', { symbol: asset.symbol }));
                                 }}
                                 className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600"
                               >
@@ -404,8 +406,8 @@ export function PortfolioManager() {
               ) : (
                 <div className="py-16 px-6 text-center text-gray-400">
                   <Briefcase size={36} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-medium text-gray-600">ยังไม่มีสินทรัพย์ในพอร์ต</p>
-                  <p className="text-sm mt-1 mb-4">เริ่มติดตามการลงทุนของคุณด้วยการเพิ่มสินทรัพย์แรก</p>
+                  <p className="font-medium text-gray-600">{t('portfolio.noAssetsInPortfolio')}</p>
+                  <p className="text-sm mt-1 mb-4">{t('portfolio.startTracking')}</p>
                   <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] hover:opacity-90">
                     <Plus size={16} className="mr-2" />
                     เพิ่มสินทรัพย์แรก
@@ -422,7 +424,7 @@ export function PortfolioManager() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>สัดส่วนตาม Sector</CardTitle>
+                <CardTitle>{t('portfolio.allocationBySector')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-64">
@@ -451,17 +453,17 @@ export function PortfolioManager() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield size={18} />
-                  การกระจายความเสี่ยง
+                  {t('portfolio.riskDiversification')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-4 rounded-xl bg-green-50 border border-green-100">
                   <div className="flex items-center gap-2 mb-2">
                     <Shield className="text-green-500" size={18} />
-                    <span className="font-medium text-green-700">พอร์ตกระจายความเสี่ยงดี</span>
+                    <span className="font-medium text-green-700">{t('portfolio.portfolioWellDiversified')}</span>
                   </div>
                   <p className="text-sm text-green-600">
-                    พอร์ตของคุณมีการกระจายสินทรัพย์หลากหลาย ช่วยลดความเสี่ยงจากการลงทุนในสินทรัพย์ใดสินทรัพย์หนึ่งมากเกินไป
+                    {t('portfolio.diversifiedDescription')}
                   </p>
                 </div>
 
@@ -493,8 +495,8 @@ export function PortfolioManager() {
             <Card>
               <CardContent className="py-16 text-center text-gray-400">
                 <Shield size={36} className="mx-auto mb-3 opacity-30" />
-                <p className="font-medium text-gray-600">ยังไม่มีข้อมูลการกระจายความเสี่ยง</p>
-                <p className="text-sm mt-1 mb-4">เพิ่มสินทรัพย์หลายประเภทเพื่อดูภาพรวมสัดส่วนและความหลากหลายของพอร์ต</p>
+                <p className="font-medium text-gray-600">{t('portfolio.noDiversificationData')}</p>
+                <p className="text-sm mt-1 mb-4">{t('portfolio.addMultipleAssets')}</p>
                 <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] hover:opacity-90">
                   <Plus size={16} className="mr-2" />
                   เพิ่มสินทรัพย์
@@ -513,12 +515,12 @@ export function PortfolioManager() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-100">
-                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">วันที่</th>
-                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">สินทรัพย์</th>
-                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">ประเภท</th>
-                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">จำนวน</th>
-                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">ราคา</th>
-                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">มูลค่า</th>
+                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.date')}</th>
+                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.asset')}</th>
+                        <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.type')}</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.quantity')}</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.price')}</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.value')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -546,8 +548,8 @@ export function PortfolioManager() {
               ) : (
                 <div className="py-16 px-6 text-center text-gray-400">
                   <Minus size={36} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-medium text-gray-600">ยังไม่มีประวัติธุรกรรม</p>
-                  <p className="text-sm mt-1">เมื่อมีการซื้อ ขาย หรือถอนสินทรัพย์ ระบบจะแสดงประวัติที่นี่</p>
+                  <p className="font-medium text-gray-600">{t('portfolio.noTransactionHistory')}</p>
+                  <p className="text-sm mt-1">{t('portfolio.transactionHistoryNote')}</p>
                 </div>
               )}
             </CardContent>

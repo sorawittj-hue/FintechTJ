@@ -1,4 +1,5 @@
 import { useMemo, memo, useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -43,7 +44,7 @@ import {
   type WhaleTransaction,
   type CommodityPrice,
 } from '@/services/realDataService';
-import type { CryptoPrice } from '@/services/binance';
+import { binanceAPI, type CryptoPrice, type KlineData } from '@/services/binance';
 import { PortfolioWhaleTracker } from '@/components/sections/WhaleTracker';
 import { RebalanceEngine } from '@/components/sections/RebalanceEngine';
 import { MacroDefconRadar } from '@/components/sections/MacroDefconRadar';
@@ -183,27 +184,11 @@ function upsertPortfolioHistory(history: PortfolioHistoryPoint[], value: number,
 }
 
 function buildFallbackChartData(currentValue: number, portfolioChangePercent: number) {
-  const baseValue = currentValue || 100000;
-  const now = new Date();
-  const data = [];
-  let value = baseValue * 0.85;
-
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const dailyChange = Math.sin((i + 1) * 0.45 + portfolioChangePercent * 0.05) * 0.012 + 0.003;
-    value = value * (1 + dailyChange);
-    data.push({
-      date: date.toLocaleDateString('th-TH', { month: 'short', day: 'numeric' }),
-      value: Math.round(value),
-    });
+  if (currentValue <= 0 && portfolioChangePercent === 0) {
+    return [];
   }
 
-  if (data.length > 0) {
-    data[data.length - 1].value = baseValue;
-  }
-
-  return data;
+  return [];
 }
 
 function buildChartDataFromHistory(history: PortfolioHistoryPoint[], currentValue: number, portfolioChangePercent: number) {
@@ -217,8 +202,35 @@ function buildChartDataFromHistory(history: PortfolioHistoryPoint[], currentValu
   }));
 }
 
-export const DashboardHome = memo(function DashboardHome() {
-  const { portfolio, setIsDepositOpen, setIsAlertOpen } = usePortfolio();
+function calculateDailyVolatility(klines: KlineData[], window: number = 30): number | null {
+  const closes = klines
+    .slice(-(window + 1))
+    .map((kline) => kline.close)
+    .filter((close) => Number.isFinite(close) && close > 0);
+
+  if (closes.length < window + 1) {
+    return null;
+  }
+
+  const returns = closes.slice(1).map((close, index) => (close - closes[index]) / closes[index]);
+  const meanReturn = returns.reduce((sum, value) => sum + value, 0) / returns.length;
+  const variance = returns.reduce((sum, value) => sum + ((value - meanReturn) ** 2), 0) / returns.length;
+
+  return Math.sqrt(variance);
+}
+
+function calculateSimpleMovingAverage(values: number[], period: number): number | null {
+  if (values.length < period) {
+    return null;
+  }
+
+  const slice = values.slice(-period);
+  return slice.reduce((sum, value) => sum + value, 0) / slice.length;
+}
+
+export default function DashboardHome() {
+  const { t } = useTranslation();
+  const { portfolio, isLoading: portfolioLoading, refresh: refreshPortfolio } = usePortfolio();
   const {
     allPrices,
     lastUpdate: lastPriceUpdate,
@@ -241,6 +253,7 @@ export const DashboardHome = memo(function DashboardHome() {
   const [dashboardNotice, setDashboardNotice] = useState<{ tone: 'warning' | 'error'; message: string } | null>(null);
   const [priceFlash, setPriceFlash] = useState<Record<string, boolean>>({});
   const [showProFeatures, setShowProFeatures] = useState(false);
+  const [btcDailyKlines, setBtcDailyKlines] = useState<KlineData[]>([]);
   const prevPricesRef = useRef<Record<string, number>>({});
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -253,6 +266,14 @@ export const DashboardHome = memo(function DashboardHome() {
   });
   const dashboardHealthRef = useRef<DashboardDataHealth>(EMPTY_DASHBOARD_HEALTH);
   const portfolioHistoryRef = useRef<PortfolioHistoryPoint[]>(loadPortfolioHistory());
+
+  const fetchBtcMacroInputs = useCallback(async () => {
+    const klines = await binanceAPI.getKlines('BTC', '1d', 220);
+
+    if (klines.length > 0) {
+      setBtcDailyKlines(klines);
+    }
+  }, []);
 
   const fetchAllData = useCallback(async (isRefresh = false): Promise<DashboardDataHealth> => {
     // Prevent concurrent fetches
@@ -340,13 +361,13 @@ export const DashboardHome = memo(function DashboardHome() {
         setDashboardNotice({
           tone: 'error',
           message: hasExistingDashboardData
-            ? 'รีเฟรชข้อมูล dashboard ไม่สำเร็จ กำลังคงข้อมูลเดิมไว้เพื่อไม่ให้จอว่าง'
-            : 'ยังไม่สามารถโหลดข้อมูลตลาดเสริมได้ในขณะนี้',
+            ? t('dashboard.refreshFailed')
+            : t('dashboard.cannotLoadSupplementary'),
         });
       } else if (failedSources.length > 0) {
         setDashboardNotice({
           tone: 'warning',
-          message: `โหลดข้อมูลเสริมได้ ${successSources}/4 แหล่ง ขาด: ${failedSources.join(', ')}`,
+          message: t('dashboard.loadedPartial', { success: successSources, failed: failedSources.join(', ') }),
         });
       }
 
@@ -355,7 +376,7 @@ export const DashboardHome = memo(function DashboardHome() {
       console.error('Dashboard fetch error:', error);
       setDashboardNotice({
         tone: 'error',
-        message: 'เกิดข้อผิดพลาดระหว่างอัปเดต dashboard กำลังแสดงข้อมูลล่าสุดเท่าที่มีอยู่',
+        message: t('dashboard.updateError'),
       });
       return dashboardHealthRef.current;
     } finally {
@@ -405,6 +426,8 @@ export const DashboardHome = memo(function DashboardHome() {
     [portfolio.totalValue]
   );
 
+  const hasTrustedPortfolioHistory = portfolioHistory.length >= 2;
+
   useEffect(() => {
     if (portfolioHistory !== portfolioHistoryRef.current) {
       portfolioHistoryRef.current = portfolioHistory;
@@ -426,18 +449,19 @@ export const DashboardHome = memo(function DashboardHome() {
     if (isFetchingRef.current) return;
 
     void fetchAllData();
+    void fetchBtcMacroInputs();
     const interval = setInterval(() => {
       if (!isFetchingRef.current) {
         void fetchAllData(true);
       }
     }, 30000);
     return () => clearInterval(interval);
-  }, [fetchAllData]);
+  }, [fetchAllData, fetchBtcMacroInputs]);
 
   // Quick Stats
   const quickStats = useMemo(() => [
     {
-      label: 'มูลค่าพอร์ตรวม',
+      label: t('dashboard.portfolioValue'),
       value: `฿${portfolio.totalValue.toLocaleString('th-TH', { minimumFractionDigits: 0 })}`,
       change: `${portfolio.totalChange24hPercent >= 0 ? '+' : ''}${portfolio.totalChange24hPercent.toFixed(2)}%`,
       isPositive: portfolio.totalChange24hPercent >= 0,
@@ -446,7 +470,7 @@ export const DashboardHome = memo(function DashboardHome() {
       bg: 'from-orange-50 to-amber-50',
     },
     {
-      label: 'กำไร/ขาดทุน 24ชม.',
+      label: t('dashboard.profitLoss24h'),
       value: `${portfolio.totalChange24h >= 0 ? '+' : ''}฿${Math.abs(portfolio.totalChange24h).toLocaleString('th-TH', { minimumFractionDigits: 0 })}`,
       change: `${portfolio.totalChange24hPercent >= 0 ? '+' : ''}${portfolio.totalChange24hPercent.toFixed(2)}%`,
       isPositive: portfolio.totalChange24h >= 0,
@@ -455,7 +479,7 @@ export const DashboardHome = memo(function DashboardHome() {
       bg: portfolio.totalChange24h >= 0 ? 'from-green-50 to-emerald-50' : 'from-red-50 to-rose-50',
     },
     {
-      label: 'กำไร/ขาดทุนสะสม',
+      label: t('dashboard.accumulatedProfitLoss'),
       value: `${portfolio.totalProfitLoss >= 0 ? '+' : ''}฿${Math.abs(portfolio.totalProfitLoss).toLocaleString('th-TH', { minimumFractionDigits: 0 })}`,
       change: `${portfolio.totalProfitLossPercent >= 0 ? '+' : ''}${portfolio.totalProfitLossPercent.toFixed(2)}%`,
       isPositive: portfolio.totalProfitLoss >= 0,
@@ -464,9 +488,9 @@ export const DashboardHome = memo(function DashboardHome() {
       bg: portfolio.totalProfitLoss >= 0 ? 'from-blue-50 to-cyan-50' : 'from-red-50 to-rose-50',
     },
     {
-      label: 'การแจ้งเตือน',
+      label: t('dashboard.notifications'),
       value: dataState.alerts.filter(a => a.isActive).length.toString(),
-      change: 'ที่ใช้งานอยู่',
+      change: t('dashboard.active'),
       isPositive: true,
       icon: Bell,
       gradient: 'from-purple-500 to-violet-600',
@@ -488,14 +512,11 @@ export const DashboardHome = memo(function DashboardHome() {
   ), [portfolio.totalValue, dataState.assets, portfolioHistory]);
 
   const fearGreedIndex = useMemo(() => {
-    const btcChange = cryptoPrices.find(c => c.symbol === 'BTC')?.change24hPercent || 0;
-    const ethChange = cryptoPrices.find(c => c.symbol === 'ETH')?.change24hPercent || 0;
-    const avgCryptoChange = (btcChange + ethChange) / 2;
+    if (!dataState.globalStats.lastUpdated) {
+      return null;
+    }
 
-    let fgValue = 50;
-    fgValue += Math.min(Math.max(avgCryptoChange * 5, -25), 25);
-    fgValue += Math.min(Math.max(portfolio.totalChange24hPercent * 1.5, -10), 10);
-    fgValue = Math.max(0, Math.min(100, fgValue));
+    const fgValue = Math.max(0, Math.min(100, Math.round(dataState.globalStats.fearGreedIndex)));
 
     let classification = 'Neutral';
     if (fgValue >= 75) classification = 'Extreme Greed';
@@ -503,42 +524,40 @@ export const DashboardHome = memo(function DashboardHome() {
     else if (fgValue <= 25) classification = 'Extreme Fear';
     else if (fgValue <= 45) classification = 'Fear';
 
-    return { value: Math.round(fgValue), classification };
-  }, [cryptoPrices, portfolio.totalChange24hPercent]);
+    return {
+      value: fgValue,
+      classification,
+      updatedAt: dataState.globalStats.lastUpdated,
+    };
+  }, [dataState.globalStats.fearGreedIndex, dataState.globalStats.lastUpdated]);
 
   // Calculate Whale Tracker data for portfolio assets
   const whaleAssets = useMemo(() => {
-    return portfolio.assets.map(asset => {
+    return portfolio.assets.flatMap(asset => {
       const cryptoPrice = cryptoPrices.find(c => c.symbol === asset.symbol);
-      const fallbackVolume = Math.max(asset.value * 10, 500000);
+
+      if (asset.type !== 'crypto' || !cryptoPrice || cryptoPrice.volume24h <= 0) {
+        return [];
+      }
+
       const marketData: MarketData = {
-        currentVolume: cryptoPrice?.volume24h || fallbackVolume,
-        avgVolume24h: cryptoPrice?.volume24h ? cryptoPrice.volume24h * 0.9 : fallbackVolume * 0.85,
-        priceChangePct: cryptoPrice?.change24hPercent || asset.change24hPercent,
+        currentVolume: cryptoPrice.volume24h,
+        avgVolume24h: cryptoPrice.volume24h,
+        priceChangePct: cryptoPrice.change24hPercent,
       };
-      return {
+      return [{
         symbol: asset.symbol,
         name: asset.name,
         marketData,
-      };
+      }];
     });
   }, [portfolio.assets, cryptoPrices]);
 
   // Calculate Rebalance Engine data
   const rebalanceAssets: Asset[] = useMemo(() => {
-    // Target allocation: 40% BTC, 30% ETH, 20% Stocks, 10% Commodities
-    const targets: Record<string, number> = {
-      'BTC': 40,
-      'ETH': 30,
-      'NVDA': 15,
-      'AAPL': 10,
-      'Gold': 5,
-    };
-    
     return portfolio.assets.map(asset => ({
       symbol: asset.symbol,
       currentValue: asset.value,
-      targetPercentage: targets[asset.symbol] || (100 - Object.values(targets).reduce((a, b) => a + b, 0)) / Math.max(1, portfolio.assets.length - 5),
     }));
   }, [portfolio.assets]);
 
@@ -546,13 +565,23 @@ export const DashboardHome = memo(function DashboardHome() {
   const macroConditions: MacroConditions = useMemo(() => {
     const btcChange = cryptoPrices.find(c => c.symbol === 'BTC')?.change24hPercent || 0;
     const fgValue = fearGreedIndex?.value || 50;
+    const btcCloses = btcDailyKlines
+      .map((kline) => kline.close)
+      .filter((close) => Number.isFinite(close) && close > 0);
+    const dailyVolatility = calculateDailyVolatility(btcDailyKlines, 30);
+    const sma200 = calculateSimpleMovingAverage(btcCloses, 200);
+    const latestClose = btcCloses[btcCloses.length - 1];
+    const hasRealVolatility = dailyVolatility !== null;
+    const hasRealTrend = sma200 !== null && Number.isFinite(latestClose);
     
     return {
       fearAndGreedIndex: fgValue,
-      btcVolatility30d: Math.abs(btcChange) / 100 || 0.05,
-      isBtcAbove200MA: btcChange > -10, // Simplified: if not down >10%, assume above MA
+      btcVolatility30d: hasRealVolatility ? dailyVolatility : Math.abs(btcChange) / 100 || 0.05,
+      isBtcAbove200MA: hasRealTrend ? latestClose > sma200 : btcChange > -10,
+      btcVolatilitySource: hasRealVolatility ? 'daily_ohlcv' : 'estimated',
+      btcTrendSource: hasRealTrend ? 'daily_ohlcv' : 'estimated',
     };
-  }, [cryptoPrices, fearGreedIndex]);
+  }, [btcDailyKlines, cryptoPrices, fearGreedIndex]);
 
   const chartData = useMemo(() => {
     return buildChartDataFromHistory(portfolioHistory, portfolio.totalValue, portfolio.totalChange24hPercent);
@@ -657,6 +686,7 @@ export const DashboardHome = memo(function DashboardHome() {
     const results = await Promise.allSettled([
       refreshPrices(),
       fetchAllData(true),
+      fetchBtcMacroInputs(),
     ]);
 
     const dashboardResult = results[1];
@@ -664,12 +694,12 @@ export const DashboardHome = memo(function DashboardHome() {
     const hasPartialFailure = dashboardResult.status === 'fulfilled' && dashboardResult.value.failedSources.length > 0;
 
     if (hasRejected || hasPartialFailure) {
-      toast.warning('รีเฟรชข้อมูลได้บางส่วน');
+      toast.warning(t('dashboard.partialRefresh'));
       return;
     }
 
-    toast.success('รีเฟรชข้อมูลแล้ว');
-  }, [refreshPrices, fetchAllData]);
+    toast.success(t('dashboard.refreshComplete'));
+  }, [refreshPrices, fetchAllData, fetchBtcMacroInputs]);
 
   if (loading) {
     return (
@@ -678,7 +708,7 @@ export const DashboardHome = memo(function DashboardHome() {
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#ee7d54] to-[#f59e0b] flex items-center justify-center shadow-lg shadow-[#ee7d54]/30">
             <Loader2 className="w-8 h-8 text-white animate-spin" />
           </div>
-          <p className="text-gray-600 font-medium">กำลังโหลดข้อมูลตลาดจริง</p>
+          <p className="text-gray-600 font-medium">{t('dashboard.loadingMarketData')}</p>
           <p className="text-gray-400 text-sm mt-1">Crypto • US Stocks • Gold • Oil • Silver</p>
         </div>
       </div>
@@ -706,7 +736,7 @@ export const DashboardHome = memo(function DashboardHome() {
               <span className="text-xs text-gray-400 font-medium">{priceFeedLabel}</span>
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold mb-1">
-              พอร์ตโฟลิโอการลงทุน
+              {t('dashboard.investmentPortfolio')}
             </h1>
             <p className="text-gray-400 text-sm lg:text-base">
               US Stocks • Crypto • Gold • Silver • Oil — Real-time
@@ -733,7 +763,7 @@ export const DashboardHome = memo(function DashboardHome() {
                   : 'bg-red-500/20 text-red-400'
                 }`}>
                 {portfolio.totalChange24hPercent >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                {portfolio.totalChange24hPercent >= 0 ? '+' : ''}{portfolio.totalChange24hPercent.toFixed(2)}% วันนี้
+                {portfolio.totalChange24hPercent >= 0 ? '+' : ''}{portfolio.totalChange24hPercent.toFixed(2)}% {t('dashboard.today')}
               </span>
             </div>
           </div>
@@ -763,7 +793,7 @@ export const DashboardHome = memo(function DashboardHome() {
             className="bg-[#ee7d54] hover:bg-[#d96a42] text-white border-0 rounded-full"
           >
             <Plus size={14} className="mr-1" />
-            เพิ่มสินทรัพย์
+            {t('dashboard.addAssetAction')}
           </Button>
           <Button
             onClick={() => {
@@ -775,11 +805,11 @@ export const DashboardHome = memo(function DashboardHome() {
             disabled={refreshing || isFetchingRef.current}
           >
             <RefreshCw size={14} className={`mr-1 ${refreshing ? 'animate-spin' : ''}`} />
-            รีเฟรช
+            {t('dashboard.refresh')}
           </Button>
           {lastPriceUpdate && (
             <span className={`text-xs ml-auto ${isPriceFeedStale ? 'text-amber-300' : 'text-gray-400'}`}>
-              ราคา: {lastPriceUpdate.toLocaleTimeString('th-TH')} · {formatFeedAge(lastUpdateAgeSeconds)}
+              {t('dashboard.price')}: {lastPriceUpdate.toLocaleTimeString('th-TH')} · {formatFeedAge(lastUpdateAgeSeconds)}
             </span>
           )}
         </div>
@@ -934,42 +964,67 @@ export const DashboardHome = memo(function DashboardHome() {
         >
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-semibold text-gray-900">ประสิทธิภาพพอร์ต</h3>
-              <p className="text-xs text-gray-500 mt-0.5">30 วันย้อนหลัง</p>
+              <h3 className="font-semibold text-gray-900">{t('dashboard.portfolioPerformance')}</h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {hasTrustedPortfolioHistory
+                  ? t('dashboard.backtestingFrom')
+                  : t('dashboard.accumulatingHistory')}
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#ee7d54]" />
-                <span className="text-xs text-gray-500">พอร์ต</span>
+                <span className="text-xs text-gray-500">{t('dashboard.portfolioLabel')}</span>
               </div>
-              <Badge variant="outline" className="text-xs text-green-600 border-green-200 bg-green-50">
+              <Badge
+                variant="outline"
+                className={`text-xs ${hasTrustedPortfolioHistory
+                  ? 'text-green-600 border-green-200 bg-green-50'
+                  : 'text-amber-700 border-amber-200 bg-amber-50'
+                  }`}
+              >
                 <BarChart2 size={10} className="mr-1" />
-                ข้อมูลจริง
+                {hasTrustedPortfolioHistory ? t('dashboard.realData') : t('dashboard.accumulatingRealData')}
               </Badge>
             </div>
           </div>
           <div className="h-52 lg:h-60">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ left: -20, right: 5 }}>
-                <defs>
-                  <linearGradient id="portfolioGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ee7d54" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#ee7d54" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" axisLine={false} tickLine={false}
-                  tick={{ fontSize: 9, fill: '#9ca3af' }} interval={6} />
-                <YAxis axisLine={false} tickLine={false}
-                  tick={{ fontSize: 9, fill: '#9ca3af' }}
-                  tickFormatter={(v) => `฿${(v / 1000).toFixed(0)}K`} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: '1px solid #f3f4f6', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                  formatter={(v: number) => [`฿${v.toLocaleString('th-TH')}`, 'มูลค่า']}
-                />
-                <Area type="monotone" dataKey="value" stroke="#ee7d54" strokeWidth={2.5}
-                  fill="url(#portfolioGrad)" dot={false} activeDot={{ r: 4, fill: '#ee7d54' }} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {hasTrustedPortfolioHistory ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ left: -20, right: 5 }}>
+                  <defs>
+                    <linearGradient id="portfolioGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#ee7d54" stopOpacity={0.2} />
+                      <stop offset="100%" stopColor="#ee7d54" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" axisLine={false} tickLine={false}
+                    tick={{ fontSize: 9, fill: '#9ca3af' }} interval={6} />
+                  <YAxis axisLine={false} tickLine={false}
+                    tick={{ fontSize: 9, fill: '#9ca3af' }}
+                    tickFormatter={(v) => `฿${(v / 1000).toFixed(0)}K`} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 12, border: '1px solid #f3f4f6', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                    formatter={(v: number) => [`฿${v.toLocaleString('th-TH')}`, t('dashboard.currentValue')]}
+                  />
+                  <Area type="monotone" dataKey="value" stroke="#ee7d54" strokeWidth={2.5}
+                    fill="url(#portfolioGrad)" dot={false} activeDot={{ r: 4, fill: '#ee7d54' }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full rounded-2xl border border-dashed border-amber-200 bg-amber-50/60 flex items-center justify-center p-6 text-center">
+                <div>
+                  <BarChart2 size={28} className="mx-auto mb-3 text-amber-600" />
+                  <p className="text-sm font-semibold text-amber-800">{t('dashboard.notEnoughData')}</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    {t('dashboard.accumulatingPortfolioValue', { count: portfolioHistory.length })}
+                  </p>
+                  <p className="text-xs text-amber-700/80 mt-2">
+                    {t('dashboard.currentValue')} ฿{portfolio.totalValue.toLocaleString('th-TH', { minimumFractionDigits: 0 })}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -986,7 +1041,7 @@ export const DashboardHome = memo(function DashboardHome() {
               <p className="text-xs text-gray-500">
                 {lastPriceUpdate
                   ? `อัปเดตล่าสุด ${lastPriceUpdate.toLocaleTimeString('th-TH')} · age ${formatFeedAge(lastUpdateAgeSeconds)}`
-                  : 'รอ price feed แรก'}
+                  : t('dashboard.waitingFirstFeed')}
               </p>
             </div>
             <div className="flex items-center gap-1.5">
@@ -1045,8 +1100,8 @@ export const DashboardHome = memo(function DashboardHome() {
               <Shield className="text-white" size={17} />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">ตัวชี้วัดความเสี่ยง</h3>
-              <p className="text-xs text-gray-500">คำนวณจากพอร์ตจริง</p>
+              <h3 className="font-semibold text-gray-900">{t('dashboard.riskIndicators')}</h3>
+              <p className="text-xs text-gray-500">{t('dashboard.calculatedFromReal')}</p>
             </div>
           </div>
           <div className="space-y-3">
@@ -1068,7 +1123,7 @@ export const DashboardHome = memo(function DashboardHome() {
             ) : (
               <div className="text-center py-6 text-gray-400">
                 <Shield size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">เพิ่มสินทรัพย์เพื่อดูตัวชี้วัด</p>
+                <p className="text-sm">{t('dashboard.addAssetsToSee')}</p>
               </div>
             )}
           </div>
@@ -1088,10 +1143,10 @@ export const DashboardHome = memo(function DashboardHome() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Whale Tracker</h3>
-                <p className="text-xs text-gray-500">ธุรกรรมจาก Blockchain</p>
+                <p className="text-xs text-gray-500">{t('dashboard.blockchainTx')}</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs">ดูทั้งหมด →</Button>
+            <Button variant="ghost" size="sm" className="text-xs">{t('dashboard.viewAll')}</Button>
           </div>
           <div className="space-y-2.5">
             {whaleActivity.length > 0 ? (
@@ -1109,7 +1164,7 @@ export const DashboardHome = memo(function DashboardHome() {
                   </div>
                   <div className="text-right">
                     <p className={`font-semibold text-sm ${activity.type === 'buy' ? 'text-green-600' : 'text-red-600'}`}>
-                      {activity.type === 'buy' ? 'ซื้อ' : 'ขาย'}
+                      {activity.type === 'buy' ? t('dashboard.buy') : t('dashboard.sell')}
                     </p>
                     <p className="text-xs text-gray-500">${(activity.valueUSD / 1e6).toFixed(1)}M</p>
                   </div>
@@ -1118,7 +1173,7 @@ export const DashboardHome = memo(function DashboardHome() {
             ) : (
               <div className="text-center py-6 text-gray-400">
                 <Eye size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">กำลังติดตาม Whale Transactions...</p>
+                <p className="text-sm">{t('dashboard.trackingWhale')}</p>
               </div>
             )}
           </div>
@@ -1139,7 +1194,7 @@ export const DashboardHome = memo(function DashboardHome() {
             </div>
             <div>
               <h3 className="font-semibold text-gray-900 dark:text-white">Fear & Greed Index</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">วัดอารมณ์ตลาด Crypto</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.cryptoMarketSentiment')}</p>
             </div>
           </div>
           {fearGreedIndex && (
@@ -1182,7 +1237,7 @@ export const DashboardHome = memo(function DashboardHome() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white">{fearGreedIndex?.value || '--'}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">จาก 100</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.outOf100')}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1192,7 +1247,17 @@ export const DashboardHome = memo(function DashboardHome() {
                    fearGreedIndex?.value && fearGreedIndex.value <= 45 ? '🟠 Fear' :
                    '⚪ Neutral'}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">อัปเดต: Real-time</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {t('dashboard.updated')}: {fearGreedIndex?.updatedAt
+                    ? new Date(fearGreedIndex.updatedAt).toLocaleString('th-TH', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : t('dashboard.noDataAvailable')}
+                </p>
               </div>
             </div>
           </div>
@@ -1201,12 +1266,12 @@ export const DashboardHome = memo(function DashboardHome() {
         {/* Insights */}
         <div className="mt-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
           <p className="text-xs text-gray-600 dark:text-gray-400">
-            <span className="font-medium">คำแนะนำ:</span>
-            {fearGreedIndex?.value && fearGreedIndex.value >= 75 ? ' ตลาดมีความโลภสูง ระวังการปรับฐาน - พิจารณาทำกำไรบางส่วน' :
-             fearGreedIndex?.value && fearGreedIndex.value >= 55 ? ' ตลาดมีแนวโน้มบวก - ติดตามแนวโน้มต่อไป' :
-             fearGreedIndex?.value && fearGreedIndex.value <= 25 ? ' ตลาดมีความกลัวสูง อาจเป็นโอกาสซื้อ - แต่ระวังความเสี่ยง' :
-             fearGreedIndex?.value && fearGreedIndex.value <= 45 ? ' ตลาดมีความกังวล - รอสัญญาณที่ชัดเจนกว่า' :
-             ' ตลาดเป็นกลาง - รอทิศทางที่ชัดเจน'}
+            <span className="font-medium">{t('dashboard.advice')}</span>
+            {fearGreedIndex?.value && fearGreedIndex.value >= 75 ? t('dashboard.extremeGreedAdvice') :
+             fearGreedIndex?.value && fearGreedIndex.value >= 55 ? t('dashboard.greedAdvice') :
+             fearGreedIndex?.value && fearGreedIndex.value <= 25 ? t('dashboard.extremeFearAdvice') :
+             fearGreedIndex?.value && fearGreedIndex.value <= 45 ? t('dashboard.fearAdvice') :
+             t('dashboard.neutralAdvice')}
           </p>
         </div>
       </motion.div>
@@ -1221,9 +1286,9 @@ export const DashboardHome = memo(function DashboardHome() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900 flex items-center gap-2">
             <Globe size={18} className="text-[#ee7d54]" />
-            ภาพรวมตลาดอเมริกา
+            {t('dashboard.usMarketOverview')}
           </h3>
-          <a href="/market" className="text-xs text-[#ee7d54] hover:underline">ดูตลาดทั้งหมด →</a>
+          <a href="/market" className="text-xs text-[#ee7d54] hover:underline">{t('dashboard.viewAllMarkets')}</a>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
@@ -1266,9 +1331,9 @@ export const DashboardHome = memo(function DashboardHome() {
         className="grid grid-cols-2 lg:grid-cols-4 gap-3"
       >
         {[
-          { icon: Plus, label: 'เพิ่มสินทรัพย์', sub: 'จัดการพอร์ต', color: 'from-[#ee7d54] to-[#f59e0b]', action: () => setIsDepositOpen(true) },
-          { icon: Globe, label: 'ดูตลาด', sub: 'Real-time prices', color: 'from-blue-500 to-cyan-500', action: () => window.location.href = '/market' },
-          { icon: Bell, label: 'ตั้งแจ้งเตือน', sub: 'Price alerts', color: 'from-purple-500 to-violet-500', action: () => setIsAlertOpen(true) },
+          { icon: Plus, label: t('dashboard.addAssetAction'), sub: t('dashboard.managePortfolio'), color: 'from-[#ee7d54] to-[#f59e0b]', action: () => setIsDepositOpen(true) },
+          { icon: Globe, label: t('dashboard.viewMarket'), sub: t('dashboard.realTimePrices'), color: 'from-blue-500 to-cyan-500', action: () => window.location.href = '/market' },
+          { icon: Bell, label: t('dashboard.setAlert'), sub: t('dashboard.priceAlerts'), color: 'from-purple-500 to-violet-500', action: () => setIsAlertOpen(true) },
           { icon: Zap, label: 'AI Analysis', sub: 'Smart Insights', color: 'from-green-500 to-emerald-500', action: () => window.location.href = '/aisystems' },
         ].map((action, i) => (
           <motion.button

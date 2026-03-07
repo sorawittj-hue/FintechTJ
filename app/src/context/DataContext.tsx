@@ -222,7 +222,6 @@ async function withPortfolioCollection<T>(
 
   throw lastError instanceof Error ? lastError : new Error('Portfolio collection is unavailable');
 }
-
 // =============================================================================
 // REDUCER
 // =============================================================================
@@ -255,12 +254,38 @@ type DataAction =
   | { type: 'SET_LAST_UPDATE'; payload: Date }
   | { type: 'UPDATE_PORTFOLIO_SUMMARY' };
 
+function normalizeNumber(value: unknown, fallback: number = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizePortfolioAsset(asset: PortfolioAsset): PortfolioAsset {
+  const quantity = Math.max(0, normalizeNumber(asset.quantity));
+  const avgPrice = Math.max(0, normalizeNumber(asset.avgPrice));
+  const currentPrice = Math.max(0, normalizeNumber(asset.currentPrice, avgPrice));
+  const change24h = normalizeNumber(asset.change24h);
+  const change24hPercent = normalizeNumber(asset.change24hPercent);
+  const value = quantity * currentPrice;
+  const change24hValue = quantity * change24h;
+
+  return {
+    ...asset,
+    quantity,
+    avgPrice,
+    currentPrice,
+    value,
+    change24h,
+    change24hPercent,
+    change24hValue,
+  };
+}
+
 function calculatePortfolioSummary(assets: PortfolioAsset[]): PortfolioSummary {
-  const totalValue = assets.reduce((sum, a) => sum + a.value, 0);
-  const totalCost = assets.reduce((sum, a) => sum + a.quantity * a.avgPrice, 0);
+  const normalizedAssets = assets.map(normalizePortfolioAsset);
+  const totalValue = normalizedAssets.reduce((sum, asset) => sum + asset.value, 0);
+  const totalCost = normalizedAssets.reduce((sum, asset) => sum + asset.quantity * asset.avgPrice, 0);
   const totalProfitLoss = totalValue - totalCost;
   const totalProfitLossPercent = totalCost > 0 ? (totalProfitLoss / totalCost) * 100 : 0;
-  const totalChange24h = assets.reduce((sum, a) => sum + a.change24hValue, 0);
+  const totalChange24h = normalizedAssets.reduce((sum, asset) => sum + asset.change24hValue, 0);
   const totalChange24hPercent = totalValue > 0 ? (totalChange24h / totalValue) * 100 : 0;
 
   return {
@@ -270,13 +295,14 @@ function calculatePortfolioSummary(assets: PortfolioAsset[]): PortfolioSummary {
     totalProfitLossPercent,
     totalChange24h,
     totalChange24hPercent,
-    assets,
+    assets: normalizedAssets,
   };
 }
 
 function recalculateAllocations(assets: PortfolioAsset[]): PortfolioAsset[] {
-  const totalValue = assets.reduce((sum, a) => sum + a.value, 0);
-  return assets.map((asset) => ({
+  const normalizedAssets = assets.map(normalizePortfolioAsset);
+  const totalValue = normalizedAssets.reduce((sum, asset) => sum + asset.value, 0);
+  return normalizedAssets.map((asset) => ({
     ...asset,
     allocation: totalValue > 0 ? (asset.value / totalValue) * 100 : 0,
   }));
@@ -847,12 +873,14 @@ export function DataProvider({ children }: DataProviderProps) {
       priceSubscriptionHandlersRef.current.delete(normalizedSymbol);
     });
   }, []);
-
+ 
   const addAsset = useCallback(async (asset: Omit<PortfolioAsset, 'id'>) => {
-    const newAsset: PortfolioAsset = {
+    const projectedAsset: PortfolioAsset = normalizePortfolioAsset({
       ...asset,
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    };
+    });
+    const nextAssets = recalculateAllocations([...state.assets, projectedAsset]);
+    let newAsset = nextAssets.find((portfolioAsset) => portfolioAsset.id === projectedAsset.id) ?? projectedAsset;
 
     if (isPocketBaseEnabled && pb && pb.authStore.isValid) {
       try {
@@ -860,17 +888,17 @@ export function DataProvider({ children }: DataProviderProps) {
         const record = await withPortfolioCollection<{ id: string }>(async (collectionName) => {
           const createdRecord = await pbInstance.collection(collectionName).create({
             user: pbInstance.authStore.model?.id,
-            symbol: asset.symbol,
-            name: asset.name,
-            quantity: asset.quantity,
-            avgPrice: asset.avgPrice,
-            currentPrice: asset.currentPrice,
-            value: asset.value,
-            change24h: asset.change24h,
-            change24hPercent: asset.change24hPercent,
-            change24hValue: asset.change24hValue,
-            allocation: asset.allocation,
-            type: asset.type,
+            symbol: newAsset.symbol,
+            name: newAsset.name,
+            quantity: newAsset.quantity,
+            avgPrice: newAsset.avgPrice,
+            currentPrice: newAsset.currentPrice,
+            value: newAsset.value,
+            change24h: newAsset.change24h,
+            change24hPercent: newAsset.change24hPercent,
+            change24hValue: newAsset.change24hValue,
+            allocation: newAsset.allocation,
+            type: newAsset.type,
             ...(collectionName === 'portfolio_positions' ? { isActive: true } : {}),
           });
 
@@ -887,7 +915,7 @@ export function DataProvider({ children }: DataProviderProps) {
     subscribeToPrices([asset.symbol]);
 
     toast.success(`Added ${newAsset.symbol} to portfolio`);
-  }, [subscribeToPrices]);
+  }, [state.assets, subscribeToPrices]);
 
   const removeAsset = useCallback(async (id: string) => {
     const assetToRemove = state.assets.find((asset) => asset.id === id);
@@ -917,20 +945,28 @@ export function DataProvider({ children }: DataProviderProps) {
   }, [state.assets, unsubscribeFromPrices]);
 
   const updateAsset = useCallback(async (id: string, updates: Partial<PortfolioAsset>) => {
+    const currentAsset = state.assets.find((asset) => asset.id === id);
+    const normalizedUpdates = currentAsset
+      ? (() => {
+          const { id: _assetId, ...rest } = normalizePortfolioAsset({ ...currentAsset, ...updates });
+          return rest;
+        })()
+      : updates;
+
     if (isPocketBaseEnabled && pb && pb.authStore.isValid) {
       try {
         const pbUpdates: Partial<PortfolioAsset> = {};
-        if (updates.quantity !== undefined) pbUpdates.quantity = updates.quantity;
-        if (updates.avgPrice !== undefined) pbUpdates.avgPrice = updates.avgPrice;
-        if (updates.currentPrice !== undefined) pbUpdates.currentPrice = updates.currentPrice;
-        if (updates.value !== undefined) pbUpdates.value = updates.value;
-        if (updates.change24h !== undefined) pbUpdates.change24h = updates.change24h;
-        if (updates.change24hPercent !== undefined) pbUpdates.change24hPercent = updates.change24hPercent;
-        if (updates.change24hValue !== undefined) pbUpdates.change24hValue = updates.change24hValue;
-        if (updates.allocation !== undefined) pbUpdates.allocation = updates.allocation;
-        if (updates.name !== undefined) pbUpdates.name = updates.name;
-        if (updates.symbol !== undefined) pbUpdates.symbol = updates.symbol;
-        if (updates.type !== undefined) pbUpdates.type = updates.type;
+        if (normalizedUpdates.quantity !== undefined) pbUpdates.quantity = normalizedUpdates.quantity;
+        if (normalizedUpdates.avgPrice !== undefined) pbUpdates.avgPrice = normalizedUpdates.avgPrice;
+        if (normalizedUpdates.currentPrice !== undefined) pbUpdates.currentPrice = normalizedUpdates.currentPrice;
+        if (normalizedUpdates.value !== undefined) pbUpdates.value = normalizedUpdates.value;
+        if (normalizedUpdates.change24h !== undefined) pbUpdates.change24h = normalizedUpdates.change24h;
+        if (normalizedUpdates.change24hPercent !== undefined) pbUpdates.change24hPercent = normalizedUpdates.change24hPercent;
+        if (normalizedUpdates.change24hValue !== undefined) pbUpdates.change24hValue = normalizedUpdates.change24hValue;
+        if (normalizedUpdates.allocation !== undefined) pbUpdates.allocation = normalizedUpdates.allocation;
+        if (normalizedUpdates.name !== undefined) pbUpdates.name = normalizedUpdates.name;
+        if (normalizedUpdates.symbol !== undefined) pbUpdates.symbol = normalizedUpdates.symbol;
+        if (normalizedUpdates.type !== undefined) pbUpdates.type = normalizedUpdates.type;
 
         const pbInstance = pb;
         if (Object.keys(pbUpdates).length > 0) {
@@ -942,8 +978,8 @@ export function DataProvider({ children }: DataProviderProps) {
         console.error('PocketBase update asset error:', err);
       }
     }
-    dispatch({ type: 'UPDATE_ASSET', payload: { id, updates } });
-  }, []);
+    dispatch({ type: 'UPDATE_ASSET', payload: { id, updates: normalizedUpdates } });
+  }, [state.assets]);
 
   const updateAssetPrices = useCallback((prices: Map<string, CryptoPrice>) => {
     dispatch({ type: 'SET_PRICES', payload: prices });
@@ -955,7 +991,7 @@ export function DataProvider({ children }: DataProviderProps) {
       }
 
       const newValue = asset.quantity * price.price;
-      const change24hValue = newValue * (price.change24hPercent / 100);
+      const change24hValue = asset.quantity * price.change24h;
 
       if (
         asset.currentPrice === price.price &&

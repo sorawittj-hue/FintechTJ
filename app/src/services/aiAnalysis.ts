@@ -650,12 +650,10 @@ DISCLAIMER: Educational analysis only, not financial advice.`;
    * Analyze sentiment from text (local + AI)
    */
   async analyzeSentiment(text: string): Promise<SentimentScore> {
-    // Local analysis is fast and reliable
     const localResult = analyzeSentimentLocal(text);
 
     if (!this.config.enabled) return localResult;
 
-    // AI enhances local result if available
     try {
       const prompt = `Analyze the financial sentiment of this text and respond with ONLY valid JSON:
 Text: "${text.slice(0, 500)}"
@@ -679,9 +677,8 @@ Score: -1 (very negative) to 1 (very positive). Label: positive/negative/neutral
    */
   async generateInsights(portfolio: PortfolioSummary, marketData: MarketData): Promise<AIInsight[]> {
     const insights: AIInsight[] = [];
+    const isAiConnected = this.config.enabled;
 
-    // Always generate rule-based insights from REAL data
-    // Insight 1: Portfolio P&L
     const plInsight: AIInsight = {
       id: generateId(),
       type: portfolio.totalChange24hPercent >= 0 ? 'prediction' : 'alert',
@@ -695,22 +692,32 @@ Score: -1 (very negative) to 1 (very positive). Label: positive/negative/neutral
     };
     insights.push(plInsight);
 
-    // Insight 2: Fear & Greed context
     const fearGreed = marketData.fearGreed;
     const fearInsight: AIInsight = {
       id: generateId(),
       type: fearGreed < 25 || fearGreed > 75 ? 'alert' : 'analysis',
-      title: fearGreed < 25 ? 'Extreme Fear — Potential Buy Zone' : fearGreed > 75 ? 'Extreme Greed — Caution Advised' : `Market Sentiment: ${fearGreed < 45 ? 'Fear' : fearGreed > 55 ? 'Greed' : 'Neutral'}`,
-      description: `Fear & Greed Index at ${fearGreed}/100. ${fearGreed < 25 ? 'Historically a contrarian buying opportunity.' : fearGreed > 75 ? 'Market may be overheated. Consider taking profits.' : 'Market sentiment is balanced.'}`,
-      confidence: 82,
+      title: fearGreed < 25
+        ? isAiConnected ? 'Extreme Fear — Potential Buy Zone' : 'Extreme Fear — Contrarian Context'
+        : fearGreed > 75
+          ? isAiConnected ? 'Extreme Greed — Caution Advised' : 'Extreme Greed — Risk Context'
+          : `Market Sentiment: ${fearGreed < 45 ? 'Fear' : fearGreed > 55 ? 'Greed' : 'Neutral'}`,
+      description: `Fear & Greed Index at ${fearGreed}/100. ${fearGreed < 25
+        ? isAiConnected
+          ? 'Historically a contrarian buying opportunity.'
+          : 'Extreme fear can be a contrarian signal, but this rule-based insight is context only and not a standalone buy signal.'
+        : fearGreed > 75
+          ? isAiConnected
+            ? 'Market may be overheated. Consider taking profits.'
+            : 'Greed is elevated, which can raise pullback risk, but this rule-based signal should be combined with price structure and risk management.'
+          : 'Market sentiment is balanced.'}`,
+      confidence: isAiConnected ? 82 : 68,
       timestamp: getTimestamp(),
       relatedAssets: ['BTC'],
       source: 'technical',
-      action: fearGreed < 25 ? 'buy' : fearGreed > 75 ? 'watch' : 'hold',
+      action: fearGreed < 25 ? (isAiConnected ? 'buy' : 'watch') : fearGreed > 75 ? 'watch' : 'hold',
     };
     insights.push(fearInsight);
 
-    // Insight 3: Diversification analysis
     const assetCount = portfolio.assets?.length ?? 0;
     const divInsight: AIInsight = {
       id: generateId(),
@@ -721,15 +728,14 @@ Score: -1 (very negative) to 1 (very positive). Label: positive/negative/neutral
         : assetCount > 15
           ? `You hold ${assetCount} assets. Too many positions can dilute returns.`
           : `Your ${assetCount} assets provide reasonable diversification.`,
-      confidence: 85,
+      confidence: isAiConnected ? 85 : 70,
       timestamp: getTimestamp(),
       relatedAssets: [],
       source: 'technical',
-      action: assetCount < 3 ? 'buy' : 'hold',
+      action: assetCount < 3 ? 'watch' : 'hold',
     };
     insights.push(divInsight);
 
-    // Try AI enhancement
     if (this.config.enabled && portfolio.totalValue > 0) {
       try {
         const topAssetsStr = portfolio.assets?.slice(0, 5)
@@ -790,10 +796,8 @@ Respond ONLY with the JSON array. Not financial advice.`;
   async detectNarratives(news: NewsArticle[]): Promise<Narrative[]> {
     if (news.length === 0) return [];
 
-    // Always use local analysis (real news → real narratives)
     const localNarratives = detectNarrativesLocal(news);
 
-    // Try AI enhancement for better descriptions
     if (this.config.enabled && localNarratives.length > 0) {
       try {
         const topNarratives = localNarratives.slice(0, 4).map(n => n.name).join(', ');

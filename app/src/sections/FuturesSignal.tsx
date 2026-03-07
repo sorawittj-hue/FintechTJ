@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -112,14 +113,18 @@ function freshnessBadge(signal: FuturesSignal) {
   if (signal.isStale) {
     return {
       className: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700/40',
-      label: `Delayed ${formatLatency(signal.latencySeconds)}`,
+      label: `Stale candle ${formatLatency(signal.latencySeconds)}`,
     };
   }
 
   return {
     className: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700/40',
-    label: `Fresh ${formatLatency(signal.latencySeconds)}`,
+    label: `Candle age ${formatLatency(signal.latencySeconds)}`,
   };
+}
+
+function shouldShowTradeLevels(signal: FuturesSignal) {
+  return signal.isActive && !signal.isStale && signal.direction !== 'NEUTRAL';
 }
 
 // ─── Reusable Sub-components ─────────────────────────────────────────────────
@@ -142,7 +147,7 @@ function ScoreBar({ score, direction }: { score: number; direction: SignalDirect
 function ConfidenceDots({ confidence }: { confidence: number }) {
   const filled = Math.round(confidence / 20);
   return (
-    <div className="flex items-center gap-0.5" title={`Confidence: ${confidence}%`}>
+    <div className="flex items-center gap-0.5" title={`Indicator agreement: ${confidence}%`}>
       {[...Array(5)].map((_, i) => (
         <div
           key={i}
@@ -153,7 +158,7 @@ function ConfidenceDots({ confidence }: { confidence: number }) {
           }`}
         />
       ))}
-      <span className="text-[10px] text-gray-400 ml-1">{confidence}%</span>
+      <span className="text-[10px] text-gray-400 ml-1">{confidence}% agree</span>
     </div>
   );
 }
@@ -269,7 +274,7 @@ function HeroBestSignal({ signal }: { signal: FuturesSignal }) {
           <div className="flex items-center gap-2 mb-3">
             <Star className="w-4 h-4 text-[#ee7d54]" />
             <span className="text-xs font-bold text-[#ee7d54] uppercase tracking-wider">
-              Top Signal
+              Best Fresh Setup
             </span>
             <ConfidenceDots confidence={signal.confidence} />
           </div>
@@ -322,38 +327,46 @@ function HeroBestSignal({ signal }: { signal: FuturesSignal }) {
             </span>
             <div className="flex-1 min-w-[120px]">
               <div className="flex justify-between text-[10px] text-gray-400 mb-0.5">
-                <span>Score</span>
+                <span>Confluence Score</span>
                 <span className="font-bold">{signal.score}/100</span>
               </div>
               <ScoreBar score={signal.score} direction={signal.direction} />
             </div>
           </div>
 
+          <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+            Rule-based setup from indicator confluence. Agreement and score reflect indicator alignment, not execution probability.
+          </p>
+
           <div className="mt-3 flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
             <span>Data candle {formatSyncTime(signal.dataTimestamp)}</span>
             <span>Engine refresh {formatSyncTime(signal.timestamp)}</span>
           </div>
 
-          {signal.direction !== 'NEUTRAL' && (
+          {shouldShowTradeLevels(signal) ? (
             <div className="mt-4 grid grid-cols-4 gap-2">
               <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur rounded-xl p-2.5 text-center">
-                <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500 mb-1"><Target className="w-3 h-3" /> Entry</div>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500 mb-1"><Target className="w-3 h-3" /> Ref Entry</div>
                 <div className="font-bold text-xs text-gray-900 dark:text-white">{formatPrice(signal.tradePlan.entry, signal.symbol)}</div>
               </div>
               <div className="bg-red-50/80 dark:bg-red-900/20 backdrop-blur rounded-xl p-2.5 text-center">
-                <div className="flex items-center justify-center gap-1 text-[10px] text-red-500 mb-1"><Shield className="w-3 h-3" /> SL</div>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-red-500 mb-1"><Shield className="w-3 h-3" /> Ref SL</div>
                 <div className="font-bold text-xs text-red-600 dark:text-red-400">{formatPrice(signal.tradePlan.stopLoss, signal.symbol)}</div>
               </div>
               <div className="bg-emerald-50/80 dark:bg-emerald-900/20 backdrop-blur rounded-xl p-2.5 text-center">
-                <div className="flex items-center justify-center gap-1 text-[10px] text-emerald-500 mb-1"><Crosshair className="w-3 h-3" /> TP1</div>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-emerald-500 mb-1"><Crosshair className="w-3 h-3" /> Ref TP1</div>
                 <div className="font-bold text-xs text-emerald-600 dark:text-emerald-400">{formatPrice(signal.tradePlan.takeProfit1, signal.symbol)}</div>
               </div>
               <div className="bg-emerald-50/80 dark:bg-emerald-900/20 backdrop-blur rounded-xl p-2.5 text-center">
-                <div className="flex items-center justify-center gap-1 text-[10px] text-emerald-500 mb-1"><Crosshair className="w-3 h-3" /> TP2</div>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-emerald-500 mb-1"><Crosshair className="w-3 h-3" /> Ref TP2</div>
                 <div className="font-bold text-xs text-emerald-600 dark:text-emerald-400">{formatPrice(signal.tradePlan.takeProfit2, signal.symbol)}</div>
               </div>
             </div>
-          )}
+          ) : signal.direction !== 'NEUTRAL' ? (
+            <div className="mt-4 rounded-xl border border-dashed border-amber-200 dark:border-amber-700/40 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              Reference levels are hidden because this setup is stale or below the active-quality threshold.
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </motion.div>
@@ -363,6 +376,7 @@ function HeroBestSignal({ signal }: { signal: FuturesSignal }) {
 // ─── Signal Card ──────────────────────────────────────────────────────────────
 
 function SignalCard({ signal }: { signal: FuturesSignal }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const freshness = freshnessBadge(signal);
 
@@ -376,7 +390,7 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
     );
 
   const dirLabel =
-    signal.direction === 'LONG' ? 'LONG' : signal.direction === 'SHORT' ? 'SHORT' : 'รอดู';
+    signal.direction === 'LONG' ? 'LONG' : signal.direction === 'SHORT' ? 'SHORT' : t('futures.neutral');
 
   return (
     <motion.div variants={itemVariants}>
@@ -460,7 +474,7 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
           {/* Score + Confidence */}
           <div className="mt-3 space-y-1.5">
             <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
-              <span>Score <span className="font-bold text-gray-700 dark:text-gray-300">{signal.score}</span>/100</span>
+              <span>Confluence <span className="font-bold text-gray-700 dark:text-gray-300">{signal.score}</span>/100</span>
               <ConfidenceDots confidence={signal.confidence} />
             </div>
             <ScoreBar score={signal.score} direction={signal.direction} />
@@ -474,11 +488,11 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
           )}
 
           {/* Quick Trade Plan */}
-          {signal.direction !== 'NEUTRAL' && (
+          {shouldShowTradeLevels(signal) ? (
             <div className="mt-3 grid grid-cols-3 gap-2">
               <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-2 text-center">
                 <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500 mb-0.5">
-                  <Target className="w-3 h-3" /> Entry
+                  <Target className="w-3 h-3" /> Ref Entry
                 </div>
                 <div className="font-bold text-xs text-gray-900 dark:text-white">
                   {formatPrice(signal.tradePlan.entry, signal.symbol)}
@@ -486,7 +500,7 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
               </div>
               <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-2 text-center">
                 <div className="flex items-center justify-center gap-1 text-[10px] text-red-500 mb-0.5">
-                  <Shield className="w-3 h-3" /> SL
+                  <Shield className="w-3 h-3" /> Ref SL
                 </div>
                 <div className="font-bold text-xs text-red-600 dark:text-red-400">
                   {formatPrice(signal.tradePlan.stopLoss, signal.symbol)}
@@ -494,14 +508,18 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
               </div>
               <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-2 text-center">
                 <div className="flex items-center justify-center gap-1 text-[10px] text-emerald-500 mb-0.5">
-                  <TrendingUp className="w-3 h-3" /> TP1
+                  <TrendingUp className="w-3 h-3" /> Ref TP1
                 </div>
                 <div className="font-bold text-xs text-emerald-600 dark:text-emerald-400">
                   {formatPrice(signal.tradePlan.takeProfit1, signal.symbol)}
                 </div>
               </div>
             </div>
-          )}
+          ) : signal.direction !== 'NEUTRAL' ? (
+            <div className="mt-3 rounded-lg border border-dashed border-amber-200 dark:border-amber-700/40 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              Reference levels are withheld until the setup is fresh and active.
+            </div>
+          ) : null}
 
           {/* Expand Button */}
           <div className="flex items-center justify-center mt-2.5 text-gray-400">
@@ -526,8 +544,11 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
                 {/* Full Trade Plan */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
-                    <BarChart3 className="w-4 h-4" /> แผนการเทรด
+                    <BarChart3 className="w-4 h-4" /> {t('futures.tradePlan')}
                   </h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    {t('futures.tradePlanNote')}
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     <TradePlanRow label="Entry Zone" value={formatPrice(signal.tradePlan.entry, signal.symbol)} color="text-gray-700 dark:text-gray-300" />
                     <TradePlanRow label="Stop Loss" value={formatPrice(signal.tradePlan.stopLoss, signal.symbol)} color="text-red-600 dark:text-red-400" />
@@ -536,7 +557,7 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
                     <TradePlanRow label="TP3 (3R)" value={formatPrice(signal.tradePlan.takeProfit3, signal.symbol)} color="text-emerald-600 dark:text-emerald-400" />
                     <TradePlanRow label="Risk:Reward" value={`1:${signal.tradePlan.riskRewardRatio}`} color="text-blue-600 dark:text-blue-400" />
                     <TradePlanRow label="Max Loss %" value={`${signal.tradePlan.maxLossPercent.toFixed(2)}%`} color="text-orange-600 dark:text-orange-400" />
-                    <TradePlanRow label="Position Size" value={`${signal.tradePlan.positionSizePercent.toFixed(1)}% ของพอร์ต`} color="text-purple-600 dark:text-purple-400" />
+                    <TradePlanRow label="Position Size" value={`${signal.tradePlan.positionSizePercent.toFixed(1)}% ${t('futures.positionOfPortfolio')}`} color="text-purple-600 dark:text-purple-400" />
                   </div>
                 </div>
 
@@ -577,7 +598,7 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
                 {signal.reasoning.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
-                      <CheckCircle className="w-4 h-4 text-emerald-500" /> เหตุผลที่เกิดสัญญาณ
+                      <CheckCircle className="w-4 h-4 text-emerald-500" /> {t('futures.signalReasoning')}
                     </h4>
                     <ul className="space-y-1">
                       {signal.reasoning.map((r, i) => (
@@ -594,7 +615,7 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
                 {signal.warnings.length > 0 && (
                   <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-lg p-3">
                     <h4 className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> คำเตือน
+                      <AlertTriangle className="w-3 h-3" /> {t('futures.warnings')}
                     </h4>
                     <ul className="space-y-1">
                       {signal.warnings.map((w, i) => (
@@ -609,7 +630,7 @@ function SignalCard({ signal }: { signal: FuturesSignal }) {
                 {/* Timestamp */}
                 <div className="flex items-center justify-between gap-3 text-xs text-gray-400 flex-wrap">
                   <span>{signal.source} · candle {formatSyncTime(signal.dataTimestamp)}</span>
-                  <span>อัปเดตเมื่อ {formatSyncTime(signal.timestamp)}</span>
+                  <span>{t('futures.updatedAt')} {formatSyncTime(signal.timestamp)}</span>
                 </div>
               </CardContent>
             </motion.div>
@@ -666,6 +687,7 @@ function SummaryCard({ label, value, icon, color, sub }: { label: string; value:
 }
 
 function DiagnosticsOverview({ diagnostics, summary }: { diagnostics: FuturesSignalDiagnostics; summary: FuturesSignalSummary }) {
+  const { t } = useTranslation();
   const coverageTone = diagnostics.coveragePercent >= 100
     ? 'text-emerald-600 dark:text-emerald-400'
     : diagnostics.coveragePercent >= 70
@@ -683,7 +705,7 @@ function DiagnosticsOverview({ diagnostics, summary }: { diagnostics: FuturesSig
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-[#ee7d54] font-semibold">Data Health</p>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-1">สถานะคุณภาพข้อมูลแบบ Real Data</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-1">{t('futures.dataHealthTitle')}</h3>
             </div>
 
             <div className="text-right">
@@ -703,7 +725,7 @@ function DiagnosticsOverview({ diagnostics, summary }: { diagnostics: FuturesSig
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/70 p-3">
               <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Avg Latency</p>
               <p className="text-2xl font-bold mt-1 text-gray-900 dark:text-white">{formatLatency(diagnostics.averageLatencySeconds)}</p>
-              <p className="text-[11px] text-gray-400 mt-1">เทียบจาก candle ล่าสุด</p>
+              <p className="text-[11px] text-gray-400 mt-1">{t('futures.avgLatencyNote')}</p>
             </div>
 
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/70 p-3">
@@ -711,7 +733,7 @@ function DiagnosticsOverview({ diagnostics, summary }: { diagnostics: FuturesSig
               <p className={`text-2xl font-bold mt-1 ${diagnostics.staleCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                 {diagnostics.staleCount}
               </p>
-              <p className="text-[11px] text-gray-400 mt-1">feeds ที่ควรเฝ้าระวัง</p>
+              <p className="text-[11px] text-gray-400 mt-1">{t('futures.staleFeedsNote')}</p>
             </div>
 
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/70 p-3">
@@ -724,7 +746,7 @@ function DiagnosticsOverview({ diagnostics, summary }: { diagnostics: FuturesSig
           <div className="flex items-center justify-between gap-4 flex-wrap text-xs text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-2">
               <Layers className="w-3.5 h-3.5" />
-              <span>{diagnostics.activeSignals} active signals</span>
+              <span>{diagnostics.activeSignals} active fresh setups</span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="w-3.5 h-3.5" />
@@ -734,7 +756,7 @@ function DiagnosticsOverview({ diagnostics, summary }: { diagnostics: FuturesSig
 
           {diagnostics.failedCount > 0 && (
             <div className="rounded-xl border border-amber-200 dark:border-amber-700/40 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
-              โหลดข้อมูลได้บางส่วน: {diagnostics.failedSymbols.join(', ')}
+              {t('futures.partialLoad', { symbols: diagnostics.failedSymbols.join(', ') })}
             </div>
           )}
         </CardContent>
@@ -748,6 +770,7 @@ function DiagnosticsOverview({ diagnostics, summary }: { diagnostics: FuturesSig
 type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OIL';
 
  export default function FuturesSignalSection() {
+  const { t } = useTranslation();
   const [signals, setSignals] = useState<FuturesSignal[]>([]);
   const [summary, setSummary] = useState<FuturesSignalSummary | null>(null);
   const [diagnostics, setDiagnostics] = useState<FuturesSignalDiagnostics | null>(null);
@@ -778,7 +801,7 @@ type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OI
         refreshKeyRef.current += 1;
         setStatusNotice({
           tone: 'error',
-          message: 'รีเฟรชไม่สำเร็จจากทุกแหล่ง กำลังคงข้อมูลชุดก่อนหน้าไว้เพื่อไม่ให้จอว่าง',
+          message: t('futures.refreshFailed'),
         });
         return;
       }
@@ -793,22 +816,22 @@ type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OI
       if (snapshot.signals.length === 0) {
         setStatusNotice({
           tone: 'error',
-          message: 'ไม่สามารถโหลดข้อมูล real-time ได้จากทุกแหล่งในขณะนี้',
+          message: t('futures.cannotLoadAll'),
         });
       } else if (snapshot.diagnostics.failedCount > 0) {
         setStatusNotice({
           tone: 'warning',
-          message: `โหลดข้อมูลได้ ${snapshot.diagnostics.successCount}/${snapshot.diagnostics.requestedAssets} สินทรัพย์ กำลังแสดงข้อมูลล่าสุดที่มีคุณภาพดีที่สุด`,
+          message: t('futures.partialLoadStatus', { success: snapshot.diagnostics.successCount, total: snapshot.diagnostics.requestedAssets }),
         });
       }
     } catch {
       setStatusNotice({
         tone: 'error',
         message: hasLoadedRef.current
-          ? 'รีเฟรชไม่สำเร็จ กำลังแสดงข้อมูลชุดล่าสุดที่ยังมีอยู่'
-          : 'ไม่สามารถโหลดสัญญาณได้ กรุณาลองใหม่',
+          ? t('futures.refreshFailedKeeping')
+          : t('futures.cannotLoadSignals'),
       });
-      toast.error('ไม่สามารถโหลดสัญญาณได้ กรุณาลองใหม่');
+      toast.error(t('futures.cannotLoadSignals'));
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -865,7 +888,7 @@ type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OI
             Futures Signal Center
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            สัญญาณเทรดฟิวเจอร์ส · ทองคำ · น้ำมัน · คริปโต — Real-Time Multi-Indicator Analysis
+            Rule-based futures setups from the latest available OHLCV coverage for gold, oil, and crypto
           </p>
           {diagnostics && summary && (
             <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-gray-500 dark:text-gray-400">
@@ -876,10 +899,10 @@ type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OI
                 Coverage {diagnostics.coveragePercent}%
               </span>
               <span className={`px-2 py-1 rounded-full border ${diagnostics.staleCount > 0 ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700/40' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700/40'}`}>
-                {diagnostics.staleCount > 0 ? `${diagnostics.staleCount} stale feeds` : 'All feeds healthy'}
+                {diagnostics.staleCount > 0 ? `${diagnostics.staleCount} stale feeds` : 'No stale feeds'}
               </span>
               <span className="px-2 py-1 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                {summary.bestSignal ? `Top ${summary.bestSignal.symbol}` : 'No active signal'}
+                {summary.bestSignal ? `Best fresh setup ${summary.bestSignal.symbol}` : 'No active fresh setup'}
               </span>
             </div>
           )}
@@ -951,20 +974,20 @@ type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OI
             color="bg-red-100 dark:bg-red-900/30"
           />
           <SummaryCard
-            label="Strong"
+            label="Active Fresh"
             value={summary.strongSignals}
             icon={<Flame className="w-5 h-5 text-[#ee7d54]" />}
             color="bg-orange-100 dark:bg-orange-900/30"
           />
           <SummaryCard
-            label="Confidence"
+            label="Agreement"
             value={`${summary.avgConfidence}%`}
             icon={<Zap className="w-5 h-5 text-purple-600" />}
             color="bg-purple-100 dark:bg-purple-900/30"
-            sub="avg all signals"
+            sub="avg fresh indicator agreement"
           />
           <SummaryCard
-            label="Market Bias"
+            label="Fresh Bias"
             value={summary.marketBias === 'bullish' ? 'Bullish' : summary.marketBias === 'bearish' ? 'Bearish' : 'Mixed'}
             icon={summary.marketBias === 'bullish' ? <TrendingUp className="w-5 h-5 text-emerald-600" /> : summary.marketBias === 'bearish' ? <TrendingDown className="w-5 h-5 text-red-600" /> : <Percent className="w-5 h-5 text-amber-600" />}
             color={summary.marketBias === 'bullish' ? 'bg-emerald-100 dark:bg-emerald-900/30' : summary.marketBias === 'bearish' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-amber-100 dark:bg-amber-900/30'}
@@ -986,9 +1009,7 @@ type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OI
       >
         <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
         <p className="text-xs text-amber-700 dark:text-amber-400">
-          <strong>คำเตือนความเสี่ยง:</strong> สัญญาณเหล่านี้เป็นเพียงเครื่องมือช่วยตัดสินใจจาก Technical Analysis เท่านั้น
-          ไม่ใช่คำแนะนำทางการเงิน การเทรด Futures มีความเสี่ยงสูง อาจขาดทุนมากกว่าเงินลงทุนได้
-          กรุณาบริหารความเสี่ยงอย่างเคร่งครัดและไม่ลงทุนเกินกว่าที่รับได้
+          <strong>{t('futures.riskWarning')}</strong> {t('futures.riskWarningText')}
         </p>
       </motion.div>
 
@@ -1030,7 +1051,7 @@ type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OI
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
-              {s === 'score' ? 'Score' : s === 'confidence' ? 'Confidence' : s === 'change' ? 'Change%' : 'Name'}
+              {s === 'score' ? 'Confluence' : s === 'confidence' ? 'Agreement' : s === 'change' ? 'Change%' : 'Name'}
             </button>
           ))}
         </div>

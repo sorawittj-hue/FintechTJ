@@ -17,6 +17,8 @@ export interface MacroConditions {
   fearAndGreedIndex: number; // 0-100 (0=Extreme Fear, 100=Extreme Greed)
   btcVolatility30d: number; // 30-day volatility (e.g., 0.05 = 5%)
   isBtcAbove200MA: boolean; // Is BTC above 200-day moving average?
+  btcVolatilitySource?: 'daily_ohlcv' | 'estimated';
+  btcTrendSource?: 'daily_ohlcv' | 'estimated';
   vixLevel?: number; // Optional: VIX volatility index
   yieldCurveInverted?: boolean; // Optional: Is yield curve inverted?
 }

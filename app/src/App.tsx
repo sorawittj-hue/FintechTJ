@@ -88,7 +88,7 @@ function AppContent() {
       <div className={isLogin ? 'w-full' : 'lg:ml-72'}>
         {!isLogin && <Header />}
 
-        <main className={isLogin ? '' : 'pt-20 lg:pt-24 pb-8 px-4 lg:px-8 max-w-[1600px]'}>
+        <main id="main-content" className={isLogin ? '' : 'pt-20 lg:pt-24 pb-8 px-4 lg:px-8 max-w-[1600px]'}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

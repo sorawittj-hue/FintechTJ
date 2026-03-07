@@ -204,44 +204,50 @@ export function PortfolioWhaleTracker({ assets, className }: PortfolioWhaleTrack
       </CardHeader>
 
       <CardContent>
-        <div className="space-y-3">
-          {scores.map((asset) => (
-            <div
-              key={asset.symbol}
-              className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <div className="font-semibold">{asset.symbol}</div>
-                  <div className="text-sm text-gray-500">{asset.name}</div>
+        {scores.length > 0 ? (
+          <div className="space-y-3">
+            {scores.map((asset) => (
+              <div
+                key={asset.symbol}
+                className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="font-semibold">{asset.symbol}</div>
+                    <div className="text-sm text-gray-500">{asset.name}</div>
+                  </div>
+                  <div className={`px-2 py-1 rounded text-xs font-semibold ${
+                    asset.score.signal === 'ACCUMULATE'
+                      ? 'bg-green-100 text-green-700'
+                      : asset.score.signal === 'DISTRIBUTE'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {asset.score.signal}
+                  </div>
                 </div>
-                <div className={`px-2 py-1 rounded text-xs font-semibold ${
-                  asset.score.signal === 'ACCUMULATE'
-                    ? 'bg-green-100 text-green-700'
-                    : asset.score.signal === 'DISTRIBUTE'
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {asset.score.signal}
+                
+                <Progress 
+                  value={asset.score.score} 
+                  className={`h-2 ${
+                    asset.score.score >= 70 ? 'bg-green-200' :
+                    asset.score.score <= 30 ? 'bg-red-200' :
+                    'bg-gray-200'
+                  }`}
+                />
+                
+                <div className="flex justify-between mt-2 text-xs text-gray-500">
+                  <span>Vol: {asset.score.volumeMultiplier.toFixed(2)}x</span>
+                  <span>Confidence: {asset.score.confidence}</span>
                 </div>
               </div>
-              
-              <Progress 
-                value={asset.score.score} 
-                className={`h-2 ${
-                  asset.score.score >= 70 ? 'bg-green-200' :
-                  asset.score.score <= 30 ? 'bg-red-200' :
-                  'bg-gray-200'
-                }`}
-              />
-              
-              <div className="flex justify-between mt-2 text-xs text-gray-500">
-                <span>Vol: {asset.score.volumeMultiplier.toFixed(2)}x</span>
-                <span>Confidence: {asset.score.confidence}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-10 text-center text-gray-500 text-sm">
+            Whale flow needs supported crypto assets with verified live volume. This card is withholding signals instead of estimating market volume.
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -709,7 +709,7 @@ async function generateSignalForAsset(
         volumeSpike,
         nearSupport,
         nearResistance,
-        isActive: direction !== 'NEUTRAL' && strength !== 'WEAK',
+        isActive: !stale && direction !== 'NEUTRAL' && strength !== 'WEAK',
       },
     };
   } catch (err) {
@@ -779,12 +779,14 @@ export async function generateAllFuturesSignals(
 }
 
 export function getFuturesSignalSummary(signals: FuturesSignal[]): FuturesSignalSummary {
-  const longs = signals.filter(s => s.direction === 'LONG');
-  const shorts = signals.filter(s => s.direction === 'SHORT');
-  const avgConf = signals.length > 0
-    ? Math.round(signals.reduce((s, sig) => s + sig.confidence, 0) / signals.length)
+  const freshSignals = signals.filter(s => !s.isStale);
+  const directionalSignals = freshSignals.filter(s => s.direction !== 'NEUTRAL');
+  const longs = directionalSignals.filter(s => s.direction === 'LONG');
+  const shorts = directionalSignals.filter(s => s.direction === 'SHORT');
+  const avgConf = freshSignals.length > 0
+    ? Math.round(freshSignals.reduce((s, sig) => s + sig.confidence, 0) / freshSignals.length)
     : 0;
-  const active = signals
+  const active = freshSignals
     .filter(s => s.isActive)
     .sort((a, b) => b.score - a.score || b.confidence - a.confidence || a.latencySeconds - b.latencySeconds);
   const lastUpdated = signals.length > 0
@@ -794,8 +796,8 @@ export function getFuturesSignalSummary(signals: FuturesSignal[]): FuturesSignal
   return {
     totalLong: longs.length,
     totalShort: shorts.length,
-    totalNeutral: signals.filter(s => s.direction === 'NEUTRAL').length,
-    strongSignals: signals.filter(s => s.strength === 'STRONG').length,
+    totalNeutral: freshSignals.filter(s => s.direction === 'NEUTRAL').length,
+    strongSignals: freshSignals.filter(s => s.strength === 'STRONG' && s.isActive).length,
     avgConfidence: avgConf,
     bestSignal: active[0] ?? null,
     marketBias: longs.length > shorts.length ? 'bullish' : shorts.length > longs.length ? 'bearish' : 'mixed',

@@ -33,6 +33,7 @@ export const WhaleVault = React.memo(function WhaleVault() {
   // real-time data from services
   const { transactions: whaleTransactions } = useWhaleTracking();
   const darkPoolData = useDarkPoolData(); // Dark pool data requires institutional API
+  const hasDarkPoolCoverage = darkPoolData.length > 0;
 
   // Memoized volume calculations for whale transactions
   const { totalWhaleVolume, buyVolume, sellVolume } = useMemo(() => {
@@ -50,9 +51,18 @@ export const WhaleVault = React.memo(function WhaleVault() {
     totalInBillions: (totalWhaleVolume / 1e9).toFixed(2),
     buyInBillions: (buyVolume / 1e9).toFixed(2),
     sellInBillions: (sellVolume / 1e9).toFixed(2),
-    buyPercentage: ((buyVolume / totalWhaleVolume) * 100).toFixed(1),
-    sellPercentage: ((sellVolume / totalWhaleVolume) * 100).toFixed(1)
+    buyPercentage: totalWhaleVolume > 0 ? ((buyVolume / totalWhaleVolume) * 100).toFixed(1) : '0.0',
+    sellPercentage: totalWhaleVolume > 0 ? ((sellVolume / totalWhaleVolume) * 100).toFixed(1) : '0.0'
   }), [totalWhaleVolume, buyVolume, sellVolume]);
+
+  const observedWalletCount = useMemo(() => {
+    const wallets = new Set<string>();
+    whaleTransactions.forEach((tx) => {
+      wallets.add(tx.fromAddress);
+      wallets.add(tx.toAddress);
+    });
+    return wallets.size;
+  }, [whaleTransactions]);
 
   // Memoized event handlers
   const handleTabChange = useCallback((tab: 'whale' | 'darkpool') => {
@@ -74,7 +84,7 @@ export const WhaleVault = React.memo(function WhaleVault() {
       >
         <div>
           <h2 className="text-2xl font-bold">Whale Vault & Dark Pool Terminal</h2>
-          <p className="text-gray-500 text-sm">Track smart money movements and off-exchange transactions</p>
+          <p className="text-gray-500 text-sm">Track on-chain whale flows and dark-pool feed coverage with transparent source limits</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -109,7 +119,7 @@ export const WhaleVault = React.memo(function WhaleVault() {
             <span className="text-sm text-gray-500">Total Volume (24h)</span>
           </div>
           <p className="text-2xl font-bold">${volumeStats.totalInBillions}B</p>
-          <span className="text-xs text-green-500">+12.5% vs yesterday</span>
+          <span className="text-xs text-gray-500">From currently observed whale transactions</span>
         </motion.div>
 
         <motion.div
@@ -154,10 +164,10 @@ export const WhaleVault = React.memo(function WhaleVault() {
             <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
               <Wallet className="text-purple-500" size={18} />
             </div>
-            <span className="text-sm text-gray-500">Active Whales</span>
+            <span className="text-sm text-gray-500">Observed Wallets</span>
           </div>
-          <p className="text-2xl font-bold">247</p>
-          <span className="text-xs text-green-500">+18 in last hour</span>
+          <p className="text-2xl font-bold">{observedWalletCount}</p>
+          <span className="text-xs text-gray-500">Unique wallets seen in the current feed window</span>
         </motion.div>
       </div>
 
@@ -177,7 +187,7 @@ export const WhaleVault = React.memo(function WhaleVault() {
                 </div>
                 <div>
                   <h3 className="font-semibold">Recent Whale Transactions</h3>
-                  <p className="text-sm text-gray-500">Large wallet movements detected</p>
+                  <p className="text-sm text-gray-500">Large wallet movements from supported blockchain feeds</p>
                 </div>
               </div>
               <button
@@ -189,7 +199,15 @@ export const WhaleVault = React.memo(function WhaleVault() {
             </div>
 
             <div className="space-y-4">
-              {whaleActivityData.map((tx, index) => (
+              {whaleActivityData.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                  <FishSymbol className="mx-auto mb-3 text-gray-300" size={28} />
+                  <p className="text-sm font-medium text-gray-700">No whale transactions currently available</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    This panel only shows detected transactions from supported feeds. It stays empty when no qualifying on-chain activity is available.
+                  </p>
+                </div>
+              ) : whaleActivityData.map((tx, index) => (
                 <motion.div
                   key={tx.id}
                   initial={{ x: -20, opacity: 0 }}
@@ -269,7 +287,7 @@ export const WhaleVault = React.memo(function WhaleVault() {
                     contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
                     formatter={(value: number) => [`$${(value / 1e6).toFixed(1)}M`, 'Volume']}
                   />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="valueUSD" radius={[4, 4, 0, 0]}>
                     {whaleActivityData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.type === 'buy' ? '#22c55e' : '#ef4444'} />
                     ))}
@@ -295,11 +313,13 @@ export const WhaleVault = React.memo(function WhaleVault() {
                 </div>
                 <div>
                   <h3 className="font-semibold">Dark Pool Activity</h3>
-                  <p className="text-sm text-gray-500">Off-exchange block trades</p>
+                  <p className="text-sm text-gray-500">Off-exchange block trades from institutional data providers only</p>
                 </div>
               </div>
-              <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                Real-time
+              <span className={`px-3 py-1 rounded-full text-xs ${
+                hasDarkPoolCoverage ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {hasDarkPoolCoverage ? 'Verified Feed' : 'Unavailable'}
               </span>
             </div>
 
@@ -370,30 +390,33 @@ export const WhaleVault = React.memo(function WhaleVault() {
               </div>
             </div>
 
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={darkPoolData as DarkPoolData[]} layout="vertical" margin={{ left: 40 }}>
-                  <XAxis type="number" axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-                  <YAxis type="category" dataKey="symbol" axisLine={false} tickLine={false} width={60} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                    formatter={(value: number) => [`${value > 0 ? '+' : ''}${value}%`, 'Premium']}
-                  />
-                  <Bar dataKey="premium" radius={[0, 4, 4, 0]}>
-                    {darkPoolData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.premium > 0 ? '#22c55e' : '#ef4444'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="mt-6 p-4 rounded-2xl bg-gray-50">
-              <p className="text-sm text-gray-600">
-                <span className="font-medium">Insight:</span> Positive premium indicates institutional buying pressure.
-                NVDA showing +0.45% premium suggests accumulation by smart money ahead of earnings.
-              </p>
-            </div>
+            {hasDarkPoolCoverage ? (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={darkPoolData as DarkPoolData[]} layout="vertical" margin={{ left: 40 }}>
+                    <XAxis type="number" axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                    <YAxis type="category" dataKey="symbol" axisLine={false} tickLine={false} width={60} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                      formatter={(value: number) => [`${value > 0 ? '+' : ''}${value}%`, 'Premium']}
+                    />
+                    <Bar dataKey="premium" radius={[0, 4, 4, 0]}>
+                      {darkPoolData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.premium > 0 ? '#22c55e' : '#ef4444'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                <Activity className="mx-auto mb-3 text-gray-300" size={28} />
+                <p className="text-sm font-medium text-gray-700">Dark pool premium analysis unavailable</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Premium analysis remains hidden until an institutional dark-pool feed is connected. No inferred smart-money conclusion is shown from empty data.
+                </p>
+              </div>
+            )}
           </motion.div>
         </>
       )}

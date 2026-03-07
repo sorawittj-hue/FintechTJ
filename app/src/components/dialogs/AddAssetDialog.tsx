@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
     X,
@@ -26,6 +27,7 @@ interface AddAssetDialogProps {
 }
 
 export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
+    const { t } = useTranslation();
     const { addAsset, assets, updateAsset, addTransaction } = usePortfolio();
 
     const [type, setType] = useState<'crypto' | 'stock' | 'commodity' | 'forex'>('crypto');
@@ -106,7 +108,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
 
     const fetchCurrentPrice = async () => {
         if (!symbol) {
-            toast.error('กรุณากรอกสัญลักษณ์ก่อน');
+            toast.error(t('addAssetDialog.enterSymbolFirst'));
             return;
         }
         
@@ -120,14 +122,14 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                 if (!name.trim()) {
                     setName(quote.name);
                 }
-                toast.success(`ดึงราคา ${symbol.toUpperCase()} สำเร็จ: $${quote.price.toLocaleString()}`);
+                toast.success(t('addAssetDialog.fetchedPrice', { symbol: symbol.toUpperCase(), price: quote.price.toLocaleString() }));
             } else {
-                setFetchError('ไม่พบข้อมูลราคา กรุณากรอกราคาด้วยตนเอง');
-                toast.warning('ไม่พบข้อมูลราคา กรุณากรอกราคาด้วยตนเอง');
+                setFetchError(t('addAssetDialog.priceNotFound'));
+                toast.warning(t('addAssetDialog.priceNotFound'));
             }
         } catch {
-            setFetchError('ไม่สามารถดึงราคาได้ กรุณากรอกราคาด้วยตนเอง');
-            toast.error('ไม่สามารถดึงราคาได้ กรุณากรอกราคาด้วยตนเอง');
+            setFetchError(t('addAssetDialog.cannotFetchPrice'));
+            toast.error(t('addAssetDialog.cannotFetchPrice'));
         } finally {
             setIsFetchingPrice(false);
         }
@@ -135,7 +137,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
 
     const handleAddAsset = async () => {
         if (!symbol || !name || !quantity || !avgPrice) {
-            toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
+            toast.error(t('addAssetDialog.fillAllFields'));
             return;
         }
 
@@ -143,19 +145,19 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         const pxNum = parseFloat(avgPrice);
 
         if (isNaN(qtyNum) || isNaN(pxNum)) {
-            toast.error('จำนวนและราคาต้องเป็นตัวเลข');
+            toast.error(t('addAssetDialog.qtyAndPriceMustBeNumber'));
             return;
         }
 
         if (qtyNum <= 0 || pxNum <= 0) {
-            toast.error('จำนวนและราคาต้องมากกว่า 0');
+            toast.error(t('addAssetDialog.qtyAndPricePositive'));
             return;
         }
 
         // ตรวจสอบ symbol ซ้ำ
         const duplicateAsset = assets.find(a => a.symbol.toUpperCase() === symbol.toUpperCase());
         if (duplicateAsset) {
-            toast.error(`สินทรัพย์ ${symbol.toUpperCase()} มีอยู่ในพอร์ตแล้ว กรุณาใช้ฟังก์ชัน "เพิ่มจำนวน" แทน`);
+            toast.error(t('addAssetDialog.assetAlreadyExists', { symbol: symbol.toUpperCase() }));
             return;
         }
 
@@ -237,7 +239,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
 
             handleClose();
         } catch {
-            toast.error('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+            toast.error(t('addAssetDialog.errorTryAgain'));
         } finally {
             setIsProcessing(false);
         }
@@ -274,8 +276,8 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                         <Briefcase className="text-white" size={24} />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-bold text-gray-900">เพิ่มสินทรัพย์</h2>
-                                        <p className="text-sm text-gray-500">บันทึกพอร์ตของคุณด้วยตนเอง</p>
+                                        <h2 className="text-xl font-bold text-gray-900">{t('addAssetDialog.title')}</h2>
+                                        <p className="text-sm text-gray-500">{t('addAssetDialog.subtitle')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -285,7 +287,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                 {/* Type Selection */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        ประเภทสินทรัพย์
+                                        {t('addAssetDialog.assetType')}
                                     </label>
                                     <div className="grid grid-cols-4 gap-2">
                                         {[
@@ -312,7 +314,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                 {existingAsset && (
                                     <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
                                         <p className="text-sm text-red-600">
-                                            ⚠️ สินทรัพย์ {symbol.toUpperCase()} มีอยู่ในพอร์ตแล้ว ({existingAsset.quantity} หน่วย)
+                                            {t('addAssetDialog.existingAssetWarning', { symbol: symbol.toUpperCase(), qty: existingAsset.quantity })}
                                         </p>
                                     </div>
                                 )}
@@ -320,7 +322,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            สัญลักษณ์ (Symbol)
+                                            {t('addAssetDialog.symbol')}
                                         </label>
                                         <div className="relative">
                                             <input
@@ -337,7 +339,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                                 onClick={fetchCurrentPrice}
                                                 disabled={isFetchingPrice || !symbol}
                                                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-[#ee7d54] disabled:opacity-50 transition-colors"
-                                                title="ดึงราคาปัจจุบัน"
+                                                title={t('addAssetDialog.fetchCurrentPrice')}
                                             >
                                                 {isFetchingPrice ? (
                                                     <Loader2 size={16} className="animate-spin" />
@@ -352,7 +354,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            ชื่อสินทรัพย์ (Name)
+                                            {t('addAssetDialog.assetName')}
                                         </label>
                                         <input
                                             type="text"
@@ -367,7 +369,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            จำนวน (Quantity)
+                                            {t('addAssetDialog.quantity')}
                                         </label>
                                         <input
                                             type="number"
@@ -380,7 +382,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            ราคาเฉลี่ย (Avg Price USD)
+                                            {t('addAssetDialog.avgPriceUsd')}
                                         </label>
                                         <div className="relative">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
@@ -398,12 +400,12 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
 
                                 {/* Summary */}
                                 <div className="bg-orange-50 rounded-xl p-4 flex flex-col items-center justify-center border border-orange-100/50">
-                                    <p className="text-xs text-orange-600 font-medium mb-1">มูลค่ารวม (Total Value)</p>
+                                    <p className="text-xs text-orange-600 font-medium mb-1">{t('addAssetDialog.totalValue')}</p>
                                     <p className="text-2xl font-bold text-gray-900">
                                         ${(parseFloat(quantity || '0') * parseFloat(avgPrice || '0')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </p>
                                     <p className="text-xs text-gray-500 mt-1">
-                                        จำนวน: {parseFloat(quantity || '0').toLocaleString()} × ราคา: ${parseFloat(avgPrice || '0').toLocaleString()}
+                                        {t('addAssetDialog.quantityTimesPrice', { qty: parseFloat(quantity || '0').toLocaleString(), price: parseFloat(avgPrice || '0').toLocaleString() })}
                                     </p>
                                 </div>
                             </div>
@@ -414,7 +416,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                     onClick={handleClose}
                                     className="flex-1 py-3 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
                                 >
-                                    ยกเลิก
+                                    {t('addAssetDialog.cancel')}
                                 </button>
                                 <button
                                     onClick={handleAddAsset}
@@ -426,7 +428,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                     ) : (
                                         <>
                                             <Plus size={18} />
-                                            เพิ่มเข้าพอร์ต
+                                            {t('addAssetDialog.addToPortfolio')}
                                         </>
                                     )}
                                 </button>

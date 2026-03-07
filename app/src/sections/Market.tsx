@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
   TrendingUp,
@@ -35,13 +36,7 @@ import {
 import type { CryptoPrice } from '@/services/binance';
 
 // Asset Classes
-const ASSET_CLASSES = [
-  { id: 'all', label: 'ทั้งหมด', icon: Globe, color: 'from-gray-500 to-gray-600' },
-  { id: 'crypto', label: 'คริปโต', icon: Bitcoin, color: 'from-orange-500 to-yellow-500' },
-  { id: 'stocks', label: 'หุ้นสหรัฐ', icon: Building2, color: 'from-blue-500 to-cyan-500' },
-  { id: 'commodities', label: 'สินค้าโภคภัณฑ์', icon: Droplet, color: 'from-amber-500 to-orange-500' },
-  { id: 'forex', label: 'ฟอเร็กซ์', icon: DollarSign, color: 'from-green-500 to-emerald-500' },
-];
+// ASSET_CLASSES will be defined inside component to use translations
 
 // Popular US Stocks to fetch
 const POPULAR_STOCKS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'NFLX', 'CRM'];
@@ -59,7 +54,18 @@ interface UnifiedAsset {
   sector?: string;
 }
 
-export function Market() {
+export default function Market() {
+  const { t } = useTranslation();
+  
+  // Asset Classes with translations
+  const ASSET_CLASSES = [
+    { id: 'all', label: t('dashboard.all'), icon: Globe, color: 'from-gray-500 to-gray-600' },
+    { id: 'crypto', label: t('dashboard.crypto'), icon: Bitcoin, color: 'from-orange-500 to-yellow-500' },
+    { id: 'stocks', label: t('dashboard.usStocks'), icon: Building2, color: 'from-blue-500 to-cyan-500' },
+    { id: 'commodities', label: t('dashboard.commodities'), icon: Droplet, color: 'from-amber-500 to-orange-500' },
+    { id: 'forex', label: t('dashboard.forex'), icon: DollarSign, color: 'from-green-500 to-emerald-500' },
+  ];
+  
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([]);
   const [stockQuotes, setStockQuotes] = useState<StockQuote[]>([]);
   const [commodities, setCommodities] = useState<CommodityPrice[]>([]);
@@ -95,7 +101,7 @@ export function Market() {
 
     } catch (error) {
       console.error('Error fetching market data:', error);
-      toast.error('ไม่สามารถโหลดข้อมูลตลาดได้');
+      toast.error(t('dashboard.marketLoadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -201,8 +207,8 @@ export function Market() {
         : [...prev, symbol]
     );
     toast.success(watchlist.includes(symbol) 
-      ? `นำ ${symbol} ออกจากวอชลิสต์แล้ว` 
-      : `เพิ่ม ${symbol} ในวอชลิสต์แล้ว`
+      ? t('dashboard.removeFromWatchlist', { symbol })
+      : t('dashboard.addToWatchlist', { symbol })
     );
   };
 
@@ -211,7 +217,7 @@ export function Market() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#ee7d54]" />
-          <p className="text-gray-500">กำลังโหลดข้อมูลตลาดจริง...</p>
+          <p className="text-gray-500">{t('dashboard.loadingMarketData')}</p>
         </div>
       </div>
     );
@@ -222,8 +228,8 @@ export function Market() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">ศูนย์กลางตลาด</h1>
-          <p className="text-gray-500">ข้อมูลจริงจากตลาดโลก แบบเรียลไทม์</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('dashboard.marketCenter')}</h1>
+          <p className="text-gray-500">{t('dashboard.marketSubtitle')}</p>
         </div>
         <Button 
           variant="outline" 
@@ -232,7 +238,7 @@ export function Market() {
           className="w-full lg:w-auto"
         >
           <RefreshCw size={16} className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          รีเฟรชข้อมูล
+          {t('dashboard.refreshData')}
         </Button>
       </div>
 
@@ -267,7 +273,7 @@ export function Market() {
                 {assetClass.label}
               </p>
               <p className={`font-bold ${activeTab === assetClass.id ? 'text-white' : 'text-gray-900'}`}>
-                {count} รายการ
+                {count} {t('dashboard.items')}
               </p>
             </motion.button>
           );
@@ -280,42 +286,42 @@ export function Market() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Activity size={16} className="text-green-500" />
-              <span className="text-xs text-gray-500">ตลาดบวก</span>
+              <span className="text-xs text-gray-500">{t('dashboard.marketUp')}</span>
             </div>
             <p className="text-2xl font-bold text-green-600">{marketStats.up}</p>
-            <p className="text-xs text-gray-400">จาก {allAssets.length} รายการ</p>
+            <p className="text-xs text-gray-400">{t('dashboard.fromTotal', { count: allAssets.length })}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <TrendingDown size={16} className="text-red-500" />
-              <span className="text-xs text-gray-500">ตลาดลบ</span>
+              <span className="text-xs text-gray-500">{t('dashboard.marketDown')}</span>
             </div>
             <p className="text-2xl font-bold text-red-600">{marketStats.down}</p>
-            <p className="text-xs text-gray-400">จาก {allAssets.length} รายการ</p>
+            <p className="text-xs text-gray-400">{t('dashboard.fromTotal', { count: allAssets.length })}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Zap size={16} className="text-[#ee7d54]" />
-              <span className="text-xs text-gray-500">ปริมาณซื้อขาย 24ชม.</span>
+              <span className="text-xs text-gray-500">{t('dashboard.volume24h')}</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">
               ${(marketStats.totalVolume / 1e9).toFixed(1)}B
             </p>
-            <p className="text-xs text-gray-400">รวมทุกตลาด</p>
+            <p className="text-xs text-gray-400">{t('dashboard.allMarkets')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Star size={16} className="text-yellow-500" />
-              <span className="text-xs text-gray-500">วอชลิสต์</span>
+              <span className="text-xs text-gray-500">{t('dashboard.watchlist')}</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{watchlist.length}</p>
-            <p className="text-xs text-gray-400">รายการที่ติดตาม</p>
+            <p className="text-xs text-gray-400">{t('dashboard.trackedItems')}</p>
           </CardContent>
         </Card>
       </div>
@@ -326,7 +332,7 @@ export function Market() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <TrendingUp size={16} className="text-green-500" />
-              เคลื่อนไหวสูงสุด 24ชม. (ข้อมูลจริง)
+              {t('dashboard.mostActive24h')}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -360,7 +366,7 @@ export function Market() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <BarChart3 size={16} className="text-[#ee7d54]" />
-              วอชลิสต์ของคุณ
+              {t('dashboard.yourWatchlist')}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -396,12 +402,12 @@ export function Market() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Globe size={20} className="text-[#ee7d54]" />
-              ตลาดทั้งหมด (ข้อมูลจริง)
+              {t('dashboard.allMarkets')}
             </CardTitle>
             <div className="relative w-full lg:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <Input
-                placeholder="ค้นหาสินทรัพย์..."
+                placeholder={t('dashboard.searchAssets')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -414,12 +420,12 @@ export function Market() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left py-3 px-2 text-xs font-medium text-gray-500">สินทรัพย์</th>
-                  <th className="text-left py-3 px-2 text-xs font-medium text-gray-500 hidden lg:table-cell">ประเภท</th>
-                  <th className="text-right py-3 px-2 text-xs font-medium text-gray-500">ราคา</th>
-                  <th className="text-right py-3 px-2 text-xs font-medium text-gray-500">24ชม.</th>
-                  <th className="text-right py-3 px-2 text-xs font-medium text-gray-500 hidden md:table-cell">ปริมาณ</th>
-                  <th className="text-center py-3 px-2 text-xs font-medium text-gray-500">ติดตาม</th>
+                  <th className="text-left py-3 px-2 text-xs font-medium text-gray-500">{t('dashboard.asset')}</th>
+                  <th className="text-left py-3 px-2 text-xs font-medium text-gray-500 hidden lg:table-cell">{t('dashboard.type')}</th>
+                  <th className="text-right py-3 px-2 text-xs font-medium text-gray-500">{t('dashboard.price')}</th>
+                  <th className="text-right py-3 px-2 text-xs font-medium text-gray-500">{t('dashboard.h24')}</th>
+                  <th className="text-right py-3 px-2 text-xs font-medium text-gray-500 hidden md:table-cell">{t('dashboard.volume')}</th>
+                  <th className="text-center py-3 px-2 text-xs font-medium text-gray-500">{t('dashboard.track')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -444,10 +450,10 @@ export function Market() {
                     </td>
                     <td className="py-3 px-2 hidden lg:table-cell">
                       <Badge variant="outline" className="text-xs capitalize">
-                        {asset.type === 'crypto' && 'คริปโต'}
-                        {asset.type === 'stock' && 'หุ้น'}
-                        {asset.type === 'commodity' && 'สินค้า'}
-                        {asset.type === 'forex' && 'ฟอเร็กซ์'}
+                        {asset.type === 'crypto' && t('dashboard.cryptoType')}
+                        {asset.type === 'stock' && t('dashboard.stockType')}
+                        {asset.type === 'commodity' && t('dashboard.commodityType')}
+                        {asset.type === 'forex' && t('dashboard.forexType')}
                       </Badge>
                     </td>
                     <td className="text-right py-3 px-2 font-medium">

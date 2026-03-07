@@ -129,10 +129,31 @@ export const Sentinel = React.memo(function Sentinel() {
       dataState.alerts.length > 0,
     ].filter(Boolean).length;
 
+    const coverageLabel = marketSources >= 4
+      ? 'Broad Coverage'
+      : marketSources >= 2
+        ? 'Partial Coverage'
+        : 'Limited Coverage';
+
+    const monitoringLabel = dataState.connectionStatus.state === 'connected'
+      ? 'Feed Healthy'
+      : dataState.connectionStatus.state === 'reconnecting'
+        ? 'Feed Reconnecting'
+        : 'Feed Degraded';
+
+    const monitoringBadgeClass = dataState.connectionStatus.state === 'connected'
+      ? 'bg-green-100 text-green-700'
+      : dataState.connectionStatus.state === 'reconnecting'
+        ? 'bg-yellow-100 text-yellow-700'
+        : 'bg-red-100 text-red-700';
+
     return {
       marketsTracked: dataState.marketData.indices.length + (priceCoverage > 0 ? 1 : 0),
       assetsMonitored: dataState.assets.length,
       dataSources: marketSources,
+      coverageLabel,
+      monitoringLabel,
+      monitoringBadgeClass,
       stopLossesSet: activeAlerts.filter((alert) => alert.type === 'price' || alert.type === 'portfolio').length,
       alertsGenerated: alerts.length,
       patternsDetected: activeAlerts.filter((alert) => alert.type === 'pattern').length,
@@ -166,12 +187,12 @@ export const Sentinel = React.memo(function Sentinel() {
       >
         <div>
           <h2 className="text-2xl font-bold">Obsidian Sentinel & God Eye</h2>
-          <p className="text-gray-500 text-sm">24/7 portfolio and market surveillance</p>
+          <p className="text-gray-500 text-sm">Portfolio alerts and market monitoring based on current app coverage</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            Monitoring Active
+          <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs ${monitoringStats.monitoringBadgeClass}`}>
+            <div className={`w-2 h-2 rounded-full ${dataState.connectionStatus.state === 'connected' ? 'bg-green-500 animate-pulse' : dataState.connectionStatus.state === 'reconnecting' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+            {monitoringStats.monitoringLabel}
           </span>
         </div>
       </motion.div>
@@ -189,8 +210,8 @@ export const Sentinel = React.memo(function Sentinel() {
               <Eye className="text-cyan-400" size={20} />
             </div>
             <div>
-              <p className="text-sm text-gray-400">God Eye Status</p>
-              <p className="font-semibold">All-Seeing</p>
+              <p className="text-sm text-gray-400">Monitoring Coverage</p>
+              <p className="font-semibold">{monitoringStats.coverageLabel}</p>
             </div>
           </div>
           <div className="space-y-2">
@@ -203,8 +224,8 @@ export const Sentinel = React.memo(function Sentinel() {
               <span>{monitoringStats.assetsMonitored}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">Data Sources</span>
-              <span>{monitoringStats.dataSources}</span>
+              <span className="text-gray-400">Available Sources</span>
+              <span>{monitoringStats.dataSources}/4</span>
             </div>
           </div>
         </motion.div>
@@ -251,8 +272,8 @@ export const Sentinel = React.memo(function Sentinel() {
               <Cpu className="text-blue-500" size={20} />
             </div>
             <div>
-              <p className="text-sm text-gray-500">AI Processing</p>
-              <p className="font-semibold">Real-time</p>
+              <p className="text-sm text-gray-500">Processing Mode</p>
+              <p className="font-semibold">Rule-based monitoring</p>
             </div>
           </div>
           <div className="space-y-2">
@@ -286,7 +307,7 @@ export const Sentinel = React.memo(function Sentinel() {
             </div>
             <div>
               <h3 className="font-semibold">Sentinel Alerts</h3>
-              <p className="text-sm text-gray-500">Real-time notifications</p>
+              <p className="text-sm text-gray-500">User-configured alerts and triggered monitoring rules</p>
             </div>
           </div>
 
@@ -371,7 +392,7 @@ export const Sentinel = React.memo(function Sentinel() {
           )) : (
             <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
               <p className="text-sm font-medium text-gray-700">ยังไม่มี alert จริงใน Sentinel</p>
-              <p className="text-xs text-gray-500 mt-2">เมื่อคุณสร้าง price, pattern หรือ portfolio alerts รายการจะแสดงที่นี่แบบเรียลไทม์</p>
+              <p className="text-xs text-gray-500 mt-2">เมื่อคุณสร้าง price, pattern หรือ portfolio alerts และมีการ trigger จากข้อมูลที่มีอยู่ รายการจะแสดงที่นี่</p>
             </div>
           )}
         </div>

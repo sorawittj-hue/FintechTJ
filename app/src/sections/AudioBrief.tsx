@@ -82,7 +82,7 @@ export function AudioBrief() {
     const estimatedDuration = Math.max(45, Math.min(240, Math.round(script.split(/\s+/).length / 2.5)));
 
     return {
-      title: 'Live Market Brief',
+      title: 'Current Snapshot Brief',
       date: new Date(),
       duration: estimatedDuration,
       summary,
@@ -158,14 +158,23 @@ export function AudioBrief() {
         className="flex items-center justify-between"
       >
         <div>
-          <h2 className="text-2xl font-bold">Audio Morning Brief</h2>
-          <p className="text-gray-500 text-sm">AI-composed summary from live portfolio and market data</p>
+          <h2 className="text-2xl font-bold">Audio Brief Generator</h2>
+          <p className="text-gray-500 text-sm">Auto-generated summary from current portfolio and market data loaded in the app</p>
         </div>
         <div className="flex items-center gap-2">
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${brief.sentiment === 'bullish' ? 'bg-green-100 text-green-700' : brief.sentiment === 'bearish' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}`}>
             {brief.sentiment === 'bullish' ? 'Bullish' : brief.sentiment === 'bearish' ? 'Bearish' : 'Mixed'} Tone
           </span>
         </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ y: 16, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.05, duration: 0.4 }}
+        className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+      >
+        This brief is composed locally from the data currently loaded in the app. Audio playback uses your browser's text-to-speech engine, not a live newsroom feed or external AI anchor.
       </motion.div>
 
       {/* Main Audio Player */}
@@ -239,7 +248,7 @@ export function AudioBrief() {
                 }
 
                 if (!hasBriefData) {
-                  toast.error('Not enough live data to generate the brief yet.');
+                  toast.error('Not enough current app data to generate the brief yet.');
                   return;
                 }
 
@@ -258,13 +267,13 @@ export function AudioBrief() {
                   };
                   utterance.onerror = () => {
                     setIsPlaying(false);
-                    toast.error('Failed to play the generated brief.');
+                    toast.error('Failed to play the local voice preview.');
                   };
                   utteranceRef.current = utterance;
                   setProgress(0);
                   window.speechSynthesis.cancel();
                   window.speechSynthesis.speak(utterance);
-                  toast.success('Playing...');
+                  toast.success('Playing local voice preview...');
                   setIsPlaying(true);
                 }
               }}
@@ -305,7 +314,7 @@ export function AudioBrief() {
           </div>
           <div>
             <h3 className="font-semibold">Key Highlights</h3>
-            <p className="text-sm text-gray-500">Main points from today's brief</p>
+            <p className="text-sm text-gray-500">Main points from the current generated brief snapshot</p>
           </div>
         </div>
 
@@ -413,8 +422,8 @@ export function AudioBrief() {
               <Clock className="text-purple-500" size={20} />
             </div>
             <div>
-              <h3 className="font-semibold">Brief Schedule</h3>
-              <p className="text-sm text-gray-500">Automatic daily generation</p>
+              <h3 className="font-semibold">Suggested Brief Windows</h3>
+              <p className="text-sm text-gray-500">Time-of-day review windows, not automatic generation events</p>
             </div>
           </div>
         </div>
@@ -432,7 +441,7 @@ export function AudioBrief() {
               <p className="font-medium text-sm">{scheduledBrief.name}</p>
               <span className={`text-xs ${scheduledBrief.status === 'completed' ? 'text-green-600' : 'text-gray-400'
                 }`}>
-                {scheduledBrief.status === 'completed' ? '✓ Completed' : '○ Scheduled'}
+                {scheduledBrief.status === 'completed' ? '✓ Window passed' : '○ Suggested window'}
               </span>
             </div>
           ))}

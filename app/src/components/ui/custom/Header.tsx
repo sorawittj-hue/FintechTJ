@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Bell, TrendingUp, TrendingDown, RefreshCw, Moon, Sun } from 'lucide-react';
-import { usePortfolio, usePrice } from '@/context/hooks';
+import { useTranslation } from 'react-i18next';
+import { usePortfolio, usePrice, useSettings } from '@/context/hooks';
 import type { CryptoPrice } from '@/services/binance';
 
 // Key tickers to show in header
@@ -24,14 +25,13 @@ function formatFeedAge(ageSeconds: number | null): string {
 }
 
 export function Header() {
+  const { t } = useTranslation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [priceFlash, setPriceFlash] = useState<Record<string, 'up' | 'down' | null>>({});
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('darkMode');
-    return saved ? JSON.parse(saved) : false;
-  });
+  const { settings, updateSettings } = useSettings();
+  const isDarkMode = settings.theme === 'dark' || (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const { portfolio } = usePortfolio();
   const { prices, isWebSocketConnected, isPriceFeedStale, lastUpdateAgeSeconds, connectionState, latencyMs } = usePrice();
   const previousPricesRef = useRef<Record<string, number>>({});
@@ -55,14 +55,6 @@ export function Header() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
 
   useEffect(() => {
     const newFlash: Record<string, 'up' | 'down' | null> = {};
@@ -99,7 +91,7 @@ export function Header() {
   }, []);
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('th-TH', {
+    return date.toLocaleTimeString(undefined, {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
@@ -158,7 +150,7 @@ export function Header() {
 
             {tickers.length > 0 ? (
               <>
-              {tickers.map((ticker) => {
+              {tickers.map((ticker: CryptoPrice) => {
                 const flash = priceFlash[ticker.symbol];
                 const isUp = ticker.change24hPercent >= 0;
                 const label = TICKER_LABELS[ticker.symbol] || ticker.symbol;
@@ -185,7 +177,7 @@ export function Header() {
             ) : (
               <div className="flex items-center gap-2 text-xs text-gray-400 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
                 <RefreshCw size={12} className={isWebSocketConnected ? '' : 'animate-spin'} />
-                {isWebSocketConnected ? 'รอข้อมูลราคา...' : 'กำลังเชื่อมต่อราคา...'}
+                {isWebSocketConnected ? t('header.waitingForPrices') : t('header.connectingPrices')}
               </div>
             )}
           </div>
@@ -199,7 +191,7 @@ export function Header() {
 
           {/* Portfolio Summary - Desktop only */}
           <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
-            <span className="text-xs text-gray-500">พอร์ต:</span>
+            <span className="text-xs text-gray-500">{t('header.portfolio')}:</span>
             <span className="text-sm font-bold text-gray-900">
               ฿{(portfolio.totalValue / 1000).toFixed(0)}K
             </span>
@@ -228,7 +220,7 @@ export function Header() {
             />
             <input
               type="text"
-              placeholder="ค้นหา..."
+              placeholder={t('common.search')}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
               className={`w-full pl-9 pr-4 py-2 rounded-xl border text-sm transition-all duration-300 outline-none bg-gray-50 ${searchFocused
@@ -243,19 +235,18 @@ export function Header() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="w-9 h-9 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-gray-900 relative"
+            aria-label="Notifications"
           >
             <Bell size={16} className="text-gray-500 dark:text-gray-400" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-medium">
-              3
-            </span>
           </motion.button>
 
           {/* Dark Mode Toggle */}
           <motion.button
-            onClick={() => setIsDarkMode(!isDarkMode)}
+            onClick={() => updateSettings({ theme: isDarkMode ? 'light' : 'dark' })}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="w-9 h-9 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-gray-900"
+            aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {isDarkMode ? (
               <Sun size={16} className="text-yellow-500" />

@@ -25,12 +25,35 @@ const itemVariants = {
 };
 
 export function SectorRotation() {
-  const { performance, flows, signals, stats, loading } = useSectorRotation();
+  const { performance, flows, signals, stats, loading, usingFallback } = useSectorRotation();
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
 
   const sortedPerformance = useMemo(() => {
     return [...performance].sort((a, b) => b.rotationScore - a.rotationScore);
   }, [performance]);
+  const hasSectorData = performance.length > 0;
+  const hasEnoughSignalData = performance.length >= 2;
+
+  const statusBadge = useMemo(() => {
+    if (!hasSectorData) {
+      return {
+        label: 'No Live Data',
+        className: 'bg-red-50 text-red-700 border-red-200',
+      };
+    }
+
+    if (usingFallback) {
+      return {
+        label: 'Cached Real Snapshot',
+        className: 'bg-amber-50 text-amber-700 border-amber-200',
+      };
+    }
+
+    return {
+      label: 'Live Sector Data',
+      className: 'bg-green-50 text-green-700 border-green-200',
+    };
+  }, [hasSectorData, usingFallback]);
 
   const getRotationColor = (score: number) => {
     if (score > 50) return 'text-green-600';
@@ -76,12 +99,27 @@ export function SectorRotation() {
           </div>
         </div>
         <div className="flex gap-3">
+          <Badge variant="outline" className={statusBadge.className}>
+            {statusBadge.label}
+          </Badge>
           <div className="px-4 py-2 bg-gray-100 rounded-xl">
             <span className="text-sm text-gray-500">Rotation Intensity</span>
             <p className="text-xl font-bold">{stats?.rotationIntensity}%</p>
           </div>
         </div>
       </motion.div>
+
+      {usingFallback && hasSectorData && (
+        <motion.div variants={itemVariants} className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Live sector feeds are temporarily unavailable. Showing the last successful real-data snapshot instead of synthetic fallback values.
+        </motion.div>
+      )}
+
+      {!hasSectorData && (
+        <motion.div variants={itemVariants} className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+          Sector rotation needs live market coverage across multiple tokens. No reliable real sector snapshot is available right now, so this page is withholding heatmaps and rotation signals instead of generating simulated data.
+        </motion.div>
+      )}
 
       {/* Stats Overview */}
       <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -153,39 +191,45 @@ export function SectorRotation() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {sortedPerformance.map((sector) => (
-                  <motion.button
-                    key={sector.sectorId}
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => setSelectedSector(sector.sectorId)}
-                    className={`p-4 rounded-xl text-left transition-all ${
-                      selectedSector === sector.sectorId
-                        ? 'ring-2 ring-[#ee7d54]'
-                        : ''
-                    } ${getRotationBg(sector.rotationScore)}`}
-                  >
-                    <p className="font-semibold text-sm">{sector.sectorName}</p>
-                    <p className={`text-2xl font-bold ${getRotationColor(sector.rotationScore)}`}>
-                      {sector.rotationScore > 0 ? '+' : ''}{sector.rotationScore}
-                    </p>
-                    <div className="mt-2 space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-500">24h</span>
-                        <span className={sector.change24h >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {sector.change24h >= 0 ? '+' : ''}{sector.change24h}%
-                        </span>
+              {hasSectorData ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {sortedPerformance.map((sector) => (
+                    <motion.button
+                      key={sector.sectorId}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => setSelectedSector(sector.sectorId)}
+                      className={`p-4 rounded-xl text-left transition-all ${
+                        selectedSector === sector.sectorId
+                          ? 'ring-2 ring-[#ee7d54]'
+                          : ''
+                      } ${getRotationBg(sector.rotationScore)}`}
+                    >
+                      <p className="font-semibold text-sm">{sector.sectorName}</p>
+                      <p className={`text-2xl font-bold ${getRotationColor(sector.rotationScore)}`}>
+                        {sector.rotationScore > 0 ? '+' : ''}{sector.rotationScore}
+                      </p>
+                      <div className="mt-2 space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">24h</span>
+                          <span className={sector.change24h >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {sector.change24h >= 0 ? '+' : ''}{sector.change24h}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Mmt</span>
+                          <span className={sector.momentum >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {sector.momentum}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-500">Mmt</span>
-                        <span className={sector.momentum >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {sector.momentum}
-                        </span>
-                      </div>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
+                    </motion.button>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-10 text-center text-gray-500">
+                  No verified sector heatmap yet. The app is waiting for enough live token coverage to build a trustworthy sector view.
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -200,33 +244,41 @@ export function SectorRotation() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {flows.slice(0, 6).map((flow, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="font-medium text-red-600">{flow.fromSector}</span>
-                        <ArrowRightLeft size={14} className="text-gray-400" />
-                        <span className="font-medium text-green-600">{flow.toSector}</span>
+              {flows.length > 0 ? (
+                <div className="space-y-3">
+                  {flows.slice(0, 6).map((flow, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-medium text-red-600">{flow.fromSector}</span>
+                          <ArrowRightLeft size={14} className="text-gray-400" />
+                          <span className="font-medium text-green-600">{flow.toSector}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">
+                          ${(flow.amount / 1e9).toFixed(2)}B • {flow.confidence}% heuristic fit
+                        </p>
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
-                        ${(flow.amount / 1e9).toFixed(2)}B • {flow.confidence}% confidence
-                      </p>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {flow.flowType.replace('_', ' ')}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {flow.flowType.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-10 text-center text-gray-500">
+                  {hasEnoughSignalData
+                    ? 'No credible capital rotation flows are available from the latest real snapshot.'
+                    : 'Need broader live sector coverage before capital flow analysis can be shown.'}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
       </motion.div>
 
       {/* Rotation Signals */}
-      {signals.length > 0 && (
-        <motion.div variants={itemVariants}>
+      <motion.div variants={itemVariants}>
+        {signals.length > 0 ? (
           <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
@@ -234,7 +286,7 @@ export function SectorRotation() {
                   <Zap className="text-white" size={24} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold mb-1">Rotation Signal Detected</h3>
+                  <h3 className="text-xl font-bold mb-1">Rotation Watch</h3>
                   <p className="text-gray-600 mb-3">{signals[0].description}</p>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {signals[0].catalysts.map((c, i) => (
@@ -246,23 +298,31 @@ export function SectorRotation() {
                   <div className="flex items-center gap-4 text-sm">
                     <span className="flex items-center gap-1">
                       <Target size={14} className="text-amber-600" />
-                      {signals[0].confidence}% confidence
+                      {signals[0].confidence}% heuristic fit
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock size={14} className="text-amber-600" />
-                      Expected: {signals[0].expectedDuration}
+                      Watch horizon: {signals[0].expectedDuration}
                     </span>
                     <span className="flex items-center gap-1">
                       <Activity size={14} className="text-amber-600" />
-                      Strength: {signals[0].strength}%
+                      Rotation strength: {signals[0].strength}%
                     </span>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </motion.div>
-      )}
+        ) : (
+          <Card className="border-gray-200">
+            <CardContent className="p-6 text-sm text-gray-500">
+              {hasEnoughSignalData
+                ? 'No verified sector rotation signal is available from the latest real snapshot.'
+                : 'Need broader live sector coverage before a trustworthy rotation signal can be generated.'}
+            </CardContent>
+          </Card>
+        )}
+      </motion.div>
     </motion.div>
   );
 }

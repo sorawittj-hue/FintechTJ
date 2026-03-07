@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useState, useEffect } from 'react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -69,6 +70,7 @@ function getReversalSignal(rsi: number, change24h: number): 'bullish' | 'bearish
 }
 
 export const ReversalRadar = React.memo(function ReversalRadar() {
+  const { t, i18n } = useTranslation();
   const [filter, setFilter] = useState<'all' | 'bullish' | 'bearish'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -95,7 +97,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching reversal data:', error);
-      toast.error('ไม่สามารถโหลดข้อมูล Reversal Radar ได้');
+      toast.error(t('reversal.failedToLoad'));
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -195,7 +197,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
   }, []);
 
   const handleSetTarget = useCallback((symbol: string) => {
-    toast.success(`ตั้งเป้าหมาย ${symbol} สำเร็จ`);
+    toast.success(t('reversal.targetSet', { symbol }));
   }, []);
 
   if (isLoading) {
@@ -203,7 +205,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#ee7d54]" />
-          <p className="text-gray-500">กำลังวิเคราะห์ข้อมูลจริงจากตลาด...</p>
+          <p className="text-gray-500">{t('reversal.loadingScreener')}</p>
         </div>
       </div>
     );
@@ -220,7 +222,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
       >
         <div>
           <h2 className="text-2xl font-bold">Reversal Radar & Strength Screener</h2>
-          <p className="text-gray-500 text-sm">วิเคราะห์จุดกลับตัวจากข้อมูลตลาดจริง</p>
+          <p className="text-gray-500 text-sm">Heuristic reversal watchlist derived from live crypto and stock price feeds</p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex gap-2">
@@ -231,7 +233,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
               disabled={refreshing}
             >
               <RefreshCw size={14} className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              รีเฟรช
+              {t('reversal.refresh')}
             </Button>
             <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
               {bullishCount} Bullish
@@ -241,9 +243,18 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
             </span>
           </div>
           <span className="text-[10px] text-gray-400">
-            อัปเดต: {lastUpdated.toLocaleTimeString('th-TH')}
+            {t('reversal.updated')}: {lastUpdated.toLocaleTimeString(i18n.language === 'th' ? 'th-TH' : undefined)}
           </span>
         </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ y: 16, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.05, duration: 0.4 }}
+        className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+      >
+        This screener uses live prices, 24h change, and simplified rule-based proxies for RSI and momentum strength. It highlights watchlist candidates only, not confirmed reversal calls.
       </motion.div>
 
       {/* Radar Visualization */}
@@ -260,7 +271,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
             </div>
             <div>
               <h3 className="font-semibold">Market Reversal Radar</h3>
-              <p className="text-sm text-gray-500">ตรวจจับสัญญาณกลับตัวแบบเรียลไทม์</p>
+              <p className="text-sm text-gray-500">Reversal watchlist from heuristic screening rules</p>
             </div>
           </div>
         </div>
@@ -270,7 +281,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
           <div className="p-4 rounded-2xl bg-green-50 border border-green-100">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp size={18} className="text-green-500" />
-              <span className="font-semibold text-green-700">Bullish Reversals</span>
+              <span className="font-semibold text-green-700">Bullish Reversal Watch</span>
             </div>
             <div className="space-y-3">
               {bullishSignals.map((item, index) => (
@@ -288,7 +299,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-gray-500">RSI: {item.rsi}</span>
                     <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                      Buy
+                      Watch Bullish
                     </span>
                   </div>
                 </motion.div>
@@ -356,7 +367,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
           <div className="p-4 rounded-2xl bg-red-50 border border-red-100">
             <div className="flex items-center gap-2 mb-4">
               <TrendingDown size={18} className="text-red-500" />
-              <span className="font-semibold text-red-700">Bearish Reversals</span>
+              <span className="font-semibold text-red-700">Bearish Reversal Watch</span>
             </div>
             <div className="space-y-3">
               {bearishSignals.map((item, index) => (
@@ -374,7 +385,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-gray-500">RSI: {item.rsi}</span>
                     <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">
-                      Sell
+                      Watch Bearish
                     </span>
                   </div>
                 </motion.div>
@@ -398,7 +409,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
             </div>
             <div>
               <h3 className="font-semibold">Crypto Strength Screener</h3>
-              <p className="text-sm text-gray-500">วิเคราะห์แรงซื้อขายจากข้อมูลจริง</p>
+              <p className="text-sm text-gray-500">Rule-based screening score from live price, change, volume, and simplified RSI proxy</p>
             </div>
           </div>
 
@@ -408,7 +419,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="ค้นหาสินทรัพย์..."
+                placeholder={t('reversal.searchAssets')}
                 value={searchTerm}
                 onChange={handleSearchChange}
                 className="pl-9 pr-4 py-2 border border-gray-200 rounded-full text-sm focus:outline-none focus:border-[#ee7d54]"
@@ -424,7 +435,7 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
                   className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${filter === f ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                  {f === 'all' ? 'ทั้งหมด' : f === 'bullish' ? 'ซื้อ' : 'ขาย'}
+                  {f === 'all' ? t('reversal.all') : f === 'bullish' ? t('reversal.buy') : t('reversal.sellLabel')}
                 </button>
               ))}
             </div>
@@ -435,13 +446,13 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
           <table className="w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                <th className="pb-3 font-medium">สินทรัพย์</th>
-                <th className="pb-3 font-medium">ราคา</th>
+                <th className="pb-3 font-medium">{t('reversal.assetCol')}</th>
+                <th className="pb-3 font-medium">{t('reversal.priceCol')}</th>
                 <th className="pb-3 font-medium">24h</th>
-                <th className="pb-3 font-medium">คะแนนแรง</th>
-                <th className="pb-3 font-medium">RSI</th>
-                <th className="pb-3 font-medium">สัญญาณ</th>
-                <th className="pb-3 font-medium">การกระทำ</th>
+                <th className="pb-3 font-medium">{t('reversal.screeningScore')}</th>
+                <th className="pb-3 font-medium">RSI Proxy</th>
+                <th className="pb-3 font-medium">{t('reversal.bias')}</th>
+                <th className="pb-3 font-medium">{t('reversal.actionCol')}</th>
               </tr>
             </thead>
             <tbody>
@@ -499,8 +510,8 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
                       item.reversalSignal === 'bearish' ? 'bg-red-100 text-red-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                      {item.reversalSignal === 'bullish' ? 'ซื้อ' :
-                        item.reversalSignal === 'bearish' ? 'ขาย' : 'ถือ'}
+                      {item.reversalSignal === 'bullish' ? 'Bullish Watch' :
+                        item.reversalSignal === 'bearish' ? 'Bearish Watch' : 'Neutral'}
                     </span>
                   </td>
                   <td className="py-4">
@@ -516,6 +527,10 @@ export const ReversalRadar = React.memo(function ReversalRadar() {
             </tbody>
           </table>
         </div>
+
+        <p className="text-xs text-gray-400 mt-4">
+          Screening scores and reversal labels here are heuristic watchlist outputs based on simplified proxies. They are useful for triage, not confirmation.
+        </p>
       </motion.div>
     </div>
   );

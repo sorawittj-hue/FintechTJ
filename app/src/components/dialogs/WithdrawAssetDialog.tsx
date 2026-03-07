@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { X, Minus, ArrowDownRight } from 'lucide-react';
 import { usePortfolio } from '@/context/hooks';
@@ -11,6 +12,7 @@ interface WithdrawAssetDialogProps {
 }
 
 export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetDialogProps) {
+    const { t } = useTranslation();
     const { assets, updateAsset, removeAsset, addAsset, addTransaction } = usePortfolio();
 
     const [quantity, setQuantity] = useState('');
@@ -39,7 +41,7 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
         if (!asset) return;
 
         if (!quantity || !price) {
-            toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
+            toast.error(t('withdrawDialog.fillAllFields'));
             return;
         }
 
@@ -47,12 +49,12 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
         const withdrawPx = parseFloat(price);
 
         if (withdrawQty <= 0 || withdrawPx <= 0) {
-            toast.error('จำนวนและราคาต้องมากกว่า 0');
+            toast.error(t('withdrawDialog.qtyAndPricePositive'));
             return;
         }
 
         if (withdrawQty > asset.quantity) {
-            toast.error(`จำนวนที่ถอนต้องไม่เกิน ${asset.quantity}`);
+            toast.error(t('withdrawDialog.qtyExceeds', { max: asset.quantity }));
             return;
         }
 
@@ -110,7 +112,7 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
                 fee: 0,
             });
 
-            toast.success(`ขาย ${withdrawQty} ${asset.symbol} เรียบร้อยแล้ว`);
+            toast.success(t('withdrawDialog.soldSuccess', { qty: withdrawQty, symbol: asset.symbol }));
             handleClose();
         } finally {
             setIsProcessing(false);
@@ -155,8 +157,8 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
                                 <ArrowDownRight className="text-white" size={24} />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900">ถอน/ขายสินทรัพย์</h2>
-                                <p className="text-sm text-gray-500">นำ {asset.symbol} ออกจากพอร์ต</p>
+                                <h2 className="text-xl font-bold text-gray-900">{t('withdrawDialog.title')}</h2>
+                                <p className="text-sm text-gray-500">{t('withdrawDialog.removeFromPortfolio', { symbol: asset.symbol })}</p>
                             </div>
                         </div>
                     </div>
@@ -165,11 +167,11 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
                     <div className="p-6 space-y-5">
                         <div className="p-4 bg-gray-50 rounded-xl flex justify-between items-center">
                             <div>
-                                <p className="text-xs text-gray-500">สินทรัพย์</p>
+                                <p className="text-xs text-gray-500">{t('withdrawDialog.asset')}</p>
                                 <p className="font-bold text-lg">{asset.symbol}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-xs text-gray-500">จำนวนที่มีอยู่</p>
+                                <p className="text-xs text-gray-500">{t('withdrawDialog.availableQty')}</p>
                                 <p className="font-semibold text-gray-900">{asset.quantity} {asset.symbol}</p>
                             </div>
                         </div>
@@ -177,7 +179,7 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    จำนวนที่ต้องการถอน
+                                    {t('withdrawDialog.withdrawQty')}
                                 </label>
                                 <div className="relative">
                                     <input
@@ -198,7 +200,7 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    ราคาตอนที่ถอน (USD)
+                                    {t('withdrawDialog.withdrawPrice')}
                                 </label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
@@ -216,7 +218,7 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
 
                         <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
                             <div className="flex justify-between items-center mb-1 text-sm">
-                                <span className="text-gray-500">มูลค่าที่ถอน (โดยประมาณ)</span>
+                                <span className="text-gray-500">{t('withdrawDialog.estimatedValue')}</span>
                                 <span className="font-bold text-gray-900">${estimatedReturn.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                         </div>
@@ -229,12 +231,12 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
                             {isProcessing ? (
                                 <>
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    กำลังดำเนินการ...
+                                    {t('withdrawDialog.processing')}
                                 </>
                             ) : (
                                 <>
                                     <Minus size={18} />
-                                    ยืนยันการถอนสินทรัพย์
+                                    {t('withdrawDialog.confirmWithdraw')}
                                 </>
                             )}
                         </button>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -187,7 +188,8 @@ async function fetchM2History(): Promise<LiquidityData[]> {
   }
 }
 
-export function MacroWorld() {
+export default function MacroWorld() {
+  const { t, i18n } = useTranslation();
   const [indicators, setIndicators] = useState<MacroIndicator[]>([]);
   const [liquidityData, setLiquidityData] = useState<LiquidityData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -345,7 +347,7 @@ export function MacroWorld() {
           setIndicators(newIndicators);
           setLiquidityData(m2History && m2History.length > 0 ? m2History : []);
           setLastUpdated(new Date());
-          toast.error('ยังไม่สามารถโหลดข้อมูล macro แบบเรียลไทม์ได้ในขณะนี้');
+          toast.error(t('macro.failedToLoadMacro'));
         }
       } else {
         setIndicators(newIndicators);
@@ -360,13 +362,13 @@ export function MacroWorld() {
     } catch (error) {
       console.error('Error fetching macro data:', error);
       if (cachedPayload) {
-        toast.error('ไม่สามารถโหลดข้อมูลเศรษฐกิจมหภาคแบบสดได้ กำลังใช้ข้อมูลจริงล่าสุดที่เคยบันทึกไว้');
+        toast.error(t('macro.failedToLoadLive'));
         setUsingFallback(true);
         setIndicators(cachedPayload.indicators.map((indicator) => ({ ...indicator, isFallback: true })));
         setLiquidityData(cachedPayload.liquidityData);
         setLastUpdated(new Date(cachedPayload.fetchedAt));
       } else {
-        toast.error('ไม่สามารถโหลดข้อมูลเศรษฐกิจมหภาคได้ในขณะนี้');
+        toast.error(t('macro.failedToLoadAny'));
         setIndicators([]);
         setLiquidityData([]);
       }
@@ -399,7 +401,7 @@ export function MacroWorld() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#ee7d54]" />
-          <p className="text-gray-500">กำลังโหลดข้อมูลเศรษฐกิจ...</p>
+          <p className="text-gray-500">{t('macro.loadingEconomic')}</p>
         </div>
       </div>
     );
@@ -415,16 +417,16 @@ export function MacroWorld() {
         className="flex items-center justify-between"
       >
         <div>
-          <h2 className="text-2xl font-bold">Macro Economics & World Monitor</h2>
+          <h2 className="text-2xl font-bold">{t('macro.title')}</h2>
           <p className="text-gray-500 text-sm">
-            ข้อมูลเศรษฐกิจมหภาค {usingFallback && (
-              <span className="text-amber-600">(ใช้ข้อมูลจริงล่าสุดที่ cache ไว้ในเครื่อง)</span>
+            {t('macro.subtitle')} {usingFallback && (
+              <span className="text-amber-600">{t('macro.usingCachedData')}</span>
             )}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400">
-            อัปเดต: {lastUpdated.toLocaleTimeString('th-TH')}
+            {t('reversal.updated')}: {lastUpdated.toLocaleTimeString(i18n.language === 'th' ? 'th-TH' : undefined)}
           </span>
           <Button
             variant="outline"
@@ -433,7 +435,7 @@ export function MacroWorld() {
             disabled={refreshing}
           >
             <RefreshCw size={14} className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            รีเฟรช
+            {t('macro.refreshLabel')}
           </Button>
         </div>
       </motion.div>
@@ -550,7 +552,7 @@ export function MacroWorld() {
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400">
               <Globe size={48} className="mb-2 opacity-50" />
-              <p>ไม่สามารถโหลดข้อมูล Liquidity ได้</p>
+              <p>{t('macro.cannotLoadLiquidity')}</p>
             </div>
           )}
         </div>
@@ -584,9 +586,9 @@ export function MacroWorld() {
         className="bg-white rounded-3xl p-6 card-shadow"
       >
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-semibold">ตัวชี้วัดเศรษฐกิจทั้งหมด</h3>
+          <h3 className="font-semibold">{t('macro.allIndicators')}</h3>
           <span className="text-xs text-gray-400">
-            ที่มา: {usingFallback ? 'Cached real data from FRED' : 'FRED API'}
+            {t('macro.source')}: {usingFallback ? 'Cached real data from FRED' : 'FRED API'}
           </span>
         </div>
 
@@ -594,13 +596,13 @@ export function MacroWorld() {
           <table className="w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                <th className="pb-3 font-medium">ตัวชี้วัด</th>
-                <th className="pb-3 font-medium">ประเทศ</th>
-                <th className="pb-3 font-medium">ปัจจุบัน</th>
-                <th className="pb-3 font-medium">ก่อนหน้า</th>
-                <th className="pb-3 font-medium">เปลี่ยนแปลง</th>
-                <th className="pb-3 font-medium">แนวโน้ม</th>
-                <th className="pb-3 font-medium">ผลกระทบ</th>
+                <th className="pb-3 font-medium">{t('macro.indicator')}</th>
+                <th className="pb-3 font-medium">{t('macro.country')}</th>
+                <th className="pb-3 font-medium">{t('macro.current')}</th>
+                <th className="pb-3 font-medium">{t('macro.previous')}</th>
+                <th className="pb-3 font-medium">{t('macro.changeLabel')}</th>
+                <th className="pb-3 font-medium">{t('macro.trend')}</th>
+                <th className="pb-3 font-medium">{t('macro.impact')}</th>
               </tr>
             </thead>
             <tbody>
@@ -648,8 +650,8 @@ export function MacroWorld() {
                       indicator.trend === 'down' ? 'bg-green-100 text-green-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                      {indicator.trend === 'up' ? 'ขึ้น' :
-                        indicator.trend === 'down' ? 'ลง' : 'คงที่'}
+                      {indicator.trend === 'up' ? t('macro.trendUp') :
+                        indicator.trend === 'down' ? t('macro.trendDown') : t('macro.trendStable')}
                     </span>
                   </td>
                   <td className="py-4">
@@ -657,8 +659,8 @@ export function MacroWorld() {
                       indicator.impact === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-green-100 text-green-700'
                       }`}>
-                      {indicator.impact === 'high' ? 'สูง' :
-                        indicator.impact === 'medium' ? 'ปานกลาง' : 'ต่ำ'}
+                      {indicator.impact === 'high' ? t('macro.impactHigh') :
+                        indicator.impact === 'medium' ? t('macro.impactMedium') : t('macro.impactLow')}
                     </span>
                   </td>
                 </motion.tr>
@@ -670,5 +672,3 @@ export function MacroWorld() {
     </div>
   );
 }
-
-export default MacroWorld;

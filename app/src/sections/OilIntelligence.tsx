@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Droplet, TrendingUp, TrendingDown, Activity, Globe, Database, Zap,
-    ArrowRight, ShieldAlert, Info, Thermometer, Bell, Calendar,
+    ShieldAlert, Info, Thermometer, Bell, Calendar,
     BarChart3, Target, Clock, ChevronDown, ChevronUp, X,
     Settings, Layers, AlertTriangle, CheckCircle2, History,
     Gauge, Wind, ChevronRight, LineChart as LineChartIcon
@@ -516,16 +516,20 @@ interface SignalCardProps {
     price: number;
 }
 
+function getOilSignalConfig(signalType: NonNullable<ReturnType<typeof useOilIntelligence>['signal']>['type']) {
+    return {
+        strong_buy: { color: 'bg-green-600', label: 'STRONG BULLISH BIAS', icon: TrendingUp },
+        buy: { color: 'bg-green-500', label: 'BULLISH BIAS', icon: TrendingUp },
+        wait: { color: 'bg-yellow-500', label: 'WAIT / MIXED', icon: Clock },
+        sell: { color: 'bg-red-500', label: 'BEARISH BIAS', icon: TrendingDown },
+        strong_sell: { color: 'bg-red-600', label: 'STRONG BEARISH BIAS', icon: TrendingDown },
+    }[signalType];
+}
+
 function SignalCard({ signal, price }: SignalCardProps) {
     const [showDetails, setShowDetails] = useState(false);
 
-    const signalConfig = {
-        strong_buy: { color: 'bg-green-600', label: 'STRONG BUY', icon: TrendingUp },
-        buy: { color: 'bg-green-500', label: 'BUY', icon: TrendingUp },
-        wait: { color: 'bg-yellow-500', label: 'WAIT', icon: Clock },
-        sell: { color: 'bg-red-500', label: 'SELL', icon: TrendingDown },
-        strong_sell: { color: 'bg-red-600', label: 'STRONG SELL', icon: TrendingDown },
-    }[signal.type];
+    const signalConfig = getOilSignalConfig(signal.type);
 
     const Icon = signalConfig.icon;
 
@@ -550,7 +554,7 @@ function SignalCard({ signal, price }: SignalCardProps) {
                     <div className="space-y-4">
                         <div>
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                                AI Confidence Score
+                                Model Confidence
                             </span>
                             <div className="flex items-center gap-3 mt-2">
                                 <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
@@ -564,6 +568,10 @@ function SignalCard({ signal, price }: SignalCardProps) {
                                 <span className="text-lg font-bold text-[#ee7d54]">{signal.confidence}%</span>
                             </div>
                         </div>
+
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                            This is a model-driven directional scenario built from technical, macro, and inventory inputs. It is not an execution guarantee.
+                        </p>
 
                         <div className="p-4 bg-white/60 border border-orange-100 rounded-2xl italic text-sm text-gray-600 leading-relaxed">
                             " {signal.reason} "
@@ -603,21 +611,21 @@ function SignalCard({ signal, price }: SignalCardProps) {
 
                         <div className="space-y-4 relative z-10">
                             <div className="flex justify-between items-center border-b border-gray-800 pb-2">
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Entry Range</span>
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Reference Entry Zone</span>
                                 <span className="text-lg font-mono font-bold text-orange-400">
                                     ${signal.entryZone[0]} - ${signal.entryZone[1]}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center border-b border-gray-800 pb-2">
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Target 1</span>
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Reference Target 1</span>
                                 <span className="text-xl font-black text-green-400">${signal.targets.tp1}</span>
                             </div>
                             <div className="flex justify-between items-center border-b border-gray-800 pb-2">
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Target 2</span>
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Reference Target 2</span>
                                 <span className="text-lg font-bold text-green-300">${signal.targets.tp2}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Stop Loss</span>
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Reference Stop</span>
                                 <span className="text-lg font-mono font-bold text-red-400">${signal.stopLoss}</span>
                             </div>
 
@@ -627,15 +635,14 @@ function SignalCard({ signal, price }: SignalCardProps) {
                                     <p className="text-lg font-bold text-orange-400">1:{signal.riskRewardRatio}</p>
                                 </div>
                                 <div className="text-center p-2 bg-white/5 rounded-lg">
-                                    <p className="text-[10px] text-gray-500 uppercase">Probability</p>
+                                    <p className="text-[10px] text-gray-500 uppercase">Scenario Score</p>
                                     <p className="text-lg font-bold text-blue-400">{signal.probability}%</p>
                                 </div>
                             </div>
 
-                            <Button className="w-full bg-[#ee7d54] hover:bg-[#d96a42] text-white font-bold h-12 rounded-xl mt-2 group shadow-lg shadow-orange-500/20">
-                                EXECUTE {signal.type.includes('buy') ? 'LONG' : 'SHORT'} POSITION
-                                <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
-                            </Button>
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-gray-300 leading-relaxed">
+                                Reference levels only. Confirm with your own execution plan, liquidity, and risk controls before placing any position.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -650,9 +657,14 @@ export function OilIntelligence() {
     const {
         price, history, technicals, eia, correlations, signal,
         opec, geo, seasonal, cot, supplyDemand,
-        loading, error, usingFallback, alerts, eiaCalendar,
+        loading, error, usingFallback, signalStatusMessage, alerts, eiaCalendar,
         refresh, createAlert, deleteAlert
     } = useOilIntelligence();
+
+    const headerSignalConfig = signal ? getOilSignalConfig(signal.type) : null;
+    const hasFallbackHistory = history.some(bar => bar.isFallback);
+    const hasFallbackEIA = eia?.isFallback === true;
+    const hasSignal = signal !== null;
 
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -664,7 +676,7 @@ export function OilIntelligence() {
         visible: { y: 0, opacity: 1, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const } }
     };
 
-    if (loading || !price || !technicals || !signal) {
+    if (loading || !price || !technicals) {
         return (
             <div className="flex flex-col items-center justify-center p-20 space-y-4">
                 <motion.div
@@ -694,16 +706,22 @@ export function OilIntelligence() {
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">WTI Master Intelligence</h1>
                         <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className={`${
-                                signal.type.includes('buy') ? 'bg-green-50 text-green-600 border-green-200' :
-                                signal.type.includes('sell') ? 'bg-red-50 text-red-600 border-red-200' :
-                                'bg-yellow-50 text-yellow-600 border-yellow-200'
-                            }`}>
-                                {signal.type.replace('_', ' ').toUpperCase()} Signal
-                            </Badge>
+                            {hasSignal ? (
+                                <Badge variant="outline" className={`${
+                                    signal.type.includes('buy') ? 'bg-green-50 text-green-600 border-green-200' :
+                                    signal.type.includes('sell') ? 'bg-red-50 text-red-600 border-red-200' :
+                                    'bg-yellow-50 text-yellow-600 border-yellow-200'
+                                }`}>
+                                    {headerSignalConfig?.label}
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                                    SIGNAL WITHHELD
+                                </Badge>
+                            )}
                             {usingFallback && (
                                 <Badge variant="outline" className="bg-gray-50 text-gray-500">
-                                    Cached Data
+                                    Limited Coverage
                                 </Badge>
                             )}
                         </div>
@@ -725,11 +743,29 @@ export function OilIntelligence() {
                         <span className="text-lg font-black">{(price.volume / 1000).toFixed(0)}K</span>
                     </div>
                     <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center min-w-[100px]">
-                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Confidence</span>
-                        <span className="text-lg font-black text-[#ee7d54]">{signal.confidence}%</span>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Signal Status</span>
+                        <span className={`text-lg font-black ${hasSignal ? 'text-[#ee7d54]' : 'text-amber-600'}`}>
+                            {hasSignal ? `${signal.confidence}%` : 'Withheld'}
+                        </span>
                     </div>
                 </div>
             </motion.div>
+
+            {!hasSignal && signalStatusMessage && (
+                <motion.div variants={itemVariants}>
+                    <Card className="border-amber-200 bg-amber-50/80">
+                        <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                                <div className="space-y-1">
+                                    <p className="text-sm font-semibold text-amber-900">WTI alpha signal withheld</p>
+                                    <p className="text-sm text-amber-800">{signalStatusMessage}</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
 
             {/* Main Content */}
             <Tabs defaultValue="analysis" className="space-y-6">
@@ -761,7 +797,20 @@ export function OilIntelligence() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="lg:col-span-2 space-y-6">
                             <motion.div variants={itemVariants}>
-                                <SignalCard signal={signal} price={price.price} />
+                                {hasSignal ? (
+                                    <SignalCard signal={signal} price={price.price} />
+                                ) : (
+                                    <Card className="border-amber-200 bg-amber-50/60">
+                                        <CardContent className="p-6">
+                                            <div className="space-y-2">
+                                                <p className="text-sm font-semibold text-amber-900">No verified alpha setup published</p>
+                                                <p className="text-sm text-amber-800">
+                                                    This panel withholds directional setup, reference targets, and stop levels until the price history and macro inputs used by the model are backed by verified data.
+                                                </p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
                             </motion.div>
 
                             {/* Price Chart Preview */}
@@ -774,7 +823,7 @@ export function OilIntelligence() {
                             </motion.div>
 
                             {/* EIA Report */}
-                            {eia && (
+                            {eia && !hasFallbackEIA && (
                                 <motion.div variants={itemVariants}>
                                     <Card>
                                         <CardHeader className="pb-2">
@@ -814,6 +863,25 @@ export function OilIntelligence() {
                                                     <Progress value={eia.refiningUtilization} className="bg-blue-100" />
                                                 </div>
                                             </div>
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
+                            )}
+
+                            {eia && hasFallbackEIA && (
+                                <motion.div variants={itemVariants}>
+                                    <Card className="border-amber-200 bg-amber-50/60">
+                                        <CardHeader className="pb-2">
+                                            <div className="flex items-center gap-2">
+                                                <Database className="text-amber-600" size={20} />
+                                                <CardTitle className="text-lg">EIA Inventory Report</CardTitle>
+                                            </div>
+                                            <CardDescription>Fallback values hidden from the live intelligence panel</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-sm text-amber-800">
+                                                Current EIA inventory inputs are simulated fallback values, so inventory-driven analytics are withheld until verified source data is available.
+                                            </p>
                                         </CardContent>
                                     </Card>
                                 </motion.div>
@@ -927,48 +995,63 @@ export function OilIntelligence() {
                 <TabsContent value="chart">
                     <Card>
                         <CardContent className="p-6">
-                            <PriceChart data={history} currentPrice={price.price} signals={{
-                                entry: signal.entryZone[0],
-                                stopLoss: signal.stopLoss,
-                                targets: [signal.targets.tp1, signal.targets.tp2, signal.targets.tp3]
-                            }} />
+                            <PriceChart
+                                data={history}
+                                currentPrice={price.price}
+                                signals={hasSignal ? {
+                                    entry: signal.entryZone[0],
+                                    stopLoss: signal.stopLoss,
+                                    targets: [signal.targets.tp1, signal.targets.tp2, signal.targets.tp3]
+                                } : undefined}
+                            />
                         </CardContent>
                     </Card>
                 </TabsContent>
 
                 {/* Technical Tab */}
                 <TabsContent value="technical">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <TechnicalDashboard technicals={technicals} />
-                        
-                        {/* Fibonacci Levels */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Target className="w-5 h-5 text-[#ee7d54]" />
-                                    Fibonacci Levels
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                {[
-                                    { label: 'R3 (Resistance)', value: technicals.fibonacciLevels.r3, color: 'text-red-600 bg-red-50' },
-                                    { label: 'R2 (78.6%)', value: technicals.fibonacciLevels.r2, color: 'text-orange-600 bg-orange-50' },
-                                    { label: 'R1 (61.8%)', value: technicals.fibonacciLevels.r1, color: 'text-yellow-600 bg-yellow-50' },
-                                    { label: 'Pivot (50%)', value: technicals.fibonacciLevels.pivot, color: 'text-blue-600 bg-blue-50' },
-                                    { label: 'S1 (38.2%)', value: technicals.fibonacciLevels.s1, color: 'text-green-600 bg-green-50' },
-                                    { label: 'S2 (23.6%)', value: technicals.fibonacciLevels.s2, color: 'text-teal-600 bg-teal-50' },
-                                    { label: 'S3 (Support)', value: technicals.fibonacciLevels.s3, color: 'text-purple-600 bg-purple-50' },
-                                ].map((level) => (
-                                    <div key={level.label} className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-600">{level.label}</span>
-                                        <span className={`px-3 py-1 rounded-lg text-sm font-bold ${level.color}`}>
-                                            ${level.value}
-                                        </span>
-                                    </div>
-                                ))}
+                    {hasFallbackHistory ? (
+                        <Card className="border-amber-200 bg-amber-50/60">
+                            <CardContent className="p-6">
+                                <p className="text-sm font-semibold text-amber-900">Technical dashboard withheld</p>
+                                <p className="text-sm text-amber-800 mt-2">
+                                    Technical indicators and derived levels are hidden because the current history series is using fallback synthetic candles instead of verified OHLCV history.
+                                </p>
                             </CardContent>
                         </Card>
-                    </div>
+                    ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <TechnicalDashboard technicals={technicals} />
+                            
+                            {/* Fibonacci Levels */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Target className="w-5 h-5 text-[#ee7d54]" />
+                                        Fibonacci Levels
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    {[
+                                        { label: 'R3 (Resistance)', value: technicals.fibonacciLevels.r3, color: 'text-red-600 bg-red-50' },
+                                        { label: 'R2 (78.6%)', value: technicals.fibonacciLevels.r2, color: 'text-orange-600 bg-orange-50' },
+                                        { label: 'R1 (61.8%)', value: technicals.fibonacciLevels.r1, color: 'text-yellow-600 bg-yellow-50' },
+                                        { label: 'Pivot (50%)', value: technicals.fibonacciLevels.pivot, color: 'text-blue-600 bg-blue-50' },
+                                        { label: 'S1 (38.2%)', value: technicals.fibonacciLevels.s1, color: 'text-green-600 bg-green-50' },
+                                        { label: 'S2 (23.6%)', value: technicals.fibonacciLevels.s2, color: 'text-teal-600 bg-teal-50' },
+                                        { label: 'S3 (Support)', value: technicals.fibonacciLevels.s3, color: 'text-purple-600 bg-purple-50' },
+                                    ].map((level) => (
+                                        <div key={level.label} className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600">{level.label}</span>
+                                            <span className={`px-3 py-1 rounded-lg text-sm font-bold ${level.color}`}>
+                                                ${level.value}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
                 </TabsContent>
 
                 {/* Alerts Tab */}

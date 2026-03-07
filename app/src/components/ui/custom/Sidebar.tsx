@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, memo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -33,73 +34,73 @@ import {
   Flame,
 } from 'lucide-react';
 
-// Core Navigation - always visible
+// Core Navigation - always visible (keys for i18n)
 const CORE_NAV = [
-  { id: 'dashboard', label: 'แดชบอร์ด', icon: LayoutDashboard, path: '/' },
-  { id: 'portfolio', label: 'พอร์ตโฟลิโอ', icon: Briefcase, path: '/portfolio' },
-  { id: 'market', label: 'ตลาด', icon: BarChart3, path: '/market' },
-  { id: 'news', label: 'ข่าวสาร', icon: Newspaper, path: '/news' },
+  { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, path: '/' },
+  { id: 'portfolio', labelKey: 'nav.portfolio', icon: Briefcase, path: '/portfolio' },
+  { id: 'market', labelKey: 'nav.market', icon: BarChart3, path: '/market' },
+  { id: 'news', labelKey: 'nav.news', icon: Newspaper, path: '/news' },
 ];
 
 // Suite Navigation - organized groups with sub-items
 const SUITE_GROUPS = [
   {
     id: 'ai-suite',
-    label: 'AI & Analytics',
+    labelKey: 'nav.aiAnalytics',
     icon: Brain,
     color: 'from-purple-500 to-violet-600',
     items: [
-      { id: 'quantlab', label: 'Quant Lab', icon: Activity, path: '/quantlab', desc: 'Backtest & สตราทีจี้' },
-      { id: 'aisystems', label: 'AI Systems', icon: Cpu, path: '/aisystems', desc: 'วิเคราะห์ด้วย AI' },
-      { id: 'alphasniper', label: 'Alpha Sniper', icon: Target, path: '/alphasniper', desc: 'จับ Alpha โอกาส' },
-      { id: 'reversalradar', label: 'Reversal Radar', icon: Radar, path: '/reversalradar', desc: 'จุดกลับตัวตลาด' },
+      { id: 'quantlab', labelKey: 'nav.quantLab', icon: Activity, path: '/quantlab', descKey: 'nav.quantLabDesc' },
+      { id: 'aisystems', labelKey: 'nav.aiSystems', icon: Cpu, path: '/aisystems', descKey: 'nav.aiSystemsDesc' },
+      { id: 'alphasniper', labelKey: 'nav.alphaSniper', icon: Target, path: '/alphasniper', descKey: 'nav.alphaSniperDesc' },
+      { id: 'reversalradar', labelKey: 'nav.reversalRadar', icon: Radar, path: '/reversalradar', descKey: 'nav.reversalRadarDesc' },
     ],
   },
   {
     id: 'risk-suite',
-    label: 'Risk Intelligence',
+    labelKey: 'nav.riskIntelligence',
     icon: ShieldAlert,
     color: 'from-red-500 to-rose-600',
     items: [
-      { id: 'riskpanel', label: 'Risk Panel', icon: ShieldAlert, path: '/riskpanel', desc: 'ควบคุมความเสี่ยง' },
-      { id: 'macroworld', label: 'Macro World', icon: Globe, path: '/macroworld', desc: 'ภาพรวมเศรษฐกิจโลก' },
-      { id: 'defcon', label: 'DEFCON Monitor', icon: Radio, path: '/defcon', desc: 'ติดตามภัยพิบัติ' },
-      { id: 'whalevault', label: 'Whale Vault', icon: Wallet, path: '/whalevault', desc: 'ติดตามนักลงทุนใหญ่' },
+      { id: 'riskpanel', labelKey: 'nav.riskPanel', icon: ShieldAlert, path: '/riskpanel', descKey: 'nav.riskPanelDesc' },
+      { id: 'macroworld', labelKey: 'nav.macroWorld', icon: Globe, path: '/macroworld', descKey: 'nav.macroWorldDesc' },
+      { id: 'defcon', labelKey: 'nav.defcon', icon: Radio, path: '/defcon', descKey: 'nav.defconDesc' },
+      { id: 'whalevault', labelKey: 'nav.whaleVault', icon: Wallet, path: '/whalevault', descKey: 'nav.whaleVaultDesc' },
     ],
   },
   {
     id: 'pro-tools',
-    label: 'Pro Tools',
+    labelKey: 'nav.proTools',
     icon: Terminal,
     color: 'from-blue-500 to-cyan-600',
     items: [
-      { id: 'futures', label: 'Futures Signal', icon: Flame, path: '/futures', desc: 'สัญญาณทอง · น้ำมัน · คริปโต' },
-      { id: 'institutional', label: 'Institutional Trading', icon: Shield, path: '/institutional', desc: 'เครื่องมือระดับสถาบัน' },
-      { id: 'smc', label: 'SMC Panel', icon: Users, path: '/smc', desc: 'Smart Money Concepts' },
-      { id: 'brio', label: 'Brio Terminal', icon: Terminal, path: '/brio', desc: 'เทอร์มินัลนักลงทุน' },
-      { id: 'sentinel', label: 'Sentinel', icon: Eye, path: '/sentinel', desc: 'เฝ้าระวังพอร์ต' },
-      { id: 'audiobrief', label: 'Audio Brief', icon: Mic, path: '/audiobrief', desc: 'ฟังสรุปข่าว AI' },
+      { id: 'futures', labelKey: 'nav.futuresSignal', icon: Flame, path: '/futures', descKey: 'nav.futuresSignalDesc' },
+      { id: 'institutional', labelKey: 'nav.institutional', icon: Shield, path: '/institutional', descKey: 'nav.institutionalDesc' },
+      { id: 'smc', labelKey: 'nav.smcPanel', icon: Users, path: '/smc', descKey: 'nav.smcPanelDesc' },
+      { id: 'brio', labelKey: 'nav.brioTerminal', icon: Terminal, path: '/brio', descKey: 'nav.brioTerminalDesc' },
+      { id: 'sentinel', labelKey: 'nav.sentinel', icon: Eye, path: '/sentinel', descKey: 'nav.sentinelDesc' },
+      { id: 'audiobrief', labelKey: 'nav.audioBrief', icon: Mic, path: '/audiobrief', descKey: 'nav.audioBriefDesc' },
     ],
   },
   {
     id: 'analysis',
-    label: 'Market Analysis',
+    labelKey: 'nav.marketAnalysis',
     icon: PieChart,
     color: 'from-amber-500 to-orange-600',
     items: [
-      { id: 'us-framework', label: 'US Stock Framework', icon: Target, path: '/us-framework', desc: 'วิเคราะห์หุ้นพื้นฐาน' },
-      { id: 'advanced', label: 'Advanced Crypto', icon: Bitcoin, path: '/advanced', desc: 'วิเคราะห์คริปโตลึก' },
-      { id: 'sector', label: 'Sector Rotation', icon: PieChart, path: '/sector', desc: 'การหมุน Sector' },
-      { id: 'narrative', label: 'Narrative Cycle', icon: TrendingUp, path: '/narrative', desc: 'วัฏจักรเงินทุน' },
-      { id: 'oil', label: 'Oil Intelligence', icon: Droplet, path: '/oil', desc: 'ข่าวกรองน้ำมัน' },
+      { id: 'us-framework', labelKey: 'nav.usStockFramework', icon: Target, path: '/us-framework', descKey: 'nav.usStockFrameworkDesc' },
+      { id: 'advanced', labelKey: 'nav.advancedCrypto', icon: Bitcoin, path: '/advanced', descKey: 'nav.advancedCryptoDesc' },
+      { id: 'sector', labelKey: 'nav.sectorRotation', icon: PieChart, path: '/sector', descKey: 'nav.sectorRotationDesc' },
+      { id: 'narrative', labelKey: 'nav.narrativeCycle', icon: TrendingUp, path: '/narrative', descKey: 'nav.narrativeCycleDesc' },
+      { id: 'oil', labelKey: 'nav.oilIntelligence', icon: Droplet, path: '/oil', descKey: 'nav.oilIntelligenceDesc' },
     ],
   },
 ];
 
 const BOTTOM_NAV = [
-  { icon: Shield, label: 'คู่มือวิกฤต', path: '/crisis' },
-  { icon: HelpCircle, label: 'ช่วยเหลือ', path: '/help' },
-  { icon: Settings, label: 'ตั้งค่า', path: '/settings' },
+  { icon: Shield, labelKey: 'nav.crisisGuide', path: '/crisis' },
+  { icon: HelpCircle, labelKey: 'nav.help', path: '/help' },
+  { icon: Settings, labelKey: 'nav.settings', path: '/settings' },
 ];
 
 // ─── Sub-item list (memoized) ────────────────────────────────────────────────
@@ -109,6 +110,7 @@ interface SubItemListProps {
 }
 
 const SubItemList = memo(function SubItemList({ group, onClose }: SubItemListProps) {
+  const { t } = useTranslation();
   return (
     <div className="ml-3 mt-1 pl-3 border-l-2 border-gray-100 dark:border-gray-800 space-y-0.5">
       {group.items.map((subItem) => (
@@ -127,8 +129,8 @@ const SubItemList = memo(function SubItemList({ group, onClose }: SubItemListPro
         >
           <subItem.icon size={14} className="flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="font-medium truncate text-xs">{subItem.label}</p>
-            <p className="text-[10px] opacity-70 truncate">{subItem.desc}</p>
+            <p className="font-medium truncate text-xs">{t(subItem.labelKey)}</p>
+            <p className="text-[10px] opacity-70 truncate">{t(subItem.descKey)}</p>
           </div>
         </NavLink>
       ))}
@@ -152,6 +154,7 @@ const SuiteGroupRow = memo(function SuiteGroupRow({
   onToggle,
   onClose,
 }: SuiteGroupRowProps) {
+  const { t } = useTranslation();
   const handleToggle = useCallback(() => onToggle(group.id), [group.id, onToggle]);
 
   return (
@@ -171,7 +174,7 @@ const SuiteGroupRow = memo(function SuiteGroupRow({
           <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${group.color} flex items-center justify-center`}>
             <group.icon size={14} className="text-white" />
           </div>
-          <span>{group.label}</span>
+          <span>{t(group.labelKey)}</span>
         </div>
         <ChevronDown
           size={14}
@@ -211,6 +214,7 @@ const SidebarContent = memo(function SidebarContent({
   onToggle,
   onClose,
 }: SidebarContentProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
@@ -220,14 +224,14 @@ const SidebarContent = memo(function SidebarContent({
             <Zap className="text-white" size={20} />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-gray-900 dark:text-white leading-tight">QuantAI Pro</h1>
-            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide">FINTECH PORTFOLIO</p>
+            <h1 className="font-bold text-lg text-gray-900 dark:text-white leading-tight">{t('app.name')}</h1>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide">{t('app.tagline')}</p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar" role="navigation" aria-label="Main navigation">
         {/* Core Nav */}
         <div className="space-y-0.5">
           {CORE_NAV.map((item) => (
@@ -246,7 +250,7 @@ const SidebarContent = memo(function SidebarContent({
               `}
             >
               <item.icon size={18} />
-              <span>{item.label}</span>
+              <span>{t(item.labelKey)}</span>
             </NavLink>
           ))}
         </div>
@@ -254,7 +258,7 @@ const SidebarContent = memo(function SidebarContent({
         {/* Divider */}
         <div className="py-3">
           <p className="px-3 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-            Professional Suite
+            {t('nav.professionalSuite')}
           </p>
         </div>
 
@@ -290,7 +294,7 @@ const SidebarContent = memo(function SidebarContent({
             `}
           >
             <item.icon size={18} />
-            <span>{item.label}</span>
+            <span>{t(item.labelKey)}</span>
           </NavLink>
         ))}
       </div>

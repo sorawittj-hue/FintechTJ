@@ -133,9 +133,9 @@ export const SMCPanel = React.memo(function SMCPanel() {
 
     const change = ((secondHalf - firstHalf) / firstHalf) * 100;
 
-    if (change > 2) return { bias: 'Bullish Bias', color: 'green' };
-    if (change < -2) return { bias: 'Bearish Bias', color: 'red' };
-    return { bias: 'Neutral Bias', color: 'gray' };
+    if (change > 2) return { bias: 'Bullish Lean', color: 'green' };
+    if (change < -2) return { bias: 'Bearish Lean', color: 'red' };
+    return { bias: 'Neutral Lean', color: 'gray' };
   }, [priceData]);
 
   const handleTimeframeClick = useCallback(() => {
@@ -165,7 +165,7 @@ export const SMCPanel = React.memo(function SMCPanel() {
       >
         <div>
           <h2 className="text-2xl font-bold">SMC Context Panel</h2>
-          <p className="text-gray-500 text-sm">Smart Money Concepts - Real-time Order Blocks, Liquidity & FVG</p>
+          <p className="text-gray-500 text-sm">Derived market-structure context from live BTC order-book and kline feeds</p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex gap-2">
@@ -187,6 +187,15 @@ export const SMCPanel = React.memo(function SMCPanel() {
         </div>
       </motion.div>
 
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.05, duration: 0.5 }}
+        className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+      >
+        This page derives support, resistance, order-block-like zones, and gap candidates from current order book and BTC candle structure. These are heuristic context markers, not verified institutional intent or guaranteed reaction levels.
+      </motion.div>
+
       {/* Market Structure Overview */}
       <motion.div
         initial={{ y: 30, opacity: 0 }}
@@ -201,7 +210,7 @@ export const SMCPanel = React.memo(function SMCPanel() {
             </div>
             <div>
               <h3 className="font-semibold">Market Structure</h3>
-              <p className="text-sm text-gray-500">Real-time price action analysis</p>
+              <p className="text-sm text-gray-500">Order-book and kline-derived structure snapshot</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -221,10 +230,10 @@ export const SMCPanel = React.memo(function SMCPanel() {
               <span className={`text-sm font-medium text-${marketBias.color}-700`}>Trend</span>
             </div>
             <p className={`text-xl font-bold text-${marketBias.color}-600`}>
-              {marketBias.bias.replace(' Bias', '')}
+              {marketBias.bias}
             </p>
             <p className={`text-xs text-${marketBias.color}-600/70 mt-1`}>
-              Based on {selectedTimeframe} data
+              Derived from the latest {selectedTimeframe} sample
             </p>
           </div>
 
@@ -234,11 +243,11 @@ export const SMCPanel = React.memo(function SMCPanel() {
               <span className="text-sm font-medium text-blue-700">Structure</span>
             </div>
             <p className="text-xl font-bold text-blue-600">
-              {supportLevels.length > resistanceLevels.length ? 'Accumulation' :
-                resistanceLevels.length > supportLevels.length ? 'Distribution' : 'Consolidation'}
+              {supportLevels.length > resistanceLevels.length ? 'Support-Heavy' :
+                resistanceLevels.length > supportLevels.length ? 'Resistance-Heavy' : 'Balanced'}
             </p>
             <p className="text-xs text-blue-600/70 mt-1">
-              {supportLevels.length} supports / {resistanceLevels.length} resistances
+              {supportLevels.length} support clusters / {resistanceLevels.length} resistance clusters
             </p>
           </div>
 
@@ -248,21 +257,21 @@ export const SMCPanel = React.memo(function SMCPanel() {
               <span className="text-sm font-medium text-orange-700">Liquidity</span>
             </div>
             <p className="text-xl font-bold text-orange-600">
-              {resistanceLevels[0]?.price > currentPrice ? 'Above' : 'Below'}
+              {resistanceLevels[0]?.price > currentPrice ? 'Above Price' : 'Below Price'}
             </p>
             <p className="text-xs text-orange-600/70 mt-1">
-              Target: ${resistanceLevels[0]?.price?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || 'N/A'}
+              Nearest highlighted zone: ${resistanceLevels[0]?.price?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || 'N/A'}
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-purple-50 border border-purple-100">
             <div className="flex items-center gap-2 mb-2">
               <BarChart3 size={16} className="text-purple-500" />
-              <span className="text-sm font-medium text-purple-700">Order Blocks</span>
+              <span className="text-sm font-medium text-purple-700">Derived Zones</span>
             </div>
-            <p className="text-xl font-bold text-purple-600">{orderBlocks.length} Active</p>
+            <p className="text-xl font-bold text-purple-600">{orderBlocks.length} highlighted</p>
             <p className="text-xs text-purple-600/70 mt-1">
-              {fvgLevels.length} FVG identified
+              {fvgLevels.length} gap candidates detected
             </p>
           </div>
         </div>
@@ -281,8 +290,8 @@ export const SMCPanel = React.memo(function SMCPanel() {
               <Target className="text-blue-500" size={20} />
             </div>
             <div>
-              <h3 className="font-semibold">Key Levels (SMC)</h3>
-              <p className="text-sm text-gray-500">Real order blocks, support & resistance</p>
+              <h3 className="font-semibold">Key Levels (Derived)</h3>
+              <p className="text-sm text-gray-500">Support, resistance, and order-book-derived structure markers</p>
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs">
@@ -395,7 +404,7 @@ export const SMCPanel = React.memo(function SMCPanel() {
           <h3 className="font-semibold mb-4">Support & Resistance Levels</h3>
           <div className="space-y-3">
             {combinedLevels.length === 0 ? (
-              <p className="text-gray-500 text-sm">No significant levels detected</p>
+              <p className="text-gray-500 text-sm">No strong derived levels detected from the latest sample</p>
             ) : (
               combinedLevels.map((level, index) => (
                 <motion.div
@@ -425,7 +434,7 @@ export const SMCPanel = React.memo(function SMCPanel() {
                         style={{ width: `${level.strength}%` }}
                       />
                     </div>
-                    <span className="text-xs text-gray-500">{level.timeframe}</span>
+                    <span className="text-xs text-gray-500">{level.timeframe} · heuristic score {level.strength}%</span>
                   </div>
                 </motion.div>
               ))
@@ -443,7 +452,7 @@ export const SMCPanel = React.memo(function SMCPanel() {
           <h3 className="font-semibold mb-4">Order Blocks & Fair Value Gaps</h3>
           <div className="space-y-3">
             {combinedBlocks.length === 0 ? (
-              <p className="text-gray-500 text-sm">No order blocks detected</p>
+              <p className="text-gray-500 text-sm">No strong derived order-block or gap zones detected</p>
             ) : (
               combinedBlocks.map((level, index) => (
                 <motion.div
@@ -471,7 +480,7 @@ export const SMCPanel = React.memo(function SMCPanel() {
                       level.strength >= 60 ? 'bg-yellow-100 text-yellow-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                      {level.strength}% strength
+                      {level.strength}% heuristic strength
                     </span>
                     <span className="text-xs text-gray-500">{level.timeframe}</span>
                   </div>
@@ -484,11 +493,11 @@ export const SMCPanel = React.memo(function SMCPanel() {
             <p className="text-sm font-medium text-purple-900 mb-1">SMC Analysis</p>
             <p className="text-xs text-purple-700">
               {orderBlocks.length > 0 ? (
-                <>Price is currently near bullish order block at ${orderBlocks[0]?.price?.toLocaleString()}.
-                  A rejection here could lead to a retest of ${supportLevels[0]?.price?.toLocaleString() || 'previous support'}.</>
+                <>Current price is near a highlighted order-block-like zone around ${orderBlocks[0]?.price?.toLocaleString()}.
+                  Treat nearby support at ${supportLevels[0]?.price?.toLocaleString() || 'the prior support cluster'} as context only, not a guaranteed reaction level.</>
               ) : (
-                <>No significant order blocks identified at current price level.
-                  Monitor {resistanceLevels[0]?.price ? `$${resistanceLevels[0].price.toLocaleString()}` : 'key resistance'} for breakout.</>
+                <>No strong order-block-like zone is highlighted near the current price.
+                  Monitor {resistanceLevels[0]?.price ? `$${resistanceLevels[0].price.toLocaleString()}` : 'the nearest resistance cluster'} as a reference level rather than a confirmed breakout trigger.</>
               )}
             </p>
           </div>

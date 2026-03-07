@@ -81,7 +81,8 @@ export interface AlphaStats {
   avgScore: number;
   highConvictionCount: number; // Score > 80
   avgRiskReward: number;
-  winRateEstimate: number;
+  isAvailable: boolean;
+  statusMessage: string;
 }
 
 // Default filters
@@ -232,16 +233,7 @@ export class AlphaDetectionService {
   private startDetection(): void {
     if (this.intervalId) return;
 
-    // Generate initial opportunities
-    this.opportunities = generateAlphaOpportunities();
-
-    this.intervalId = setInterval(() => {
-      // Refresh opportunities periodically
-      if (Math.random() > 0.7) {
-        this.opportunities = generateAlphaOpportunities();
-        this.notifySubscribers();
-      }
-    }, 30000);
+    this.opportunities = [];
   }
 
   /**
@@ -294,7 +286,8 @@ export class AlphaDetectionService {
       avgScore: Math.round(avgScore * 10) / 10,
       highConvictionCount,
       avgRiskReward: Math.round(avgRiskReward * 10) / 10,
-      winRateEstimate: Math.round((60 + avgScore * 0.3) * 10) / 10,
+      isAvailable: false,
+      statusMessage: 'Verified alpha engine unavailable. Simulated opportunities are withheld.',
     };
   }
 

@@ -9,7 +9,7 @@
 export interface Asset {
   symbol: string;
   currentValue: number;
-  targetPercentage: number; // Target allocation (0-100)
+  targetPercentage?: number; // Target allocation (0-100)
 }
 
 export interface RebalanceAction {
@@ -28,6 +28,25 @@ export interface RebalanceSummary {
   actions: RebalanceAction[];
   portfolioDrift: number; // Average deviation from target
   recommendation: string;
+  hasTargetPlan: boolean;
+  configuredTargetCount: number;
+}
+
+export function hasCompleteTargetAllocationPlan(assets: Asset[]): boolean {
+  if (assets.length === 0) {
+    return false;
+  }
+
+  const configuredAssets = assets.filter(
+    (asset) => typeof asset.targetPercentage === 'number' && Number.isFinite(asset.targetPercentage)
+  );
+
+  if (configuredAssets.length !== assets.length) {
+    return false;
+  }
+
+  const totalTargetPercentage = configuredAssets.reduce((sum, asset) => sum + (asset.targetPercentage ?? 0), 0);
+  return Math.abs(totalTargetPercentage - 100) <= 1;
 }
 
 /**
@@ -44,11 +63,12 @@ export function generateRebalanceActions(
   const totalPortfolioValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
   const actions: RebalanceAction[] = [];
 
-  if (totalPortfolioValue === 0) return actions;
+  if (totalPortfolioValue === 0 || !hasCompleteTargetAllocationPlan(assets)) return actions;
 
   assets.forEach(asset => {
+    const targetPercentage = asset.targetPercentage ?? 0;
     const currentPct = (asset.currentValue / totalPortfolioValue) * 100;
-    const deviation = currentPct - asset.targetPercentage;
+    const deviation = currentPct - targetPercentage;
     const absDeviation = Math.abs(deviation);
 
     // Only generate action if deviation exceeds threshold
@@ -65,7 +85,7 @@ export function generateRebalanceActions(
         action: deviation > 0 ? 'SELL' : 'BUY',
         amountUsd: Number(amountToMove.toFixed(2)),
         amountPercent: Number(absDeviation.toFixed(2)),
-        reason: `Current: ${currentPct.toFixed(1)}% | Target: ${asset.targetPercentage}% | Deviation: ${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%`,
+        reason: `Current: ${currentPct.toFixed(1)}% | Target: ${targetPercentage}% | Deviation: ${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%`,
         priority
       });
     }
@@ -92,7 +112,11 @@ export function getRebalanceSummary(
   assets: Asset[],
   thresholdPct: number = 5
 ): RebalanceSummary {
-  const actions = generateRebalanceActions(assets, thresholdPct);
+  const hasTargetPlan = hasCompleteTargetAllocationPlan(assets);
+  const configuredTargetCount = assets.filter(
+    (asset) => typeof asset.targetPercentage === 'number' && Number.isFinite(asset.targetPercentage)
+  ).length;
+  const actions = hasTargetPlan ? generateRebalanceActions(assets, thresholdPct) : [];
   
   const totalBuyValue = actions
     .filter(a => a.action === 'BUY')
@@ -104,16 +128,17 @@ export function getRebalanceSummary(
 
   // Calculate average portfolio drift
   const totalPortfolioValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
-  const averageDrift = totalPortfolioValue > 0
+  const averageDrift = hasTargetPlan && totalPortfolioValue > 0
     ? assets.reduce((sum, asset) => {
+        const targetPercentage = asset.targetPercentage ?? 0;
         const currentPct = (asset.currentValue / totalPortfolioValue) * 100;
-        return sum + Math.abs(currentPct - asset.targetPercentage);
+        return sum + Math.abs(currentPct - targetPercentage);
       }, 0) / assets.length
     : 0;
 
   // Generate recommendation
-  let recommendation = 'Portfolio is well balanced';
-  if (actions.length > 0) {
+  let recommendation = 'Set target allocations to unlock rebalancing recommendations';
+  if (hasTargetPlan && actions.length > 0) {
     if (averageDrift >= 15) {
       recommendation = 'Immediate rebalancing recommended - significant drift detected';
     } else if (averageDrift >= 10) {
@@ -121,6 +146,8 @@ export function getRebalanceSummary(
     } else {
       recommendation = 'Minor rebalancing suggested - slight drift detected';
     }
+  } else if (hasTargetPlan) {
+    recommendation = 'Portfolio is well balanced';
   }
 
   return {
@@ -129,7 +156,9 @@ export function getRebalanceSummary(
     totalSellValue: Number(totalSellValue.toFixed(2)),
     actions,
     portfolioDrift: Number(averageDrift.toFixed(2)),
-    recommendation
+    recommendation,
+    hasTargetPlan,
+    configuredTargetCount,
   };
 }
 

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
 import { Lock, Mail, AlertTriangle, ArrowRight, UserCircle2, Wifi, WifiOff } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function Login() {
+    const { t } = useTranslation();
     const { login, register, loginAsGuest, isLoading, error, isPocketBaseEnabled } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -23,12 +25,12 @@ export default function Login() {
         setValidationError(null);
 
         if (!email || !password) {
-            setValidationError('Please fill in all fields');
+            setValidationError(t('auth.fillAllFields'));
             return;
         }
 
         if (!isLogin && password !== passwordConfirm) {
-            setValidationError('Passwords do not match');
+            setValidationError(t('auth.passwordMismatch'));
             return;
         }
 
@@ -67,7 +69,7 @@ export default function Login() {
                     transition={{ delay: 0.1 }}
                     className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white"
                 >
-                    {isLogin ? 'Sign in to Sentinel' : 'Create your account'}
+                    {isLogin ? t('auth.signInTitle') : t('auth.signUpTitle')}
                 </motion.h2>
                 <motion.p
                     initial={{ y: 20, opacity: 0 }}
@@ -75,7 +77,7 @@ export default function Login() {
                     transition={{ delay: 0.2 }}
                     className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400"
                 >
-                    {isLogin ? 'Welcome back to your financial command center' : 'Join the elite financial intelligence platform'}
+                    {isLogin ? t('auth.welcomeBack') : t('auth.joinPlatform')}
                 </motion.p>
             </div>
 
@@ -89,12 +91,12 @@ export default function Login() {
                 {isPocketBaseEnabled ? (
                     <div className="flex items-center gap-2 justify-center text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-4 py-2">
                         <Wifi size={14} />
-                        <span>PocketBase connected — full data persistence enabled</span>
+                        <span>{t('auth.pocketBaseConnected')}</span>
                     </div>
                 ) : (
                     <div className="flex items-center gap-2 justify-center text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-2">
                         <WifiOff size={14} />
-                        <span>No database configured — use Guest mode to access all features</span>
+                        <span>{t('auth.noDatabaseConfigured')}</span>
                     </div>
                 )}
             </motion.div>
@@ -115,7 +117,7 @@ export default function Login() {
                         className="w-full flex items-center justify-center gap-3 py-4 px-4 border-2 border-[#ee7d54] rounded-xl shadow-sm text-sm font-semibold text-[#ee7d54] bg-[#ee7d54]/5 hover:bg-[#ee7d54]/10 transition-all mb-6"
                     >
                         <UserCircle2 size={20} />
-                        Continue as Guest — No login required
+                        {t('auth.continueAsGuest')}
                         <ArrowRight size={16} />
                     </motion.button>
 
@@ -128,7 +130,7 @@ export default function Login() {
                                 </div>
                                 <div className="relative flex justify-center text-sm">
                                     <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">
-                                        Or sign in with your account
+                                        {t('auth.orSignIn')}
                                     </span>
                                 </div>
                             </div>
@@ -149,7 +151,7 @@ export default function Login() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Email address
+                                        {t('auth.email')}
                                     </label>
                                     <div className="mt-1 relative">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -168,7 +170,7 @@ export default function Login() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Password
+                                        {t('auth.password')}
                                     </label>
                                     <div className="mt-1 relative">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -191,7 +193,7 @@ export default function Login() {
                                         animate={{ opacity: 1, height: 'auto' }}
                                     >
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Confirm Password
+                                            {t('auth.confirmPassword')}
                                         </label>
                                         <div className="mt-1 relative">
                                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -219,7 +221,7 @@ export default function Login() {
                                             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                         ) : (
                                             <>
-                                                {isLogin ? 'Sign in' : 'Create account'}
+                                                {isLogin ? t('auth.signIn') : t('auth.signUp')}
                                                 <ArrowRight className="ml-2 h-4 w-4" />
                                             </>
                                         )}
@@ -232,7 +234,7 @@ export default function Login() {
                                         onClick={() => setIsLogin(!isLogin)}
                                         className="text-sm text-[#ee7d54] hover:text-[#d66a45] font-medium transition-colors"
                                     >
-                                        {isLogin ? 'Create a new account' : 'Sign in to existing account'}
+                                        {isLogin ? t('auth.createAccount') : t('auth.signInExisting')}
                                     </button>
                                 </div>
                             </form>
@@ -242,7 +244,7 @@ export default function Login() {
                     {/* If PocketBase not configured, show explanation */}
                     {!isPocketBaseEnabled && (
                         <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-2">
-                            To enable persistent accounts, set up{' '}
+                            {t('auth.persistentAccounts')}{' '}
                             <a
                                 href="https://pocketbase.io"
                                 target="_blank"

@@ -14,7 +14,7 @@ import {
 import { useMemo, useState } from 'react';
 import { useData, usePortfolio } from '@/context/hooks';
 
-type RiskCategory = 'war' | 'earthquake' | 'political' | 'economic';
+type RiskCategory = 'system' | 'rules' | 'market' | 'portfolio';
 type RiskSeverity = 'critical' | 'high' | 'medium' | 'low';
 type RiskTrend = 'stable' | 'improving' | 'deteriorating';
 
@@ -68,7 +68,7 @@ const defconLevels = [
 export function DefconMonitor() {
   const { state: dataState } = useData();
   const { portfolio } = usePortfolio();
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'war' | 'earthquake' | 'political' | 'economic'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'system' | 'rules' | 'market' | 'portfolio'>('all');
 
   const riskEvents = useMemo<RiskEventItem[]>(() => {
     const events: RiskEventItem[] = [];
@@ -79,7 +79,7 @@ export function DefconMonitor() {
         id: `feed-${dataState.connectionStatus.state}`,
         title: 'Market feed degraded',
         description: `Live market feed is ${dataState.connectionStatus.state}, which may delay price-sensitive monitoring.`,
-        category: 'economic',
+        category: 'system',
         severity: dataState.connectionStatus.state === 'disconnected' ? 'critical' : 'high',
         country: 'System',
         timestamp: formatRelativeTime(dataState.lastUpdate),
@@ -88,13 +88,6 @@ export function DefconMonitor() {
     }
 
     activeAlerts.forEach((alert) => {
-      const category: RiskCategory = alert.type === 'pattern'
-        ? 'political'
-        : alert.type === 'portfolio'
-          ? 'war'
-          : alert.type === 'volume'
-            ? 'earthquake'
-            : 'economic';
       const severity: RiskSeverity = alert.value >= 10 ? 'critical' : alert.value >= 5 ? 'high' : alert.value >= 2 ? 'medium' : 'low';
       const alertTime = alert.triggeredAt ?? alert.createdAt;
 
@@ -102,7 +95,7 @@ export function DefconMonitor() {
         id: alert.id,
         title: `${alert.symbol} ${alert.type} alert`,
         description: `${alert.symbol} moved ${alert.condition} ${alert.value}. Sentinel marked this rule as still active.`,
-        category,
+        category: 'rules',
         severity,
         country: alert.symbol,
         timestamp: formatRelativeTime(alertTime),
@@ -116,7 +109,7 @@ export function DefconMonitor() {
         id: `loser-${broadLoss.symbol}`,
         title: `${broadLoss.symbol} downside pressure intensifying`,
         description: `Top market loser is down ${Math.abs(broadLoss.change24hPercent).toFixed(2)}% over 24h, signalling elevated cross-market stress.`,
-        category: 'economic',
+        category: 'market',
         severity: broadLoss.change24hPercent <= -10 ? 'critical' : 'high',
         country: 'Global',
         timestamp: formatRelativeTime(dataState.marketData.lastUpdated),
@@ -129,7 +122,7 @@ export function DefconMonitor() {
         id: 'portfolio-drawdown',
         title: 'Portfolio drawdown alert',
         description: `Portfolio is down ${Math.abs(portfolio.totalChange24hPercent).toFixed(2)}% over 24h, which increases defensive monitoring needs.`,
-        category: 'war',
+        category: 'portfolio',
         severity: portfolio.totalChange24hPercent <= -6 ? 'critical' : 'high',
         country: 'Portfolio',
         timestamp: formatRelativeTime(dataState.lastUpdate),
@@ -214,7 +207,7 @@ export function DefconMonitor() {
       >
         <div>
           <h2 className="text-2xl font-bold">Defcon & Strategic Risk Monitor</h2>
-          <p className="text-gray-500 text-sm">Geopolitical risk assessment and global threat monitoring</p>
+          <p className="text-gray-500 text-sm">Rule-based app telemetry, portfolio stress, and market risk monitoring</p>
         </div>
       </motion.div>
 
@@ -232,7 +225,7 @@ export function DefconMonitor() {
             </div>
             <div>
               <h3 className="font-semibold">Defcon Level</h3>
-              <p className="text-sm text-gray-500">Calculated from live alerts, feed health, and market stress</p>
+              <p className="text-sm text-gray-500">Rule-based score from alerts, feed health, portfolio drawdown, and market stress</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -275,7 +268,7 @@ export function DefconMonitor() {
               </p>
               <p className="text-sm text-yellow-700 mt-1">
                 {defconLevels.find(l => l.level === currentDefcon)?.desc}.
-                {riskEvents.length > 0 ? ' Live system signals suggest elevated monitoring is warranted.' : ' No active system risk signals are currently firing.'}
+                {riskEvents.length > 0 ? ' Internal alerts and market-state signals suggest elevated monitoring is warranted.' : ' No active internal risk signals are currently firing.'}
               </p>
             </div>
           </div>
@@ -296,15 +289,15 @@ export function DefconMonitor() {
                 <Globe2 className="text-orange-500" size={20} />
               </div>
               <div>
-                <h3 className="font-semibold">Risk Event Monitor</h3>
-                <p className="text-sm text-gray-500">War, Earthquake, Political & Economic events</p>
+                <h3 className="font-semibold">Risk Signal Monitor</h3>
+                <p className="text-sm text-gray-500">System, rules, market, and portfolio events derived from live app state</p>
               </div>
             </div>
           </div>
 
           {/* Category Filter */}
           <div className="flex gap-2 mb-4">
-            {(['all', 'war', 'earthquake', 'political', 'economic'] as const).map((cat) => (
+            {(['all', 'system', 'rules', 'market', 'portfolio'] as const).map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
@@ -313,7 +306,7 @@ export function DefconMonitor() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
               >
-                {cat}
+                {cat === 'all' ? 'all' : cat}
               </button>
             ))}
           </div>
@@ -333,14 +326,14 @@ export function DefconMonitor() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${event.category === 'war' ? 'bg-red-100' :
-                      event.category === 'earthquake' ? 'bg-orange-100' :
-                        event.category === 'political' ? 'bg-blue-100' :
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${event.category === 'portfolio' ? 'bg-red-100' :
+                      event.category === 'market' ? 'bg-orange-100' :
+                        event.category === 'rules' ? 'bg-blue-100' :
                           'bg-purple-100'
                       }`}>
-                      {event.category === 'war' ? <Flame size={14} className="text-red-500" /> :
-                        event.category === 'earthquake' ? <Activity size={14} className="text-orange-500" /> :
-                          event.category === 'political' ? <ShieldAlert size={14} className="text-blue-500" /> :
+                      {event.category === 'portfolio' ? <Flame size={14} className="text-red-500" /> :
+                        event.category === 'market' ? <TrendingDown size={14} className="text-orange-500" /> :
+                          event.category === 'rules' ? <ShieldAlert size={14} className="text-blue-500" /> :
                             <TrendingDown size={14} className="text-purple-500" />}
                     </div>
                     <div>
@@ -366,8 +359,8 @@ export function DefconMonitor() {
               </motion.div>
             )) : (
               <div className="p-6 rounded-xl border border-dashed border-gray-200 bg-gray-50 text-center">
-                <p className="text-sm font-medium text-gray-700">No live risk events in this category</p>
-                <p className="text-xs text-gray-500 mt-2">The monitor will list feed issues, triggered alerts, and market stress once they appear.</p>
+                <p className="text-sm font-medium text-gray-700">No active risk signals in this category</p>
+                <p className="text-xs text-gray-500 mt-2">The monitor will list feed issues, triggered rules, and market stress once they appear.</p>
               </div>
             )}
           </div>

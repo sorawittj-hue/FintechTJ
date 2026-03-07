@@ -18,23 +18,32 @@ import {
   LogOut,
   Trash2,
   Download,
-  Mail
+  Mail,
+  Languages,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettings } from '@/context/hooks';
+import { useAuth } from '@/context/AuthContext';
+import { SUPPORTED_LANGUAGES } from '@/i18n';
 
 export function Settings() {
+  const { t, i18n } = useTranslation();
   const { settings, updateSettings } = useSettings();
-  const [showPassword, setShowPassword] = useState(false);
+  const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('general');
 
   const tabs = [
-    { id: 'general', label: 'General', icon: SettingsIcon },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'security', label: 'Security', icon: Shield },
-    { id: 'appearance', label: 'Appearance', icon: Palette },
-    { id: 'account', label: 'Account', icon: User },
+    { id: 'general', labelKey: 'settings.general', icon: SettingsIcon },
+    { id: 'notifications', labelKey: 'settings.notifications', icon: Bell },
+    { id: 'security', labelKey: 'settings.security', icon: Shield },
+    { id: 'appearance', labelKey: 'settings.appearance', icon: Palette },
+    { id: 'account', labelKey: 'settings.account', icon: User },
   ];
+
+  const handleLanguageChange = (langCode: string) => {
+    i18n.changeLanguage(langCode);
+  };
 
   return (
     <div className="space-y-6">
@@ -43,8 +52,8 @@ export function Settings() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6 }}
       >
-        <h2 className="text-2xl font-bold">Settings</h2>
-        <p className="text-gray-500 text-sm">Manage your account preferences</p>
+        <h2 className="text-2xl font-bold">{t('settings.title')}</h2>
+        <p className="text-gray-500 text-sm">{t('settings.subtitle')}</p>
       </motion.div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -67,7 +76,7 @@ export function Settings() {
                     }`}
                 >
                   <Icon size={18} />
-                  <span className="font-medium">{tab.label}</span>
+                  <span className="font-medium">{t(tab.labelKey)}</span>
                 </button>
               );
             })}
@@ -82,15 +91,38 @@ export function Settings() {
         >
           {activeTab === 'general' && (
             <div className="bg-white rounded-3xl p-6 card-shadow space-y-6">
-              <h3 className="font-semibold text-lg">General Settings</h3>
+              <h3 className="font-semibold text-lg">{t('settings.general')}</h3>
 
               <div className="space-y-4">
+                {/* Language Selector */}
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50">
+                  <div className="flex items-center gap-3">
+                    <Languages className="text-gray-400" size={20} />
+                    <div>
+                      <p className="font-medium">{t('settings.language')}</p>
+                      <p className="text-sm text-gray-500">{t('settings.languageDesc')}</p>
+                    </div>
+                  </div>
+                  <select
+                    value={i18n.language?.substring(0, 2) || 'en'}
+                    onChange={(e) => handleLanguageChange(e.target.value)}
+                    className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-[#ee7d54]"
+                  >
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Currency Selector */}
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50">
                   <div className="flex items-center gap-3">
                     <Globe className="text-gray-400" size={20} />
                     <div>
-                      <p className="font-medium">Currency</p>
-                      <p className="text-sm text-gray-500">Display currency for values</p>
+                      <p className="font-medium">{t('settings.currency')}</p>
+                      <p className="text-sm text-gray-500">{t('settings.currencyDesc')}</p>
                     </div>
                   </div>
                   <select
@@ -109,8 +141,8 @@ export function Settings() {
                   <div className="flex items-center gap-3">
                     <Smartphone className="text-gray-400" size={20} />
                     <div>
-                      <p className="font-medium">Compact Mode</p>
-                      <p className="text-sm text-gray-500">Show condensed data</p>
+                      <p className="font-medium">{t('settings.compactMode')}</p>
+                      <p className="text-sm text-gray-500">{t('settings.compactModeDesc')}</p>
                     </div>
                   </div>
                   <button
@@ -130,15 +162,15 @@ export function Settings() {
 
           {activeTab === 'notifications' && (
             <div className="bg-white rounded-3xl p-6 card-shadow space-y-6">
-              <h3 className="font-semibold text-lg">Notification Preferences</h3>
+              <h3 className="font-semibold text-lg">{t('settings.notificationPrefs')}</h3>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50">
                   <div className="flex items-center gap-3">
                     <Bell className="text-gray-400" size={20} />
                     <div>
-                      <p className="font-medium">Price Alerts</p>
-                      <p className="text-sm text-gray-500">Get notified when prices hit targets</p>
+                      <p className="font-medium">{t('settings.priceAlerts')}</p>
+                      <p className="text-sm text-gray-500">{t('settings.priceAlertsDesc')}</p>
                     </div>
                   </div>
                   <button
@@ -157,8 +189,8 @@ export function Settings() {
                   <div className="flex items-center gap-3">
                     <Bell className="text-gray-400" size={20} />
                     <div>
-                      <p className="font-medium">Portfolio Alerts</p>
-                      <p className="text-sm text-gray-500">Portfolio value changes</p>
+                      <p className="font-medium">{t('settings.portfolioAlerts')}</p>
+                      <p className="text-sm text-gray-500">{t('settings.portfolioAlertsDesc')}</p>
                     </div>
                   </div>
                   <button
@@ -177,8 +209,8 @@ export function Settings() {
                   <div className="flex items-center gap-3">
                     <Mail className="text-gray-400" size={20} />
                     <div>
-                      <p className="font-medium">Email Notifications</p>
-                      <p className="text-sm text-gray-500">Receive updates via email</p>
+                      <p className="font-medium">{t('settings.emailNotifications')}</p>
+                      <p className="text-sm text-gray-500">{t('settings.emailNotificationsDesc')}</p>
                     </div>
                   </div>
                   <button
@@ -199,15 +231,15 @@ export function Settings() {
           {activeTab === 'security' && (
             <div className="space-y-6">
               <div className="bg-white rounded-3xl p-6 card-shadow space-y-6">
-                <h3 className="font-semibold text-lg">Security Settings</h3>
+                <h3 className="font-semibold text-lg">{t('settings.securitySettings')}</h3>
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50">
                     <div className="flex items-center gap-3">
                       <Key className="text-gray-400" size={20} />
                       <div>
-                        <p className="font-medium">Two-Factor Authentication</p>
-                        <p className="text-sm text-gray-500">Add extra security layer</p>
+                        <p className="font-medium">{t('settings.twoFactor')}</p>
+                        <p className="text-sm text-gray-500">{t('settings.twoFactorDesc')}</p>
                       </div>
                     </div>
                     <button
@@ -226,8 +258,8 @@ export function Settings() {
                     <div className="flex items-center gap-3">
                       <Smartphone className="text-gray-400" size={20} />
                       <div>
-                        <p className="font-medium">Biometric Login</p>
-                        <p className="text-sm text-gray-500">Use face ID or fingerprint</p>
+                        <p className="font-medium">{t('settings.biometricLogin')}</p>
+                        <p className="text-sm text-gray-500">{t('settings.biometricLoginDesc')}</p>
                       </div>
                     </div>
                     <button
@@ -245,25 +277,13 @@ export function Settings() {
               </div>
 
               <div className="bg-white rounded-3xl p-6 card-shadow space-y-4">
-                <h3 className="font-semibold text-lg">Password</h3>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    defaultValue="currentpassword123"
-                    className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:outline-none focus:border-[#ee7d54]"
-                  />
-                  <button
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
+                <h3 className="font-semibold text-lg">{t('settings.changePassword')}</h3>
+                <p className="text-sm text-gray-500">{t('settings.passwordChangeInfo')}</p>
                 <button
-                  onClick={() => toast.info('Password change link sent to email')}
-                  className="text-[#ee7d54] text-sm font-medium hover:underline"
+                  onClick={() => toast.info(t('settings.changePassword'))}
+                  className="px-4 py-2 bg-[#ee7d54] text-white text-sm font-medium rounded-xl hover:bg-[#d66a45] transition-colors"
                 >
-                  Change Password
+                  {t('settings.changePassword')}
                 </button>
               </div>
             </div>
@@ -271,11 +291,11 @@ export function Settings() {
 
           {activeTab === 'appearance' && (
             <div className="bg-white rounded-3xl p-6 card-shadow space-y-6">
-              <h3 className="font-semibold text-lg">Appearance</h3>
+              <h3 className="font-semibold text-lg">{t('settings.appearance')}</h3>
 
               <div className="space-y-4">
                 <div>
-                  <p className="font-medium mb-3">Theme</p>
+                  <p className="font-medium mb-3">{t('settings.theme')}</p>
                   <div className="grid grid-cols-3 gap-3">
                     <button
                       onClick={() => updateSettings({ theme: 'light' })}
@@ -285,7 +305,7 @@ export function Settings() {
                         }`}
                     >
                       <Sun className={`mx-auto mb-2 ${settings.theme === 'light' ? 'text-[#ee7d54]' : 'text-gray-400'}`} size={24} />
-                      <p className="text-sm font-medium">Light</p>
+                      <p className="text-sm font-medium">{t('settings.light')}</p>
                     </button>
                     <button
                       onClick={() => updateSettings({ theme: 'dark' })}
@@ -295,7 +315,7 @@ export function Settings() {
                         }`}
                     >
                       <Moon className={`mx-auto mb-2 ${settings.theme === 'dark' ? 'text-[#ee7d54]' : 'text-gray-400'}`} size={24} />
-                      <p className="text-sm font-medium">Dark</p>
+                      <p className="text-sm font-medium">{t('settings.dark')}</p>
                     </button>
                     <button
                       onClick={() => updateSettings({ theme: 'system' })}
@@ -305,7 +325,7 @@ export function Settings() {
                         }`}
                     >
                       <Monitor className={`mx-auto mb-2 ${settings.theme === 'system' ? 'text-[#ee7d54]' : 'text-gray-400'}`} size={24} />
-                      <p className="text-sm font-medium">System</p>
+                      <p className="text-sm font-medium">{t('settings.system')}</p>
                     </button>
                   </div>
                 </div>
@@ -314,8 +334,8 @@ export function Settings() {
                   <div className="flex items-center gap-3">
                     <Palette className="text-gray-400" size={20} />
                     <div>
-                      <p className="font-medium">Show Animations</p>
-                      <p className="text-sm text-gray-500">UI transition effects</p>
+                      <p className="font-medium">{t('settings.showAnimations')}</p>
+                      <p className="text-sm text-gray-500">{t('settings.showAnimationsDesc')}</p>
                     </div>
                   </div>
                   <button
@@ -336,34 +356,34 @@ export function Settings() {
           {activeTab === 'account' && (
             <div className="space-y-6">
               <div className="bg-white rounded-3xl p-6 card-shadow">
-                <h3 className="font-semibold text-lg mb-4">Account Information</h3>
+                <h3 className="font-semibold text-lg mb-4">{t('settings.accountInfo')}</h3>
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-16 h-16 rounded-full bg-[#ee7d54] flex items-center justify-center text-white text-2xl font-bold">
-                    D
+                    {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-semibold text-lg">Dwayne Johnson</p>
-                    <p className="text-gray-500">dwayne@example.com</p>
+                    <p className="font-semibold text-lg">{user?.name || (user?.isGuest ? 'Guest User' : 'User')}</p>
+                    <p className="text-gray-500">{user?.email || ''}</p>
                   </div>
                 </div>
                 <div className="space-y-3">
                   <button className="w-full flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <span className="font-medium">Edit Profile</span>
+                    <span className="font-medium">{t('settings.editProfile')}</span>
                     <ChevronRight size={18} className="text-gray-400" />
                   </button>
                   <button className="w-full flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <span className="font-medium">Billing & Payments</span>
+                    <span className="font-medium">{t('settings.billing')}</span>
                     <ChevronRight size={18} className="text-gray-400" />
                   </button>
                   <button className="w-full flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <span className="font-medium">Connected Accounts</span>
+                    <span className="font-medium">{t('settings.connectedAccounts')}</span>
                     <ChevronRight size={18} className="text-gray-400" />
                   </button>
                 </div>
               </div>
 
               <div className="bg-white rounded-3xl p-6 card-shadow">
-                <h3 className="font-semibold text-lg mb-4">Data Management</h3>
+                <h3 className="font-semibold text-lg mb-4">{t('settings.dataManagement')}</h3>
                 <div className="space-y-3">
                   <button
                     onClick={() => toast.success('Data exported successfully')}
@@ -371,17 +391,17 @@ export function Settings() {
                   >
                     <div className="flex items-center gap-3">
                       <Download size={18} className="text-gray-400" />
-                      <span className="font-medium">Export Data</span>
+                      <span className="font-medium">{t('settings.exportData')}</span>
                     </div>
                     <ChevronRight size={18} className="text-gray-400" />
                   </button>
                   <button
-                    onClick={() => toast.error('This action cannot be undone')}
+                    onClick={() => toast.error(t('settings.deleteAccountWarning'))}
                     className="w-full flex items-center justify-between p-4 rounded-xl bg-red-50 hover:bg-red-100 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <Trash2 size={18} className="text-red-500" />
-                      <span className="font-medium text-red-600">Delete Account</span>
+                      <span className="font-medium text-red-600">{t('settings.deleteAccount')}</span>
                     </div>
                     <ChevronRight size={18} className="text-red-400" />
                   </button>
@@ -389,11 +409,11 @@ export function Settings() {
               </div>
 
               <button
-                onClick={() => toast.success('Logged out successfully')}
+                onClick={() => { logout(); toast.success(t('settings.logOut')); }}
                 className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
               >
                 <LogOut size={18} />
-                <span className="font-medium">Log Out</span>
+                <span className="font-medium">{t('settings.logOut')}</span>
               </button>
             </div>
           )}

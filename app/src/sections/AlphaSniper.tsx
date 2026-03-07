@@ -44,6 +44,7 @@ export function AlphaSniper() {
   const { opportunities, stats, loading } = useAlphaDetection();
   const [selectedType, setSelectedType] = useState<string>('all');
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const isEngineAvailable = stats?.isAvailable ?? false;
 
   const filteredOpportunities = useMemo(() => {
     if (selectedType === 'all') return opportunities;
@@ -98,113 +99,122 @@ export function AlphaSniper() {
             </div>
             <div>
               <h1 className="text-3xl font-bold">Alpha Sniper</h1>
-              <p className="text-gray-500">AI-powered alpha opportunity detection</p>
+              <p className="text-gray-500">Verified alpha opportunity engine status and coverage transparency</p>
             </div>
           </div>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" size="sm" onClick={() => toast.success('Filters applied')}>
+          <Button variant="outline" size="sm" onClick={() => toast.success(isEngineAvailable ? 'Filters applied' : 'Verified alpha engine unavailable')} disabled={!isEngineAvailable}>
             <Filter size={16} className="mr-2" />
             Filters
           </Button>
-          <Button variant="outline" size="sm" onClick={() => toast.success('Data refreshed')}>
+          <Button variant="outline" size="sm" onClick={() => toast.success(isEngineAvailable ? 'Data refreshed' : 'No verified alpha feed to refresh')} disabled={!isEngineAvailable}>
             <RefreshCw size={16} className="mr-2" />
             Refresh
           </Button>
         </div>
       </motion.div>
 
-      {/* Stats Overview */}
-      <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">Total Opportunities</p>
-                <p className="text-3xl font-bold">{stats?.totalOpportunities || 0}</p>
+      {!isEngineAvailable ? (
+        <motion.div variants={itemVariants}>
+          <Card className="border-amber-200 bg-amber-50/80">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center">
+                  <Brain className="text-amber-600" size={22} />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-lg font-semibold text-amber-900">Verified alpha engine unavailable</h2>
+                  <p className="text-sm text-amber-800">
+                    {stats?.statusMessage || 'This section intentionally withholds simulated opportunities.'}
+                  </p>
+                  <p className="text-sm text-amber-700">
+                    Opportunity cards, win-rate style metrics, and model-driven price targets stay hidden until this section is backed by a real, reviewable signal engine.
+                  </p>
+                </div>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                <Target className="text-amber-400" size={24} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ) : (
+        <>
+          {/* Stats Overview */}
+          <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-0">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-slate-400 text-sm">Total Opportunities</p>
+                    <p className="text-3xl font-bold">{stats?.totalOpportunities || 0}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                    <Target className="text-amber-400" size={24} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="bg-gradient-to-br from-blue-900 to-blue-800 text-white border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-200 text-sm">High Conviction</p>
-                <p className="text-3xl font-bold">{stats?.highConvictionCount || 0}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                <Star className="text-yellow-400" size={24} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="bg-gradient-to-br from-blue-900 to-blue-800 text-white border-0">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-200 text-sm">High Score</p>
+                    <p className="text-3xl font-bold">{stats?.highConvictionCount || 0}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                    <Star className="text-yellow-400" size={24} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="bg-gradient-to-br from-green-900 to-green-800 text-white border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-200 text-sm">Avg Risk/Reward</p>
-                <p className="text-3xl font-bold">{stats?.avgRiskReward || 0}x</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                <Activity className="text-green-400" size={24} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="bg-gradient-to-br from-green-900 to-green-800 text-white border-0">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-200 text-sm">Avg Risk/Reward</p>
+                    <p className="text-3xl font-bold">{stats?.avgRiskReward || 0}x</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                    <Activity className="text-green-400" size={24} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-        <Card className="bg-gradient-to-br from-purple-900 to-purple-800 text-white border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-200 text-sm">Win Rate Est.</p>
-                <p className="text-3xl font-bold">{stats?.winRateEstimate || 0}%</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                <Brain className="text-purple-400" size={24} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+          {/* Type Distribution */}
+          <motion.div variants={itemVariants}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Zap size={20} className="text-amber-500" />
+                  Opportunity Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(stats?.byType || {}).map(([type, count]) => (
+                    <button
+                      key={type}
+                      onClick={() => setSelectedType(selectedType === type ? 'all' : type)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedType === type
+                          ? 'bg-[#ee7d54] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                      <span className="capitalize">{type.replace('_', ' ')}</span>
+                      <span className="ml-2 text-xs opacity-70">({count})</span>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-      {/* Type Distribution */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Zap size={20} className="text-amber-500" />
-              Opportunity Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(stats?.byType || {}).map(([type, count]) => (
-                <button
-                  key={type}
-                  onClick={() => setSelectedType(selectedType === type ? 'all' : type)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedType === type
-                      ? 'bg-[#ee7d54] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                >
-                  <span className="capitalize">{type.replace('_', ' ')}</span>
-                  <span className="ml-2 text-xs opacity-70">({count})</span>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Opportunities Grid */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filteredOpportunities.map((opp) => (
+          {/* Opportunities Grid */}
+          <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {filteredOpportunities.map((opp) => (
           <motion.div
             key={opp.id}
             variants={itemVariants}
@@ -358,8 +368,10 @@ export function AlphaSniper() {
               </button>
             </div>
           </motion.div>
-        ))}
-      </motion.div>
+            ))}
+          </motion.div>
+        </>
+      )}
     </motion.div>
   );
 }

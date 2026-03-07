@@ -33,7 +33,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 const DemoModeBadge = () => (
   <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">
     <Info size={10} />
-    Demo Mode
+    Rule-Based Mode
   </span>
 );
 
@@ -74,12 +74,26 @@ export const AISystems = React.memo(function AISystems() {
     refreshNarratives();
   }, [refreshInsights, refreshNarratives]);
 
-  // Calculate accuracy based on confidence scores
-  const avgAccuracy = useMemo(() => {
+  // Average reported confidence across visible insights
+  const avgReportedConfidence = useMemo(() => {
     if (insights.length === 0) return 0;
     const avg = insights.reduce((sum, i) => sum + i.confidence, 0) / insights.length;
     return Math.round(avg * 10) / 10;
   }, [insights]);
+
+  const aiStatus = useMemo(() => (
+    isDemoMode
+      ? {
+          label: 'Local Analysis',
+          className: 'bg-amber-100 text-amber-700',
+        }
+      : {
+          label: 'AI API Connected',
+          className: 'bg-green-100 text-green-700',
+        }
+  ), [isDemoMode]);
+
+  const confidenceLabel = isDemoMode ? 'Reported Rule Confidence' : 'Reported AI Confidence';
 
   // Trend data from narratives
   const trendData = useMemo(() =>
@@ -102,13 +116,13 @@ export const AISystems = React.memo(function AISystems() {
       >
         <div>
           <h2 className="text-2xl font-bold">AI Autonomous Systems</h2>
-          <p className="text-gray-500 text-sm">Machine learning powered market analysis & predictions</p>
+          <p className="text-gray-500 text-sm">AI-assisted and rule-based market analysis with transparent source status</p>
         </div>
         <div className="flex items-center gap-2">
           {isDemoMode && <DemoModeBadge />}
-          <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+          <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs ${aiStatus.className}`}>
             <Activity size={12} />
-            AI Online
+            {aiStatus.label}
           </span>
           <button
             onClick={handleRefresh}
@@ -138,12 +152,12 @@ export const AISystems = React.memo(function AISystems() {
         >
           <div className="flex items-center gap-2 mb-3">
             <Brain size={18} />
-            <span className="text-sm opacity-80">AI Confidence</span>
+            <span className="text-sm opacity-80">{confidenceLabel}</span>
           </div>
           <p className="text-3xl font-bold">
-            {insightsLoading ? <Loader2 className="animate-spin" /> : `${avgAccuracy}%`}
+            {insightsLoading ? <Loader2 className="animate-spin" /> : `${avgReportedConfidence}%`}
           </p>
-          <p className="text-xs opacity-70 mt-1">Average across insights</p>
+          <p className="text-xs opacity-70 mt-1">Average self-reported confidence across current insights, not realized accuracy</p>
         </motion.div>
 
         <motion.div
@@ -205,8 +219,12 @@ export const AISystems = React.memo(function AISystems() {
                 <Brain className="text-purple-500" size={20} />
               </div>
               <div>
-                <h3 className="font-semibold">AI Insights & Alerts</h3>
-                <p className="text-sm text-gray-500">Real-time market intelligence</p>
+                <h3 className="font-semibold">{isDemoMode ? 'Rule-Based Insights & Alerts' : 'AI Insights & Alerts'}</h3>
+                <p className="text-sm text-gray-500">
+                  {isDemoMode
+                    ? 'Current insights from local rules, market snapshots, and news sentiment'
+                    : 'AI-assisted insights from current market data and news coverage'}
+                </p>
               </div>
             </div>
             {insightsLoading && <Loader2 className="animate-spin text-purple-500" size={20} />}
@@ -262,7 +280,10 @@ export const AISystems = React.memo(function AISystems() {
                         insight.confidence >= 60 ? 'bg-yellow-100 text-yellow-700' :
                           'bg-gray-100 text-gray-700'
                         }`}>
-                        {insight.confidence}% confidence
+                        {insight.confidence}% confidence tag
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                        {insight.source === 'ai' ? 'AI' : insight.source === 'sentiment' ? 'Sentiment Rules' : 'Local Rules'}
                       </span>
                       {insight.relatedAssets.map(asset => (
                         <span key={asset} className="text-xs text-purple-600">{asset}</span>
@@ -313,7 +334,7 @@ export const AISystems = React.memo(function AISystems() {
 
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="p-4 rounded-xl bg-white/10">
-                <p className="text-xs text-gray-400 mb-1">Confidence Score</p>
+                <p className="text-xs text-gray-400 mb-1">Reported Confidence</p>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
                     <motion.div
@@ -344,16 +365,18 @@ export const AISystems = React.memo(function AISystems() {
             <div className="p-4 rounded-xl bg-white/5">
               <div className="flex items-center gap-2 mb-2">
                 <MessageSquare size={16} className="text-purple-400" />
-                <span className="text-sm font-medium">AI Analysis</span>
+                <span className="text-sm font-medium">Analysis Method</span>
               </div>
               <p className="text-sm text-gray-400">
-                This insight was generated based on {isDemoMode ? 'historical market patterns' : 'real-time market data and news analysis'}.
-                {isDemoMode && ' Connect your OpenAI API key for live AI analysis.'}
+                {selectedInsight.source === 'ai'
+                  ? 'This insight was generated by a connected AI provider using current market data and news coverage.'
+                  : 'This insight was generated by local rules using current portfolio state, the latest market snapshot, and sentiment inputs.'}
+                {isDemoMode && ' Connect an AI provider API key for AI-assisted analysis.'}
               </p>
               <div className="mt-3 pt-3 border-t border-white/10">
                 <p className="text-xs text-gray-500">
                   <Info size={10} className="inline mr-1" />
-                  Not financial advice. Always do your own research.
+                  {selectedInsight.source === 'ai' ? 'AI provider is connected.' : 'Local rule-based analysis is active.'} Confidence here reflects model/rule self-assessment, not verified hit rate. Not financial advice. Always do your own research.
                 </p>
               </div>
             </div>

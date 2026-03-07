@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
@@ -65,17 +66,16 @@ const RISK_COLOR: Record<string, string> = {
   high: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
-const RISK_LABEL: Record<string, string> = {
-  low: 'ต่ำ',
-  medium: 'ปานกลาง',
-  high: 'สูง',
-};
+// RISK_LABEL is now derived from i18n in the component
 
-interface CrisisGuideProps {
-  language?: 'en' | 'th';
-}
-
-export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
+export default function CrisisGuide() {
+  const { t, i18n } = useTranslation();
+  const language = i18n.language === 'th' ? 'th' : 'en';
+  const RISK_LABEL: Record<string, string> = {
+    low: t('crisis.riskLow'),
+    medium: t('crisis.riskMedium'),
+    high: t('crisis.riskHigh'),
+  };
   const [selectedScenario, setSelectedScenario] = useState<CrisisScenario | null>(null);
   const [expandedStock, setExpandedStock] = useState<string | null>(null);
   const [savedScenarios, setSavedScenarios] = useState<Set<string>>(new Set());
@@ -126,17 +126,15 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-white">
-              {language === 'th' ? 'คู่มือลงทุนช่วงวิกฤต' : 'Crisis Investment Guide'}
+              {t('crisis.title')}
             </h2>
             <p className="text-gray-400 mt-1">
-              {language === 'th'
-                ? 'แนะนำหุ้นสหรัฐฯ ที่เหมาะสมกับแต่ละสถานการณ์วิกฤต'
-                : 'Recommended US stocks for different crisis situations'}
+              {t('crisis.subtitle')}
             </p>
           </div>
           <Badge variant="outline" className="border-orange-500/50 text-orange-400 bg-orange-500/10">
             <AlertTriangle className="w-3 h-3 mr-1" />
-            {language === 'th' ? 'เพื่อการศึกษาเท่านั้น' : 'Educational Purpose Only'}
+            {t('crisis.educationalOnly')}
           </Badge>
         </div>
       </div>
@@ -145,9 +143,7 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
       <Alert className="bg-blue-500/10 border-blue-500/30 text-blue-400">
         <Info className="w-4 h-4" />
         <AlertDescription>
-          {language === 'th'
-            ? 'ข้อมูลนี้เป็นเพียงคำแนะนำเพื่อการศึกษา ไม่ใช่คำแนะนำทางการเงิน โปรดศึกษาข้อมูลเพิ่มเติมก่อนตัดสินใจลงทุน'
-            : 'This information is for educational purposes only, not financial advice. Please research before investing.'}
+          {t('crisis.disclaimer')}
         </AlertDescription>
       </Alert>
 
@@ -161,24 +157,22 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
             <div>
               <Badge variant="outline" className="border-indigo-400 text-indigo-300 bg-indigo-500/10 mb-2">
                 <Sparkles className="w-3 h-3 mr-1" />
-                {language === 'th' ? 'AI วิเคราะห์ตลาดโลกปัจจุบัน' : 'AI Global Market Analysis'}
+                {t('crisis.aiAnalysis')}
               </Badge>
               {isAnalyzing ? (
                 <CardTitle className="text-xl text-white flex items-center mt-1">
                   <Loader2 className="w-5 h-5 mr-2 animate-spin text-indigo-400" />
-                  {language === 'th' ? 'กำลังวิเคราะห์ข้อมูลเศรษฐกิจและข่าวกรอง...' : 'Analyzing economic data and intelligence...'}
+                  {t('crisis.analyzing')}
                 </CardTitle>
               ) : (
                 <CardTitle className="text-xl text-white mt-1">
-                  {language === 'th'
-                    ? `สถานการณ์โลกปัจจุบัน: ${identifiedScenario?.nameTH || 'ความตึงเครียดทางภูมิรัฐศาสตร์'}`
-                    : `Current Global Situation: ${identifiedScenario?.name || 'Geopolitical Tensions'}`}
+                  {t('crisis.currentSituation', { scenario: language === 'th' ? (identifiedScenario?.nameTH || t('crisis.defaultScenario')) : (identifiedScenario?.name || t('crisis.defaultScenario')) })}
                 </CardTitle>
               )}
             </div>
             {!isAnalyzing && (
               <div className="text-right">
-                <div className="text-sm text-indigo-200">{language === 'th' ? 'ความมั่นใจ' : 'Confidence'}</div>
+                <div className="text-sm text-indigo-200">{t('crisis.confidence')}</div>
                 <div className="text-2xl font-bold text-indigo-400">85%</div>
               </div>
             )}
@@ -194,9 +188,7 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
           ) : (
             <>
               <p className="text-indigo-100/80 mb-4 max-w-2xl">
-                {language === 'th'
-                  ? 'จากสมรรถนะของโมเดลในการวิเคราะห์ข้อมูลเศรษฐกิจ ข่าวกรอง และแนวโน้มมหภาคล่าสุด พบว่าตลาดกำลังให้ความสำคัญสูงสุดกับความเสี่ยงด้านภูมิรัฐศาสตร์ แนะนำให้ปรับพอร์ตการลงทุนสู่สินทรัพย์ปลอดภัย (Safe Havens) และธุรกิจในกลุ่มอุตสาหกรรมป้องกันประเทศ'
-                  : 'Based on our model\'s analysis of recent economic data, intelligence, and macro trends, the market is currently heavily weighting geopolitical risks. Recommended to reallocate portfolio towards safe-haven assets and defense sector stocks.'}
+                {t('crisis.aiDescription')}
               </p>
               <Button
                 className="bg-indigo-600 hover:bg-indigo-700 text-white border-0"
@@ -208,7 +200,7 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
                   const IconComp = identifiedScenario ? (ICON_MAP[identifiedScenario.icon] || Shield) : Shield;
                   return <IconComp className="w-4 h-4 mr-2" />;
                 })()}
-                {language === 'th' ? 'คลิกดูหุ้นแนะนำสำหรับสถานการณ์นี้' : 'View Recommended Stocks'}
+                {t('crisis.viewRecommended')}
               </Button>
             </>
           )}
@@ -265,7 +257,7 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
                   </p>
                   <div className="flex items-center justify-between mt-4">
                     <Badge className="bg-white/20 text-white border-0">
-                      {scenario.stocks.length} {language === 'th' ? 'หุ้นแนะนำ' : 'Stocks'}
+                      {scenario.stocks.length} {t('crisis.stocks')}
                     </Badge>
                     <ChevronRight className="w-4 h-4 text-white/60" />
                   </div>
@@ -311,7 +303,7 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
                         {language === 'th' ? selectedScenario.nameTH : selectedScenario.name}
                       </h3>
                       <p className="text-white/80 text-sm">
-                        {selectedScenario.stocks.length} {language === 'th' ? 'หุ้นแนะนำ' : 'Recommended Stocks'}
+                        {selectedScenario.stocks.length} {t('crisis.recommendedStocks')}
                       </p>
                     </div>
                   </div>
@@ -341,7 +333,7 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-white text-base flex items-center gap-2">
                       <PieChart className="w-4 h-4" />
-                      {language === 'th' ? 'การจัดพอร์ตแนะนำ' : 'Recommended Portfolio Allocation'}
+                      {t('crisis.recommendedAllocation')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -431,7 +423,7 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
                             <div className="flex items-center gap-4">
                               <div className="text-right">
                                 <div className="text-sm text-slate-400">
-                                  {language === 'th' ? 'แนะนำพอร์ต' : 'Allocation'}
+                                  {t('crisis.allocation')}
                                 </div>
                                 <div className="font-semibold text-blue-400">{stock.allocation}%</div>
                               </div>
@@ -457,13 +449,13 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>
                                       <div className="text-xs text-slate-500">
-                                        {language === 'th' ? 'ภาคธุรกิจ' : 'Sector'}
+                                        {t('crisis.sector')}
                                       </div>
                                       <div className="text-sm text-slate-300">{stock.sector}</div>
                                     </div>
                                     <div>
                                       <div className="text-xs text-slate-500">
-                                        {language === 'th' ? 'ระดับความเสี่ยง' : 'Risk Level'}
+                                        {t('crisis.riskLevel')}
                                       </div>
                                       <div className={`text-sm ${getRiskLevelColor(stock)}`}>
                                         {RISK_LABEL[stock.riskLevel]}
@@ -472,7 +464,7 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
                                   </div>
                                   <div>
                                     <div className="text-xs text-slate-500 mb-1">
-                                      {language === 'th' ? 'เหตุผลที่แนะนำ' : 'Why Recommended'}
+                                      {t('crisis.whyRecommended')}
                                     </div>
                                     <div className="text-sm text-slate-300 bg-slate-900/50 rounded-lg p-3">
                                       {language === 'th' ? stock.reasonTH : stock.reason}
@@ -483,7 +475,7 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
                                     onClick={() => window.open(`https://finance.yahoo.com/quote/${stock.symbol}`, '_blank')}
                                   >
                                     <ExternalLink className="w-4 h-4 mr-2" />
-                                    {language === 'th' ? 'ดูข้อมูลเพิ่มเติมบน Yahoo Finance' : 'View on Yahoo Finance'}
+                                    {t('crisis.viewOnYahoo')}
                                   </Button>
                                 </div>
                               </motion.div>
@@ -499,9 +491,7 @@ export default function CrisisGuide({ language = 'th' }: CrisisGuideProps) {
                 <Alert className="bg-red-500/10 border-red-500/30 text-red-400">
                   <AlertTriangle className="w-4 h-4" />
                   <AlertDescription>
-                    {language === 'th'
-                      ? 'การลงทุนมีความเสี่ยง ผู้ลงทุนควรศึกษาข้อมูลก่อนตัดสินใจ ผลตอบแทนในอดีตไม่ได้การันตีผลตอบแทนในอนาคต'
-                      : 'Investing involves risks. Past performance does not guarantee future results. Please do your own research.'}
+                    {t('crisis.riskWarning')}
                   </AlertDescription>
                 </Alert>
               </div>
