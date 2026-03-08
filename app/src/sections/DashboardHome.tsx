@@ -1,24 +1,17 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   TrendingUp,
+  TrendingDown,
   Activity,
-  Bell,
   RefreshCw,
   Plus,
-  Building2,
   Droplet,
   Shield,
-  Loader2,
-  Globe,
   Eye,
-  Zap,
   ChevronRight,
-  LayoutGrid,
-  History,
-  Info,
+  Terminal,
+  Radio,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -27,7 +20,6 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
 } from 'recharts';
 import { usePortfolio, usePrice, useData, useSettings } from '@/context/hooks';
 import { Button } from '@/components/ui/button';
@@ -43,11 +35,11 @@ import {
 } from '@/services/realDataService';
 import { type CryptoPrice } from '@/services/binance';
 import { MacroDefconRadar } from '@/components/sections/MacroDefconRadar';
-import { 
-  LivePriceWidget, 
-  SentimentWidget, 
-  RiskFactorRow, 
-  WhaleAlertItem 
+import {
+  LivePriceWidget,
+  SentimentWidget,
+  RiskFactorRow,
+  WhaleAlertItem
 } from './DashboardWidgets';
 import type { MacroConditions } from '@/lib/macroRisk';
 import { formatCurrency } from '@/lib/utils';
@@ -74,14 +66,6 @@ const EMPTY_DASHBOARD_HEALTH: DashboardDataHealth = {
   fetchedAt: null,
 };
 
-function formatFeedAge(ageSeconds: number | null): string {
-  if (ageSeconds === null) return '—';
-  if (ageSeconds < 5) return 'just now';
-  if (ageSeconds < 60) return `${ageSeconds}s`;
-  const minutes = Math.floor(ageSeconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  return `${(minutes / 60).toFixed(1)}h`;
-}
 
 function getDayKey(timestamp: number): string {
   const date = new Date(timestamp);
@@ -117,17 +101,12 @@ function upsertPortfolioHistory(history: PortfolioHistoryPoint[], value: number,
 }
 
 function DashboardHome() {
-  const { t } = useTranslation();
   const { settings } = useSettings();
   const { portfolio, setIsDepositOpen } = usePortfolio();
   const {
     allPrices,
-    lastUpdate: lastPriceUpdate,
     refreshPrices,
-    isWebSocketConnected,
-    connectionState,
     latencyMs,
-    lastUpdateAgeSeconds,
     convert
   } = usePrice();
   const { state: dataState } = useData();
@@ -137,7 +116,7 @@ function DashboardHome() {
   // State
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([]);
   const [commodities, setCommodities] = useState<CommodityPrice[]>([]);
-  const [stockData, setStockData] = useState<{ symbol: string; price: number; change: number }[]>([]);
+  const [, setStockData] = useState<{ symbol: string; price: number; change: number }[]>([]);
   const [whaleActivity, setWhaleActivity] = useState<WhaleTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -303,9 +282,9 @@ function DashboardHome() {
           <div className="space-y-2">
             <h2 className="text-xl font-black dark:text-white uppercase tracking-[0.2em] italic">Initializing APEX</h2>
             <div className="flex items-center justify-center gap-2">
-               <div className="w-1 h-1 bg-[#f59e0b] rounded-full animate-bounce" />
-               <div className="w-1 h-1 bg-[#f59e0b] rounded-full animate-bounce [animation-delay:0.2s]" />
-               <div className="w-1 h-1 bg-[#f59e0b] rounded-full animate-bounce [animation-delay:0.4s]" />
+              <div className="w-1 h-1 bg-[#f59e0b] rounded-full animate-bounce" />
+              <div className="w-1 h-1 bg-[#f59e0b] rounded-full animate-bounce [animation-delay:0.2s]" />
+              <div className="w-1 h-1 bg-[#f59e0b] rounded-full animate-bounce [animation-delay:0.4s]" />
             </div>
           </div>
         </div>
@@ -315,90 +294,90 @@ function DashboardHome() {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6 pb-20">
-      
+
       {/* ─── APEX HEADER ─── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-200 dark:border-slate-800 pb-6">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-             <div className="p-2 bg-slate-900 rounded-lg border border-slate-800"><Terminal size={20} className="text-[#f59e0b]" /></div>
-             <h1 className="text-2xl font-black dark:text-white tracking-widest uppercase italic">
-               TERMINAL <span className="text-[#f59e0b]">OPS CENTER</span>
-             </h1>
+            <div className="p-2 bg-slate-900 rounded-lg border border-slate-800"><Terminal size={20} className="text-[#f59e0b]" /></div>
+            <h1 className="text-2xl font-black dark:text-white tracking-widest uppercase italic">
+              TERMINAL <span className="text-[#f59e0b]">OPS CENTER</span>
+            </h1>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/5 border border-emerald-500/20 rounded-full">
-               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-               <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Live Engine</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Live Engine</span>
             </div>
             <div className="flex items-center gap-2">
-               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Feed:</span>
-               <span className="text-[10px] font-black dark:text-slate-300 uppercase tracking-widest">v{dashboardHealth.successSources}.{latencyMs}ms</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Feed:</span>
+              <span className="text-[10px] font-black dark:text-slate-300 uppercase tracking-widest">v{dashboardHealth.successSources}.{latencyMs}ms</span>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-900/50 p-2 rounded-2xl border border-slate-200 dark:border-slate-800">
-           <div className="px-4 py-2">
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">System Time</p>
-              <p className="text-sm font-black dark:text-white font-mono tabular-nums">{new Date().toLocaleTimeString([], { hour12: false })}</p>
-           </div>
-           <div className="w-px h-8 bg-slate-200 dark:bg-slate-800" />
-           <div className="flex items-center gap-2 px-2">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={handleRefresh}
-                className="h-10 w-10 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800"
-              >
-                <RefreshCw size={18} className={refreshing ? 'animate-spin text-[#f59e0b]' : 'text-slate-500'} />
-              </Button>
-              <Button 
-                onClick={() => setIsDepositOpen(true)}
-                className="h-10 rounded-xl bg-[#f59e0b] hover:bg-[#d97706] text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-[#f59e0b]/20"
-              >
-                <Plus size={16} className="mr-2" />
-                New Entry
-              </Button>
-           </div>
+          <div className="px-4 py-2">
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">System Time</p>
+            <p className="text-sm font-black dark:text-white font-mono tabular-nums">{new Date().toLocaleTimeString([], { hour12: false })}</p>
+          </div>
+          <div className="w-px h-8 bg-slate-200 dark:bg-slate-800" />
+          <div className="flex items-center gap-2 px-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              className="h-10 w-10 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800"
+            >
+              <RefreshCw size={18} className={refreshing ? 'animate-spin text-[#f59e0b]' : 'text-slate-500'} />
+            </Button>
+            <Button
+              onClick={() => setIsDepositOpen(true)}
+              className="h-10 rounded-xl bg-[#f59e0b] hover:bg-[#d97706] text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-[#f59e0b]/20"
+            >
+              <Plus size={16} className="mr-2" />
+              New Entry
+            </Button>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        
+
         {/* ─── LEFT: INTELLIGENCE (3/12) ─── */}
         <div className="xl:col-span-3 space-y-6">
-          <SentimentWidget 
-            value={fearGreedIndex?.value || 50} 
-            label={fearGreedIndex?.classification || 'Neutral'} 
+          <SentimentWidget
+            value={fearGreedIndex?.value || 50}
+            label={fearGreedIndex?.classification || 'Neutral'}
             updatedAt={fearGreedIndex?.updatedAt || new Date()}
           />
 
           <div className="bg-white dark:bg-[#09090b] rounded-[2rem] p-6 shadow-xl border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between mb-6">
-               <h3 className="text-xs font-black dark:text-white uppercase tracking-widest italic flex items-center gap-2">
-                 <Radio size={14} className="text-[#f59e0b]" /> Market Stream
-               </h3>
-               <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-ping" />
+              <h3 className="text-xs font-black dark:text-white uppercase tracking-widest italic flex items-center gap-2">
+                <Radio size={14} className="text-[#f59e0b]" /> Market Stream
+              </h3>
+              <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-ping" />
             </div>
             <div className="space-y-1">
               {cryptoPrices.slice(0, 4).map(c => (
-                <LivePriceWidget 
-                  key={c.symbol} 
-                  symbol={c.symbol} 
-                  formattedPrice={formatCurrency(convert(c.price, userCurrency), userCurrency)} 
-                  change={c.change24hPercent} 
-                  isFlashing={!!priceFlash[c.symbol]} 
+                <LivePriceWidget
+                  key={c.symbol}
+                  symbol={c.symbol}
+                  formattedPrice={formatCurrency(convert(c.price, userCurrency), userCurrency)}
+                  change={c.change24hPercent}
+                  isFlashing={!!priceFlash[c.symbol]}
                 />
               ))}
               <div className="my-4 border-t border-dashed border-slate-200 dark:border-slate-800" />
               {commodities.slice(0, 2).map(c => (
-                <LivePriceWidget 
-                  key={c.symbol} 
-                  symbol={c.name.split(' ')[0].toUpperCase()} 
-                  formattedPrice={formatCurrency(convert(c.price, userCurrency), userCurrency)} 
-                  change={c.change24hPercent} 
-                  isFlashing={false} 
-                  icon={c.name.includes('Gold') ? TrendingUp : Droplet} 
+                <LivePriceWidget
+                  key={c.symbol}
+                  symbol={c.name.split(' ')[0].toUpperCase()}
+                  formattedPrice={formatCurrency(convert(c.price, userCurrency), userCurrency)}
+                  change={c.change24hPercent}
+                  isFlashing={false}
+                  icon={c.name.includes('Gold') ? TrendingUp : Droplet}
                 />
               ))}
             </div>
@@ -407,12 +386,12 @@ function DashboardHome() {
 
         {/* ─── CENTER: CAPITAL HUB (6/12) ─── */}
         <div className="xl:col-span-6 space-y-6">
-          
+
           {/* APEX HERO CARD */}
           <div className="relative overflow-hidden rounded-[3rem] bg-black p-10 text-white shadow-2xl border border-slate-800">
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#f59e0b]/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
             <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2" />
-            
+
             <div className="relative">
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
                 <div>
@@ -424,9 +403,8 @@ function DashboardHome() {
                     <h2 className="text-6xl font-black tracking-tighter tabular-nums">
                       {formatCurrency(convert(portfolio.totalValue, userCurrency), userCurrency, { minimumFractionDigits: 0 })}
                     </h2>
-                    <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black ${
-                      portfolio.totalChange24hPercent >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
-                    }`}>
+                    <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black ${portfolio.totalChange24hPercent >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
+                      }`}>
                       {portfolio.totalChange24hPercent >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                       {Math.abs(portfolio.totalChange24hPercent).toFixed(2)}%
                     </div>
@@ -455,7 +433,7 @@ function DashboardHome() {
                       </defs>
                       <XAxis dataKey="date" hide />
                       <YAxis hide domain={['dataMin * 0.98', 'dataMax * 1.02']} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: '#000', border: '1px solid #1e293b', borderRadius: '16px', fontSize: '12px' }}
                         itemStyle={{ color: '#f59e0b', fontWeight: 'bold' }}
                       />
@@ -471,30 +449,30 @@ function DashboardHome() {
               </div>
 
               <div className="grid grid-cols-3 gap-6 mt-10 pt-8 border-t border-slate-800/50">
-                 <div className="space-y-1">
-                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Growth</p>
-                    <p className="text-lg font-black text-white">+{portfolio.totalProfitLossPercent.toFixed(1)}%</p>
-                 </div>
-                 <div className="space-y-1">
-                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Volatility</p>
-                    <p className="text-lg font-black text-[#f59e0b]">LOW-V</p>
-                 </div>
-                 <div className="space-y-1 text-right">
-                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">System Health</p>
-                    <p className="text-lg font-black text-emerald-500">98.2%</p>
-                 </div>
+                <div className="space-y-1">
+                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Growth</p>
+                  <p className="text-lg font-black text-white">+{portfolio.totalProfitLossPercent.toFixed(1)}%</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Volatility</p>
+                  <p className="text-lg font-black text-[#f59e0b]">LOW-V</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">System Health</p>
+                  <p className="text-lg font-black text-emerald-500">98.2%</p>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <MacroDefconRadar conditions={macroConditions} className="md:col-span-2" />
+            <MacroDefconRadar conditions={macroConditions} className="md:col-span-2" />
           </div>
         </div>
 
         {/* ─── RIGHT: OPS MONITOR (3/12) ─── */}
         <div className="xl:col-span-3 space-y-6">
-          
+
           <div className="bg-white dark:bg-[#09090b] rounded-[2rem] p-6 shadow-xl border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shadow-lg">
@@ -518,26 +496,26 @@ function DashboardHome() {
 
           <div className="bg-white dark:bg-[#09090b] rounded-[2rem] p-6 shadow-xl border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between mb-6">
-               <h3 className="text-xs font-black dark:text-white uppercase tracking-widest italic flex items-center gap-2">
-                 <Eye size={14} className="text-[#f59e0b]" /> Smart Money
-               </h3>
-               <Badge variant="outline" className="text-[9px] border-slate-200 dark:border-slate-800">LIVE</Badge>
+              <h3 className="text-xs font-black dark:text-white uppercase tracking-widest italic flex items-center gap-2">
+                <Eye size={14} className="text-[#f59e0b]" /> Smart Money
+              </h3>
+              <Badge variant="outline" className="text-[9px] border-slate-200 dark:border-slate-800">LIVE</Badge>
             </div>
             <div className="space-y-1">
               {whaleActivity.length > 0 ? (
                 whaleActivity.slice(0, 5).map(activity => (
-                  <WhaleAlertItem 
-                    key={activity.id} 
-                    activity={activity} 
-                    buyLabel="ACCUMULATING" 
-                    sellLabel="DISTRIBUTING" 
+                  <WhaleAlertItem
+                    key={activity.id}
+                    activity={activity}
+                    buyLabel="ACCUMULATING"
+                    sellLabel="DISTRIBUTING"
                   />
                 ))
               ) : (
                 <div className="text-center py-10 opacity-20"><Eye size={32} className="mx-auto" /></div>
               )}
             </div>
-            <Button variant="ghost" className="w-full mt-4 text-[9px] font-black uppercase tracking-widest text-[#f59e0b] hover:bg-[#f59e0b]/10" onClick={() => window.location.href='/whalevault'}>
+            <Button variant="ghost" className="w-full mt-4 text-[9px] font-black uppercase tracking-widest text-[#f59e0b] hover:bg-[#f59e0b]/10" onClick={() => window.location.href = '/whalevault'}>
               Access Whale Vault <ChevronRight size={12} className="ml-1" />
             </Button>
           </div>

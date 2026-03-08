@@ -24,7 +24,6 @@ import {
   Mic,
   PieChart,
   TrendingUp,
-  Zap,
   Droplet,
   Bitcoin,
   HelpCircle,
