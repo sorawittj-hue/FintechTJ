@@ -4,7 +4,11 @@ import {
   TrendingUp, 
   TrendingDown, 
   Flame,
-  Target
+  Target,
+  Zap,
+  Activity,
+  ShieldAlert,
+  Fingerprint
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -16,33 +20,36 @@ export const LivePriceWidget = memo(function LivePriceWidget({
 }) {
   const isUp = change >= 0;
   return (
-    <div className={`group flex items-center justify-between p-3 rounded-2xl transition-all duration-300 ${
+    <div className={`group flex items-center justify-between p-2.5 rounded-xl transition-all duration-300 border ${
       isFlashing 
-        ? isUp ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'
-        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border-transparent'
-    } border`}>
+        ? isUp ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-rose-500/10 border-rose-500/30'
+        : 'bg-transparent border-transparent hover:border-slate-200 dark:hover:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40'
+    }`}>
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-transform group-hover:scale-110 ${
-          symbol.includes('BTC') ? 'bg-orange-500/10 text-orange-500' :
-          symbol.includes('ETH') ? 'bg-blue-500/10 text-blue-500' :
-          symbol.includes('SOL') ? 'bg-purple-500/10 text-purple-500' :
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black transition-transform group-hover:scale-105 ${
+          symbol.includes('BTC') ? 'bg-orange-500/20 text-orange-500' :
+          symbol.includes('ETH') ? 'bg-blue-500/20 text-blue-500' :
+          symbol.includes('SOL') ? 'bg-purple-500/20 text-purple-500' :
           'bg-slate-100 dark:bg-slate-800 text-slate-500'
         }`}>
-          {Icon ? <Icon size={18} /> : symbol.slice(0, 2)}
+          {Icon ? <Icon size={14} /> : symbol.slice(0, 3)}
         </div>
         <div>
-          <p className="text-sm font-bold dark:text-white">{symbol}</p>
-          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Market Price</p>
+          <p className="text-xs font-black dark:text-white tracking-tight">{symbol}</p>
+          <div className="flex items-center gap-1">
+             <Activity size={8} className="text-slate-500" />
+             <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Real-time</p>
+          </div>
         </div>
       </div>
       <div className="text-right">
-        <p className={`text-sm font-black tabular-nums transition-colors ${
+        <p className={`text-xs font-black tabular-nums transition-colors ${
           isFlashing ? (isUp ? 'text-emerald-500' : 'text-rose-500') : 'dark:text-white'
         }`}>
           {formattedPrice}
         </p>
-        <div className={`flex items-center justify-end gap-1 text-[10px] font-bold ${isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
-          {isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+        <div className={`flex items-center justify-end gap-1 text-[9px] font-black ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+          {isUp ? <TrendingUp size={8} /> : <TrendingDown size={8} />}
           {Math.abs(change).toFixed(2)}%
         </div>
       </div>
@@ -67,49 +74,66 @@ export const SentimentWidget = memo(function SentimentWidget({ value, label, upd
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-orange-500/10 rounded-lg text-orange-500">
-            <Flame size={16} />
+    <div className="bg-white dark:bg-[#09090b] rounded-[2rem] p-6 shadow-xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+        <Activity size={80} />
+      </div>
+
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+            <Zap size={20} />
           </div>
-          <span className="text-sm font-bold dark:text-white">Market Sentiment</span>
+          <div>
+             <h3 className="text-xs font-black dark:text-white uppercase tracking-widest italic">Market Pulse</h3>
+             <p className="text-[9px] text-slate-500 font-bold uppercase">Intelligence Score</p>
+          </div>
         </div>
-        <Badge variant="outline" className={`border-none bg-slate-100 dark:bg-slate-800 ${getStatusColor(value)}`}>
+        <Badge className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-none ${
+           value >= 55 ? 'bg-emerald-500/10 text-emerald-500' : 
+           value <= 45 ? 'bg-rose-500/10 text-rose-500' : 'bg-amber-500/10 text-amber-500'
+        }`}>
           {label}
         </Badge>
       </div>
 
-      <div className="relative pt-2">
-        <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-2">
-          <span>Extreme Fear</span>
-          <span>Neutral</span>
-          <span>Extreme Greed</span>
+      <div className="relative flex flex-col items-center">
+        {/* Simple Horizontal Gauge for Terminal Look */}
+        <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full flex overflow-hidden">
+           <div className="h-full bg-rose-500" style={{ width: '25%' }} />
+           <div className="h-full bg-orange-500" style={{ width: '25%' }} />
+           <div className="h-full bg-yellow-500" style={{ width: '10%' }} />
+           <div className="h-full bg-lime-500" style={{ width: '15%' }} />
+           <div className="h-full bg-emerald-500" style={{ width: '25%' }} />
         </div>
-        <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
-          <div className="h-full bg-rose-500" style={{ width: '25%' }} />
-          <div className="h-full bg-orange-500" style={{ width: '20%' }} />
-          <div className="h-full bg-yellow-500" style={{ width: '10%' }} />
-          <div className="h-full bg-lime-500" style={{ width: '20%' }} />
-          <div className="h-full bg-emerald-500" style={{ width: '25%' }} />
-        </div>
+        
         {/* Pointer */}
         <motion.div 
-          className="absolute top-[26px] w-1 h-4 bg-slate-900 dark:bg-white rounded-full shadow-lg"
+          className="absolute -top-1 w-1 h-3.5 bg-black dark:bg-white rounded-full shadow-lg ring-4 ring-white/20 dark:ring-black/20"
           initial={{ left: '50%' }}
           animate={{ left: `${value}%` }}
-          transition={{ type: 'spring', damping: 15 }}
+          transition={{ type: 'spring', damping: 20 }}
         />
+
+        <div className="flex justify-between w-full mt-2 text-[8px] font-black text-slate-400 uppercase tracking-tighter">
+          <span>EXTREME FEAR</span>
+          <span>NEUTRAL</span>
+          <span>EXTREME GREED</span>
+        </div>
       </div>
 
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between mt-8">
         <div>
-          <span className="text-4xl font-black dark:text-white">{value}</span>
-          <span className="text-xs text-slate-400 font-bold ml-1">/ 100</span>
+          <span className={`text-5xl font-black tabular-nums ${getStatusColor(value)}`}>{value}</span>
+          <span className="text-xs text-slate-500 font-bold ml-2">/ 100</span>
         </div>
-        <p className="text-[10px] text-slate-500 text-right">
-          Updated: {new Date(updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
+        <div className="text-right">
+          <p className="text-[8px] text-slate-500 font-bold uppercase">Last Computation</p>
+          <p className="text-[10px] text-slate-400 font-black">
+            {new Date(updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -124,7 +148,7 @@ interface RiskFactorProps {
 }
 
 export const RiskFactorRow = memo(function RiskFactorRow({ name, value, label, status }: RiskFactorProps) {
-  const getStatusColor = (s: string) => {
+  const getStatusClasses = (s: string) => {
     switch (s) {
       case 'low': case 'good': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
       case 'medium': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
@@ -133,17 +157,19 @@ export const RiskFactorRow = memo(function RiskFactorRow({ name, value, label, s
   };
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 hover:border-slate-200 transition-colors">
+    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/40 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 transition-colors group">
       <div className="flex items-center gap-3">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${status === 'low' || status === 'good' ? 'text-emerald-500' : 'text-amber-500'}`}>
-          <Target size={16} />
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${
+          status === 'low' || status === 'good' ? 'text-emerald-500 bg-emerald-500/5' : 'text-amber-500 bg-amber-500/5'
+        }`}>
+          <ShieldAlert size={14} />
         </div>
         <div>
-          <p className="text-xs font-bold dark:text-white">{name}</p>
-          <p className="text-[10px] text-slate-500 font-medium">{typeof value === 'number' ? value.toFixed(2) : value}</p>
+          <p className="text-[10px] font-black dark:text-white uppercase tracking-tight">{name}</p>
+          <p className="text-[9px] text-slate-500 font-bold tabular-nums">VAL: {typeof value === 'number' ? value.toFixed(3) : value}</p>
         </div>
       </div>
-      <Badge className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 border ${getStatusColor(status)}`}>
+      <Badge className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 border ${getStatusClasses(status)}`}>
         {label}
       </Badge>
     </div>
@@ -166,30 +192,36 @@ interface WhaleAlertProps {
 export const WhaleAlertItem = memo(function WhaleAlertItem({ activity, buyLabel, sellLabel }: WhaleAlertProps) {
   const isBuy = activity.type === 'buy';
   return (
-    <div className="group flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all border border-transparent hover:border-slate-100 dark:hover:border-slate-800">
+    <div className="group flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-800">
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-white shadow-lg ${
-          isBuy ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-rose-500 shadow-rose-500/20'
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-black text-white text-xs shadow-md ${
+          isBuy ? 'bg-emerald-600 shadow-emerald-600/20' : 'bg-rose-600 shadow-rose-600/20'
         }`}>
-          {activity.asset[0]}
+          {activity.asset.slice(0, 1)}
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-sm font-bold dark:text-white">{activity.asset}</p>
-            <Badge variant="outline" className="text-[9px] h-4 px-1 border-slate-200 text-slate-400">WHALE</Badge>
+            <p className="text-xs font-black dark:text-white">{activity.asset}</p>
+            <div className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+            <p className="text-[9px] text-slate-500 font-black">TX-{activity.id.slice(-4).toUpperCase()}</p>
           </div>
-          <p className="text-[10px] text-slate-500 font-medium">
-            {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Blockchain Sync
-          </p>
+          <div className="flex items-center gap-1.5">
+             <Fingerprint size={10} className="text-slate-400" />
+             <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+                {new Date(activity.timestamp).toLocaleTimeString([], { hour12: false })} • SYNC_OK
+             </p>
+          </div>
         </div>
       </div>
       <div className="text-right">
-        <p className={`text-sm font-black tabular-nums ${isBuy ? 'text-emerald-500' : 'text-rose-500'}`}>
+        <p className={`text-xs font-black tabular-nums ${isBuy ? 'text-emerald-500' : 'text-rose-500'}`}>
           {isBuy ? '+' : '-'}${(activity.valueUSD / 1e6).toFixed(1)}M
         </p>
-        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+        <Badge className={`text-[8px] font-black uppercase tracking-[0.2em] px-1.5 py-0 border-none ${
+          isBuy ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
+        }`}>
           {isBuy ? buyLabel : sellLabel}
-        </p>
+        </Badge>
       </div>
     </div>
   );
