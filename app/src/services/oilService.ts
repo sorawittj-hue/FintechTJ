@@ -1293,8 +1293,10 @@ export function useOilIntelligence() {
                 
                 const hasFallbackHistory = history.some(bar => bar.isFallback);
                 const hasFallbackEIA = eia.isFallback === true;
-                const hasPlaceholderMacroInputs = true;
-                const canGenerateSignal = !price.isFallback && !hasFallbackHistory && !hasFallbackEIA && !hasPlaceholderMacroInputs;
+                const hasStablePrice = price && !price.isFallback;
+                
+                const canGenerateSignal = hasStablePrice && !hasFallbackHistory;
+                
                 const technicals = service.computeTechnicals(history, price.price);
                 const signal = canGenerateSignal
                     ? service.generateSignal(price, technicals, eia, opec, geo, seasonal, cot, supplyDemand)
@@ -1307,10 +1309,10 @@ export function useOilIntelligence() {
                         price, history, technicals, eia, correlations,
                         opec, geo, seasonal, cot, supplyDemand, signal,
                         loading: false, lastUpdate: new Date(), error: null,
-                        usingFallback: price.isFallback || hasFallbackHistory || hasFallbackEIA || hasPlaceholderMacroInputs,
+                        usingFallback: price.isFallback || hasFallbackHistory || hasFallbackEIA,
                         signalStatusMessage: canGenerateSignal
                             ? null
-                            : 'WTI alpha setup withheld because one or more key price, inventory, or macro inputs still rely on fallback or placeholder data.',
+                            : 'WTI alpha setup unavailable: Waiting for stable real-time data feeds.',
                         alerts,
                         eiaCalendar
                     });

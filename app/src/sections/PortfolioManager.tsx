@@ -26,8 +26,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePortfolio } from '@/context/hooks';
+import { usePortfolio, useSettings, usePrice } from '@/context/hooks';
 import { AddAssetDialog, WithdrawAssetDialog } from '@/components/dialogs';
+import { formatCurrency } from '@/lib/utils';
 
 const COLORS = ['#ee7d54', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'];
 
@@ -61,12 +62,16 @@ const getTransactionBadgeClass = (type: string) => {
 
 export function PortfolioManager() {
   const { t } = useTranslation();
+  const { settings } = useSettings();
+  const { convert } = usePrice();
   const {
     portfolio,
     assets,
     transactions,
     removeAsset
   } = usePortfolio();
+
+  const userCurrency = settings.currency || 'USD';
 
   const getTransactionLabel = (type: string) => {
     switch (type) {
@@ -112,13 +117,6 @@ export function PortfolioManager() {
 
     return Object.entries(byType).map(([name, value]) => ({ name, value }));
   }, [assetMetrics]);
-
-  // Sector/Category Data (simplified without sector field)
-  const sectorData = useMemo(() => {
-    return [...allocationData]
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
-  }, [allocationData]);
 
   // Top Performers
   const topPerformers = useMemo(() => {
@@ -171,10 +169,10 @@ export function PortfolioManager() {
           <CardContent className="p-4">
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('portfolio.totalValue')}</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">
-              ${portfolio.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(convert(portfolio.totalValue, userCurrency), userCurrency)}
             </p>
             <p className={`text-xs ${portfolio.totalChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {portfolio.totalChange24h >= 0 ? '+' : ''}${portfolio.totalChange24h.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {portfolio.totalChange24h >= 0 ? '+' : ''}{formatCurrency(convert(portfolio.totalChange24h, userCurrency), userCurrency)}
             </p>
           </CardContent>
         </Card>
@@ -183,7 +181,7 @@ export function PortfolioManager() {
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('portfolio.totalProfitLoss')}</p>
             <p className={`text-xl font-bold ${portfolio.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {portfolio.totalProfitLoss >= 0 ? '+' : ''}
-              ${portfolio.totalProfitLoss.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(convert(portfolio.totalProfitLoss, userCurrency), userCurrency)}
             </p>
             <p className={`text-xs ${portfolio.totalProfitLossPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
               {portfolio.totalProfitLossPercent >= 0 ? '+' : ''}{portfolio.totalProfitLossPercent.toFixed(2)}%
@@ -244,7 +242,7 @@ export function PortfolioManager() {
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+                          <Tooltip formatter={(v: number) => formatCurrency(convert(v, userCurrency), userCurrency)} />
                         </RePieChart>
                       </ResponsiveContainer>
                     </div>
@@ -259,7 +257,7 @@ export function PortfolioManager() {
                           <span className="font-medium">
                             {portfolio.totalValue > 0 ? ((item.value / portfolio.totalValue) * 100).toFixed(1) : 0}%
                           </span>
-                          <span className="text-xs text-gray-400">(${item.value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})</span>
+                          <span className="text-xs text-gray-400">({formatCurrency(convert(item.value, userCurrency), userCurrency, { compact: true })})</span>
                         </div>
                       ))}
                     </div>
@@ -291,7 +289,7 @@ export function PortfolioManager() {
               <CardContent>
                 <div className="space-y-3">
                   {hasAssets ? topPerformers.map((asset) => (
-                    <div key={asset.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                    <div key={asset.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white text-xs font-bold">
                           {asset.symbol[0]}
@@ -308,7 +306,7 @@ export function PortfolioManager() {
                         <p className={`font-medium text-sm ${asset.pnlPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {asset.pnlPercent >= 0 ? '+' : ''}{asset.pnlPercent.toFixed(2)}%
                         </p>
-                        <p className="text-xs text-gray-500">${asset.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-xs text-gray-500">{formatCurrency(convert(asset.currentValue, userCurrency), userCurrency)}</p>
                       </div>
                     </div>
                   )) : (
@@ -332,18 +330,18 @@ export function PortfolioManager() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-gray-100">
+                      <tr className="border-b border-gray-100 dark:border-gray-800">
                         <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.asset')}</th>
                         <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.price')}</th>
                         <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.quantity')}</th>
                         <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.value')}</th>
-                        <th className="text-center py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.manage')}</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.totalPnL')}</th>
                         <th className="text-center py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.manage')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredAssets.map((asset) => (
-                        <tr key={asset.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                        <tr key={asset.id} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#ee7d54] to-[#f59e0b] flex items-center justify-center text-white text-sm font-bold">
@@ -356,7 +354,7 @@ export function PortfolioManager() {
                             </div>
                           </td>
                           <td className="text-right py-3 px-4">
-                            <p className="font-medium">${asset.currentPrice.toLocaleString()}</p>
+                            <p className="font-medium">{formatCurrency(convert(asset.currentPrice, userCurrency), userCurrency)}</p>
                             <p className={`text-xs ${asset.change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                               {asset.change24h >= 0 ? '+' : ''}{asset.change24h.toFixed(2)}%
                             </p>
@@ -365,14 +363,14 @@ export function PortfolioManager() {
                             <p className="font-medium">{asset.quantity}</p>
                           </td>
                           <td className="text-right py-3 px-4">
-                            <p className="font-medium">${asset.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                            <p className="font-medium">{formatCurrency(convert(asset.currentValue, userCurrency), userCurrency)}</p>
                             <p className="text-xs text-gray-400">
                               {asset.portfolioWeight.toFixed(1)}% {t('portfolio.ofPortfolio')}
                             </p>
                           </td>
                           <td className="text-right py-3 px-4">
                             <p className={`font-medium ${asset.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {asset.pnl >= 0 ? '+' : ''}${asset.pnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              {asset.pnl >= 0 ? '+' : ''}{formatCurrency(convert(asset.pnl, userCurrency), userCurrency)}
                             </p>
                             <p className={`text-xs ${asset.pnlPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                               {asset.pnlPercent >= 0 ? '+' : ''}{asset.pnlPercent.toFixed(2)}%
@@ -382,7 +380,7 @@ export function PortfolioManager() {
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => setWithdrawAssetId(asset.id)}
-                                className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600"
                                 title={t('portfolio.withdrawSell')}
                               >
                                 <Minus size={14} />
@@ -392,7 +390,7 @@ export function PortfolioManager() {
                                   removeAsset(asset.id);
                                   toast.success(t('portfolio.assetRemoved', { symbol: asset.symbol }));
                                 }}
-                                className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600"
+                                className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-600"
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -410,7 +408,7 @@ export function PortfolioManager() {
                   <p className="text-sm mt-1 mb-4">{t('portfolio.startTracking')}</p>
                   <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] hover:opacity-90">
                     <Plus size={16} className="mr-2" />
-                    เพิ่มสินทรัพย์แรก
+                    {t('portfolio.addFirstAssetButton')}
                   </Button>
                 </div>
               )}
@@ -424,25 +422,25 @@ export function PortfolioManager() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>{t('portfolio.allocationBySector')}</CardTitle>
+                <CardTitle>{t('portfolio.allocationByType')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <RePieChart>
                       <Pie
-                        data={sectorData}
+                        data={allocationData}
                         cx="50%"
                         cy="50%"
                         outerRadius={80}
                         dataKey="value"
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       >
-                        {sectorData.map((_, index) => (
+                        {allocationData.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(v: number) => `฿${v.toLocaleString()}`} />
+                      <Tooltip formatter={(v: number) => formatCurrency(convert(v, userCurrency), userCurrency)} />
                     </RePieChart>
                   </ResponsiveContainer>
                 </div>
@@ -457,12 +455,12 @@ export function PortfolioManager() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 rounded-xl bg-green-50 border border-green-100">
+                <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30">
                   <div className="flex items-center gap-2 mb-2">
                     <Shield className="text-green-500" size={18} />
-                    <span className="font-medium text-green-700">{t('portfolio.portfolioWellDiversified')}</span>
+                    <span className="font-medium text-green-700 dark:text-green-400">{t('portfolio.portfolioWellDiversified')}</span>
                   </div>
-                  <p className="text-sm text-green-600">
+                  <p className="text-sm text-green-600 dark:text-green-500/80">
                     {t('portfolio.diversifiedDescription')}
                   </p>
                 </div>
@@ -476,7 +474,7 @@ export function PortfolioManager() {
                           {portfolio.totalValue > 0 ? ((item.value / portfolio.totalValue) * 100).toFixed(1) : 0}%
                         </span>
                       </div>
-                      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                      <div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: portfolio.totalValue > 0 ? `${(item.value / portfolio.totalValue) * 100}%` : '0%' }}
@@ -499,7 +497,7 @@ export function PortfolioManager() {
                 <p className="text-sm mt-1 mb-4">{t('portfolio.addMultipleAssets')}</p>
                 <Button onClick={() => setShowAddDialog(true)} className="bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] hover:opacity-90">
                   <Plus size={16} className="mr-2" />
-                  เพิ่มสินทรัพย์
+                  {t('portfolio.addAsset')}
                 </Button>
               </CardContent>
             </Card>
@@ -514,7 +512,7 @@ export function PortfolioManager() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-gray-100">
+                      <tr className="border-b border-gray-100 dark:border-gray-800">
                         <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.date')}</th>
                         <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.asset')}</th>
                         <th className="text-left py-3 px-4 text-xs font-medium text-gray-500">{t('portfolio.type')}</th>
@@ -525,9 +523,9 @@ export function PortfolioManager() {
                     </thead>
                     <tbody>
                       {visibleTransactions.map((tx) => (
-                        <tr key={tx.id} className="border-b border-gray-50">
+                        <tr key={tx.id} className="border-b border-gray-50 dark:border-gray-800">
                           <td className="py-3 px-4 text-sm text-gray-500">
-                            {new Date(tx.timestamp).toLocaleDateString('th-TH')}
+                            {new Date(tx.timestamp).toLocaleDateString()}
                           </td>
                           <td className="py-3 px-4 font-medium">{tx.symbol}</td>
                           <td className="py-3 px-4">
@@ -536,9 +534,9 @@ export function PortfolioManager() {
                             </Badge>
                           </td>
                           <td className="text-right py-3 px-4">{tx.quantity}</td>
-                          <td className="text-right py-3 px-4">${(tx.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                          <td className="text-right py-3 px-4">{formatCurrency(convert(tx.price || 0, userCurrency), userCurrency)}</td>
                           <td className="text-right py-3 px-4 font-medium">
-                            ${((tx.quantity || 0) * (tx.price || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            {formatCurrency(convert((tx.quantity || 0) * (tx.price || 0), userCurrency), userCurrency)}
                           </td>
                         </tr>
                       ))}

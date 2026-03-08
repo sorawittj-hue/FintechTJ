@@ -1,13 +1,6 @@
-export interface CrisisScenario {
-  id: string;
-  name: string;
-  nameTH: string;
-  description: string;
-  descriptionTH: string;
-  icon: string;
-  color: string;
-  stocks: CrisisStock[];
-}
+/**
+ * Ultimate Crisis Intelligence Scenarios - Master Playbook Edition
+ */
 
 export interface CrisisStock {
   symbol: string;
@@ -16,612 +9,226 @@ export interface CrisisStock {
   reason: string;
   reasonTH: string;
   riskLevel: 'low' | 'medium' | 'high';
-  allocation: number; // Recommended portfolio percentage
+  allocation: number;
 }
+
+export interface PlaybookStep {
+  phase: string;
+  phaseTH: string;
+  action: string;
+  actionTH: string;
+}
+
+export interface CrisisScenario {
+  id: string;
+  name: string;
+  nameTH: string;
+  description: string;
+  descriptionTH: string;
+  threatLevel: 'elevated' | 'high' | 'critical';
+  color: string;
+  icon: string;
+  impactSectors: { sector: string; impact: number }[];
+  recommendedStocks: CrisisStock[];
+  safeHavenAllocation: number;
+  indicators: string[]; // Indicators to watch
+  indicatorsTH: string[];
+  playbook: PlaybookStep[];
+}
+
+const createScenario = (data: Partial<CrisisScenario> & { id: string; name: string; nameTH: string }): CrisisScenario => {
+  return {
+    description: '',
+    descriptionTH: '',
+    threatLevel: 'high',
+    color: 'blue',
+    icon: 'shield',
+    impactSectors: [],
+    recommendedStocks: [],
+    safeHavenAllocation: 30,
+    indicators: [],
+    indicatorsTH: [],
+    playbook: [],
+    ...data
+  } as CrisisScenario;
+};
 
 export const crisisScenarios: CrisisScenario[] = [
-  {
+  createScenario({
     id: 'war',
-    name: 'War & Geopolitical Conflict',
-    nameTH: 'สงครามและความขัดแย้ง',
-    description: 'During wars and geopolitical tensions, defense and energy sectors typically perform well.',
-    descriptionTH: 'ในช่วงสงครามและความขัดแย้งทางภูมิรัฐศาสตร์ หุ้นกลุ่มป้องกันประเทศและพลังงานมักจะทำงานได้ดี',
-    icon: 'shield',
+    name: 'Geopolitical War & Conflict',
+    nameTH: 'สงครามและความขัดแย้งภูมิรัฐศาสตร์',
+    description: 'Direct military action affecting global supply chains and energy security.',
+    descriptionTH: 'การปฏิบัติการทางทหารที่ส่งผลกระทบต่อโซ่อุปทานโลกและความมั่นคงทางพลังงาน',
+    threatLevel: 'critical',
     color: 'red',
-    stocks: [
-      {
-        symbol: 'LMT',
-        name: 'Lockheed Martin Corp',
-        sector: 'Defense/Aerospace',
-        reason: 'World\'s largest defense contractor. Benefits from increased military spending during conflicts.',
-        reasonTH: 'ผู้รับเหมาด้านกลาโหมที่ใหญ่ที่สุดในโลก ได้รับประโยชน์จากการเพิ่มงบประมาณทหารในช่วงความขัดแย้ง',
-        riskLevel: 'low',
-        allocation: 25
-      },
-      {
-        symbol: 'RTX',
-        name: 'Raytheon Technologies',
-        sector: 'Defense/Aerospace',
-        reason: 'Major defense contractor with missile systems and defense technology.',
-        reasonTH: 'ผู้รับเหมาด้านกลาโหมรายใหญ่ มีระบบขีปนาวุธและเทคโนโลยีป้องกันประเทศ',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'NOC',
-        name: 'Northrop Grumman',
-        sector: 'Defense/Aerospace',
-        reason: 'Specializes in advanced defense systems, cybersecurity, and aerospace.',
-        reasonTH: 'เชี่ยวชาญระบบป้องกันประเทศขั้นสูง ความปลอดภัยทางไซเบอร์ และการบินอวกาศ',
-        riskLevel: 'low',
-        allocation: 15
-      },
-      {
-        symbol: 'XOM',
-        name: 'Exxon Mobil',
-        sector: 'Energy',
-        reason: 'Oil prices typically rise during conflicts. Major integrated energy company.',
-        reasonTH: 'ราคาน้ำมันมักเพิ่มขึ้นในช่วงความขัดแย้ง บริษัทพลังงานแบบครบวงจรขนาดใหญ่',
-        riskLevel: 'medium',
-        allocation: 15
-      },
-      {
-        symbol: 'CVX',
-        name: 'Chevron Corporation',
-        sector: 'Energy',
-        reason: 'Strong oil and gas producer. Benefits from energy supply disruptions.',
-        reasonTH: 'ผู้ผลิตน้ำมันและก๊าซรายใหญ่ ได้รับประโยชน์จากปัญหาการขาดแคลนพลังงาน',
-        riskLevel: 'medium',
-        allocation: 15
-      },
-      {
-        symbol: 'GD',
-        name: 'General Dynamics',
-        sector: 'Defense',
-        reason: 'Produces combat vehicles, weapons systems, and submarines.',
-        reasonTH: 'ผลิตยานพาหนะรบ ระบบอาวุธ และเรือดำน้ำ',
-        riskLevel: 'low',
-        allocation: 10
-      }
+    icon: 'flame',
+    impactSectors: [
+      { sector: 'Defense', impact: 0.95 },
+      { sector: 'Energy', impact: 0.85 },
+      { sector: 'Cyber', impact: 0.75 },
+      { sector: 'Tech', impact: -0.4 },
+      { sector: 'Aviation', impact: -0.85 }
+    ],
+    recommendedStocks: [
+      { symbol: 'LMT', name: 'Lockheed Martin', sector: 'Defense', reason: 'Order backlogs surge during conflict.', reasonTH: 'ยอดสั่งซื้อพุ่งสูงขึ้นในช่วงความขัดแย้ง', riskLevel: 'low', allocation: 25 },
+      { symbol: 'XOM', name: 'Exxon Mobil', sector: 'Energy', reason: 'Direct beneficiary of oil price premium.', reasonTH: 'ผู้ได้รับประโยชน์โดยตรงจากราคาน้ำมันที่พุ่งสูง', riskLevel: 'medium', allocation: 20 },
+      { symbol: 'PLTR', name: 'Palantir', sector: 'Cyber/AI', reason: 'Intelligence software demand increases.', reasonTH: 'ความต้องการซอฟต์แวร์วิเคราะห์ข้อมูลทางการทหารเพิ่มขึ้น', riskLevel: 'high', allocation: 10 }
+    ],
+    safeHavenAllocation: 45,
+    indicators: ['Brent Crude Price > $100', 'Gold/Silver Ratio Surge', 'DXY Index Spike'],
+    indicatorsTH: ['ราคาน้ำมันดิบเบรนท์ > $100', 'สัดส่วนราคาทองคำ/เงินพุ่งสูง', 'ดัชนีค่าเงินดอลลาร์ (DXY) แข็งค่า'],
+    playbook: [
+      { phase: 'Emergency', phaseTH: 'ฉุกเฉิน', action: 'Shift to Cash & Gold immediately.', actionTH: 'ย้ายสินทรัพย์เข้าสู่เงินสดและทองคำทันที' },
+      { phase: 'Tactical', phaseTH: 'ยุทธวิธี', action: 'Accumulate Defense and Energy hedges.', actionTH: 'สะสมหุ้นกลุ่มกลาโหมและพลังงานเพื่อป้องกันพอร์ต' },
+      { phase: 'Recovery', phaseTH: 'ฟื้นฟู', action: 'Wait for peak oil before rotating to tech.', actionTH: 'รอราคาน้ำมันถึงจุดสูงสุดก่อนหมุนเงินกลับเข้าหุ้นเทค' }
     ]
-  },
-  {
-    id: 'pandemic',
-    name: 'Pandemic & Health Crisis',
-    nameTH: 'โรคระบาดและวิกฤตสุขภาพ',
-    description: 'During health crises, pharmaceutical, biotech, and technology sectors become essential.',
-    descriptionTH: 'ในช่วงวิกฤตสุขภาพ หุ้นกลุ่มเภสัชกรรม เทคโนโลยีชีวภาพ และเทคโนโลยี จะมีความสำคัญ',
-    icon: 'activity',
-    color: 'green',
-    stocks: [
-      {
-        symbol: 'JNJ',
-        name: 'Johnson & Johnson',
-        sector: 'Healthcare/Pharma',
-        reason: 'Diversified healthcare giant with pharmaceuticals, medical devices, and consumer products.',
-        reasonTH: 'ยักษ์ใหญ่ด้านสุขภาพที่หลากหลาย มีเภสัชกรรม อุปกรณ์การแพทย์ และสินค้าอุปโภคบริโภค',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'PFE',
-        name: 'Pfizer Inc',
-        sector: 'Pharmaceuticals',
-        reason: 'Major vaccine and pharmaceutical manufacturer with strong R&D capabilities.',
-        reasonTH: 'ผู้ผลิตวัคซีนและยา รายใหญ่ มีความสามารถในการวิจัยและพัฒนาที่แข็งแกร่ง',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'MRNA',
-        name: 'Moderna Inc',
-        sector: 'Biotechnology',
-        reason: 'mRNA technology pioneer. Quick to develop vaccines for emerging diseases.',
-        reasonTH: 'ผู้บุกเบิกเทคโนโลยี mRNA พัฒนาวัคซีนสำหรับโรคใหม่ได้รวดเร็ว',
-        riskLevel: 'high',
-        allocation: 15
-      },
-      {
-        symbol: 'ABBV',
-        name: 'AbbVie Inc',
-        sector: 'Pharmaceuticals',
-        reason: 'Strong pharmaceutical portfolio with immunology and oncology focus.',
-        reasonTH: 'มีพอร์ตโฟลิโอเภสัชกรรมที่แข็งแกร่ง เน้นภูมิคุ้มกันวิทยาและมะเร็งวิทยา',
-        riskLevel: 'low',
-        allocation: 15
-      },
-      {
-        symbol: 'TMO',
-        name: 'Thermo Fisher Scientific',
-        sector: 'Life Sciences',
-        reason: 'Provides laboratory equipment and services essential for research and testing.',
-        reasonTH: 'จัดหาอุปกรณ์และบริการห้องปฏิบัติการที่จำเป็นสำหรับการวิจัยและการทดสอบ',
-        riskLevel: 'low',
-        allocation: 15
-      },
-      {
-        symbol: 'ZM',
-        name: 'Zoom Video Communications',
-        sector: 'Technology',
-        reason: 'Remote communication becomes essential during lockdowns and quarantines.',
-        reasonTH: 'การสื่อสารทางไกลมีความสำคัญในช่วงล็อกดาวน์และกักกัน',
-        riskLevel: 'medium',
-        allocation: 15
-      }
-    ]
-  },
-  {
-    id: 'natural-disaster',
-    name: 'Natural Disasters',
-    nameTH: 'ภัยธรรมชาติ',
-    description: 'After natural disasters, construction, insurance, and infrastructure companies play key roles in recovery.',
-    descriptionTH: 'หลังภัยธรรมชาติ บริษัทก่อสร้าง ประกัน และโครงสร้างพื้นฐาน มีบทบาทสำคัญในการฟื้นฟู',
-    icon: 'cloud-lightning',
-    color: 'orange',
-    stocks: [
-      {
-        symbol: 'CAT',
-        name: 'Caterpillar Inc',
-        sector: 'Construction/Industrial',
-        reason: 'Heavy equipment manufacturer essential for reconstruction efforts.',
-        reasonTH: 'ผู้ผลิตอุปกรณ์หนักที่จำเป็นสำหรับความพยายามในการสร้างใหม่',
-        riskLevel: 'low',
-        allocation: 25
-      },
-      {
-        symbol: 'DE',
-        name: 'Deere & Company',
-        sector: 'Agricultural/Construction',
-        reason: 'Equipment for both agriculture recovery and construction work.',
-        reasonTH: 'อุปกรณ์สำหรับการฟื้นฟูการเกษตรและงานก่อสร้าง',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'VMC',
-        name: 'Vulcan Materials',
-        sector: 'Construction Materials',
-        reason: 'Leading supplier of construction aggregates for rebuilding.',
-        reasonTH: 'ผู้จัดหาวัสดุ construcción ชั้นนำสำหรับการสร้างใหม่',
-        riskLevel: 'medium',
-        allocation: 20
-      },
-      {
-        symbol: 'PGR',
-        name: 'Progressive Corporation',
-        sector: 'Insurance',
-        reason: 'Property and casualty insurer that benefits from increased premiums post-disaster.',
-        reasonTH: 'บริษัทประกันทรัพย์สินและอุบัติเหตุที่ได้รับประโยชน์จากเบี้ยประกันที่เพิ่มขึ้นหลังภัยพิบัติ',
-        riskLevel: 'medium',
-        allocation: 15
-      },
-      {
-        symbol: 'LOW',
-        name: 'Lowe\'s Companies',
-        sector: 'Home Improvement Retail',
-        reason: 'Home improvement retailer for reconstruction supplies and materials.',
-        reasonTH: 'ร้านค้าปลีกปรับปรุงบ้านสำหรับอุปกรณ์และวัสดุการสร้างใหม่',
-        riskLevel: 'low',
-        allocation: 20
-      }
-    ]
-  },
-  {
-    id: 'economic-crisis',
-    name: 'Economic Recession',
-    nameTH: 'วิกฤตเศรษฐกิจและภาวะถดถอย',
-    description: 'During economic downturns, defensive stocks and essential services tend to be more resilient.',
-    descriptionTH: 'ในช่วงเศรษฐกิจถดถอย หุ้นป้องกันและบริการจำเป็นมักจะมีความยืดหยุ่นมากกว่า',
-    icon: 'trending-down',
+  }),
+  createScenario({
+    id: 'decoupling',
+    name: 'US-China Decoupling',
+    nameTH: 'การแยกขั้วมหาอำนาจโลก',
+    description: 'Technological and economic separation between G2 nations causing trade fragmentation.',
+    descriptionTH: 'การแยกตัวทางเทคโนโลยีและเศรษฐกิจระหว่างสหรัฐฯ-จีน ทำให้การค้าโลกแตกเป็นเสี่ยง',
+    threatLevel: 'high',
     color: 'purple',
-    stocks: [
-      {
-        symbol: 'WMT',
-        name: 'Walmart Inc',
-        sector: 'Consumer Staples',
-        reason: 'Discount retailer that benefits from consumers seeking value during recessions.',
-        reasonTH: 'ร้านค้าปลีกส่วนลดที่ได้รับประโยชน์จากผู้บริโภคที่มองหาความคุ้มค่าในช่วงถดถอย',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'PG',
-        name: 'Procter & Gamble',
-        sector: 'Consumer Staples',
-        reason: 'Essential consumer goods that remain in demand regardless of economic conditions.',
-        reasonTH: 'สินค้าอุปโภคบริโภคที่จำเป็นซึ่งยังคงมีความต้องการไม่ว่าสภาวะเศรษฐกิจจะเป็นอย่างไร',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'KO',
-        name: 'Coca-Cola Company',
-        sector: 'Beverages',
-        reason: 'Stable dividend payer with global brand recognition and pricing power.',
-        reasonTH: 'ผู้จ่ายปันผลที่มั่นคง มีการรับรู้แบรนด์ทั่วโลกและอำนาจในการกำหนดราคา',
-        riskLevel: 'low',
-        allocation: 15
-      },
-      {
-        symbol: 'VZ',
-        name: 'Verizon Communications',
-        sector: 'Telecommunications',
-        reason: 'Essential service with stable cash flows and high dividend yield.',
-        reasonTH: 'บริการที่จำเป็นที่มีกระแสเงินสดมั่นคงและอัตราเงินปันผลสูง',
-        riskLevel: 'low',
-        allocation: 15
-      },
-      {
-        symbol: 'BRK.B',
-        name: 'Berkshire Hathaway',
-        sector: 'Diversified',
-        reason: 'Diversified conglomerate with strong balance sheet and value investing approach.',
-        reasonTH: 'บริษัทโฮลดิ้งที่หลากหลาย มีงบดุลที่แข็งแกร่งและแนวทางการลงทุนแบบเน้นคุณค่า',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'MCD',
-        name: 'McDonald\'s Corporation',
-        sector: 'Restaurants',
-        reason: 'Fast food chain that performs well as consumers trade down during recessions.',
-        reasonTH: 'เครือข่ายอาหารจานด่วนที่ทำงานได้ดีเมื่อผู้บริโภคหันมาเลือกตัวเลือกที่ถูกกว่าในช่วงถดถอย',
-        riskLevel: 'low',
-        allocation: 10
-      }
+    icon: 'zap-off',
+    impactSectors: [
+      { sector: 'Semiconductors', impact: -0.7 },
+      { sector: 'Logistics', impact: 0.6 },
+      { sector: 'India/Vietnam', impact: 0.85 },
+      { sector: 'Rare Earths', impact: 0.9 }
+    ],
+    recommendedStocks: [
+      { symbol: 'TSM', name: 'TSMC', sector: 'Chips', reason: 'Critical supplier for both poles.', reasonTH: 'ผู้ผลิตชิปที่สำคัญที่สุดสำหรับทั้งสองขั้วอำนาจ', riskLevel: 'medium', allocation: 15 },
+      { symbol: 'VNM', name: 'VanEck Vietnam', sector: 'Emerging', reason: 'Supply chain relocation beneficiary.', reasonTH: 'ได้รับอานิสงส์จากการย้ายฐานการผลิตออกจากจีน', riskLevel: 'high', allocation: 20 },
+      { symbol: 'MP', name: 'MP Materials', sector: 'Rare Earths', reason: 'Strategic non-Chinese supply of magnets.', reasonTH: 'ผู้ผลิตแร่หายากเชิงกลยุทธ์นอกประเทศจีน', riskLevel: 'high', allocation: 15 }
+    ],
+    safeHavenAllocation: 30,
+    indicators: ['Export Control Sanctions', 'Tariff Escalation', 'Chip War Legislation'],
+    indicatorsTH: ['มาตรการคว่ำบาตรการส่งออก', 'การตั้งกำแพงภาษีเพิ่มขึ้น', 'กฎหมายควบคุมเทคโนโลยีชิป'],
+    playbook: [
+      { phase: 'Screening', phaseTH: 'คัดกรอง', action: 'Divest from direct China-exposed tech.', actionTH: 'ลดการลงทุนในบริษัทเทคโนโลยีที่มีรายได้หลักจากจีน' },
+      { phase: 'Relocation', phaseTH: 'ย้ายฐาน', action: 'Follow the supply chain to SE Asia/India.', actionTH: 'ลงทุนตามกระแสการย้ายฐานการผลิตมายังอาเซียน/อินเดีย' },
+      { phase: 'Sovereignty', phaseTH: 'เอกราช', action: 'Focus on domestic infrastructure plays.', actionTH: 'เน้นลงทุนในโครงสร้างพื้นฐานภายในประเทศ (In-shoring)' }
     ]
-  },
-  {
-    id: 'inflation',
-    name: 'High Inflation',
-    nameTH: 'เงินเฟ้อสูง',
-    description: 'During high inflation, companies with pricing power and real assets tend to outperform.',
-    descriptionTH: 'ในช่วงเงินเฟ้อสูง บริษัทที่มีอำนาจในการกำหนดราคาและสินทรัพย์จริงมักจะทำงานได้ดีกว่า',
-    icon: 'percent',
-    color: 'yellow',
-    stocks: [
-      {
-        symbol: 'XOM',
-        name: 'Exxon Mobil',
-        sector: 'Energy',
-        reason: 'Energy prices often lead inflation. Strong cash flow and dividends.',
-        reasonTH: 'ราคาพลังงานมักนำเงินเฟ้อ กระแสเงินสดและเงินปันผลที่แข็งแกร่ง',
-        riskLevel: 'medium',
-        allocation: 20
-      },
-      {
-        symbol: 'FCX',
-        name: 'Freeport-McMoRan',
-        sector: 'Materials/Mining',
-        reason: 'Copper and gold producer. Commodities act as inflation hedge.',
-        reasonTH: 'ผู้ผลิตทองแดงและทองคำ สินค้าโภคภัณฑ์ทำหน้าที่เป็นเครื่องป้องกันเงินเฟ้อ',
-        riskLevel: 'high',
-        allocation: 15
-      },
-      {
-        symbol: 'NEM',
-        name: 'Newmont Corporation',
-        sector: 'Gold Mining',
-        reason: 'World\'s largest gold miner. Gold is traditional inflation hedge.',
-        reasonTH: 'ผู้ทำเหมืองทองที่ใหญ่ที่สุดในโลก ทองคำเป็นเครื่องป้องกันเงินเฟ้อแบบดั้งเดิม',
-        riskLevel: 'medium',
-        allocation: 15
-      },
-      {
-        symbol: 'SPG',
-        name: 'Simon Property Group',
-        sector: 'Real Estate',
-        reason: 'Premier retail REIT. Real estate provides inflation protection.',
-        reasonTH: 'REIT ค้าปลีกชั้นนำ อสังหาริมทรัพย์ให้การป้องกันเงินเฟ้อ',
-        riskLevel: 'medium',
-        allocation: 15
-      },
-      {
-        symbol: 'O',
-        name: 'Realty Income',
-        sector: 'Real Estate',
-        reason: 'Monthly dividend REIT with inflation-adjusted lease agreements.',
-        reasonTH: 'REIT ที่จ่ายปันผลรายเดือนพร้อมสัญญาเช่าที่ปรับตามเงินเฟ้อ',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'MO',
-        name: 'Altria Group',
-        sector: 'Tobacco',
-        reason: 'Pricing power in tobacco products. High dividend yield.',
-        reasonTH: 'อำนาจในการกำหนดราคาในผลิตภัณฑ์ยาสูบ อัตราเงินปันผลสูง',
-        riskLevel: 'medium',
-        allocation: 15
-      }
-    ]
-  },
-  {
-    id: 'financial-crisis',
-    name: 'Financial Crisis',
-    nameTH: 'วิกฤตการเงิน',
-    description: 'During financial crises, strong banks and safe-haven assets become crucial.',
-    descriptionTH: 'ในช่วงวิกฤตการเงิน ธนาคารที่แข็งแกร่งและสินทรัพย์ปลอดภัยมีความสำคัญ',
+  }),
+  createScenario({
+    id: 'sovereign-debt',
+    name: 'Sovereign Debt Crisis',
+    nameTH: 'วิกฤตหนี้สาธารณะ',
+    description: 'Unsustainable national debt levels leading to default fears or hyper-inflation.',
+    descriptionTH: 'ระดับหนี้สาธารณะที่ไม่ยั่งยืนนำไปสู่ความกลัวการผิดนัดชำระหนี้หรือเงินเฟ้อรุนแรง',
+    threatLevel: 'critical',
+    color: 'orange',
     icon: 'dollar-sign',
-    color: 'blue',
-    stocks: [
-      {
-        symbol: 'JPM',
-        name: 'JPMorgan Chase',
-        sector: 'Banking',
-        reason: 'Largest US bank with strong balance sheet and diversified operations.',
-        reasonTH: 'ธนาคารที่ใหญ่ที่สุดในสหรัฐฯ มีงบดุลที่แข็งแกร่งและการดำเนินงานที่หลากหลาย',
-        riskLevel: 'medium',
-        allocation: 25
-      },
-      {
-        symbol: 'BAC',
-        name: 'Bank of America',
-        sector: 'Banking',
-        reason: 'Major bank with strong consumer banking and wealth management.',
-        reasonTH: 'ธนาคารรายใหญ่ที่มีการธนาคารเพื่อผู้บริโภคและการจัดการความมั่งคั่งที่แข็งแกร่ง',
-        riskLevel: 'medium',
-        allocation: 20
-      },
-      {
-        symbol: 'GS',
-        name: 'Goldman Sachs',
-        sector: 'Investment Banking',
-        reason: 'Premier investment bank that can navigate complex financial situations.',
-        reasonTH: 'ธนาคารเพื่อการลงทุนชั้นนำที่สามารถนำทางสถานการณ์การเงินที่ซับซ้อนได้',
-        riskLevel: 'high',
-        allocation: 15
-      },
-      {
-        symbol: 'GLD',
-        name: 'SPDR Gold Shares',
-        sector: 'Precious Metals ETF',
-        reason: 'Gold ETF that acts as safe-haven during financial uncertainty.',
-        reasonTH: 'ETF ทองคำที่ทำหน้าที่เป็นสินทรัพย์ปลอดภัยในช่วงไม่แน่นอนทางการเงิน',
-        riskLevel: 'low',
-        allocation: 25
-      },
-      {
-        symbol: 'BLK',
-        name: 'BlackRock Inc',
-        sector: 'Asset Management',
-        reason: 'World\'s largest asset manager. Benefits from flight to quality.',
-        reasonTH: 'ผู้จัดการสินทรัพย์ที่ใหญ่ที่สุดในโลก ได้รับประโยชน์จากการหนีไปสู่คุณภาพ',
-        riskLevel: 'medium',
-        allocation: 15
-      }
+    impactSectors: [
+      { sector: 'Banks', impact: -0.9 },
+      { sector: 'Real Assets', impact: 0.8 },
+      { sector: 'Crypto', impact: 0.7 },
+      { sector: 'Treasuries', impact: -0.6 }
+    ],
+    recommendedStocks: [
+      { symbol: 'GLD', name: 'SPDR Gold', sector: 'Gold', reason: 'Ultimate hedge against currency failure.', reasonTH: 'ประกันภัยสุดท้ายเมื่อระบบเงินกระดาษล้มเหลว', riskLevel: 'low', allocation: 35 },
+      { symbol: 'BTC', name: 'Bitcoin', sector: 'Digital Gold', reason: 'Decentralized store of value.', reasonTH: 'แหล่งเก็บมูลค่าแบบกระจายศูนย์ (Digital Gold)', riskLevel: 'high', allocation: 15 },
+      { symbol: 'O', name: 'Realty Income', sector: 'REIT', reason: 'Asset-backed cash flow yield.', reasonTH: 'กระแสเงินสดที่หนุนหลังด้วยสินทรัพย์ที่จับต้องได้', riskLevel: 'medium', allocation: 10 }
+    ],
+    safeHavenAllocation: 60,
+    indicators: ['Debt-to-GDP > 120%', 'Credit Default Swap (CDS) Surge', 'Interest Exp > Tax Rev'],
+    indicatorsTH: ['หนี้ต่อ GDP > 120%', 'ค่าประกันความเสี่ยงหนี้ (CDS) พุ่งสูง', 'รายจ่ายดอกเบี้ยสูงกว่ารายได้ภาษี'],
+    playbook: [
+      { phase: 'Exit Paper', phaseTH: 'หนีเงินกระดาษ', action: 'Reduce long-term bond exposure.', actionTH: 'ลดการถือครองพันธบัตรระยะยาวที่เสี่ยงด้อยค่า' },
+      { phase: 'Hard Assets', phaseTH: 'สินทรัพย์จริง', action: 'Allocate to Gold and Physical Commodities.', actionTH: 'ย้ายเงินเข้าสู่ทองคำและสินค้าโภคภัณฑ์จริง' },
+      { phase: 'Income Guard', phaseTH: 'รักษาพอร์ต', action: 'Prioritize companies with Zero Net Debt.', actionTH: 'เลือกบริษัทที่มีหนี้เป็นศูนย์หรือมีกระแสเงินสดสุทธิ' }
     ]
-  },
-  {
-    id: 'tech-bubble',
-    name: 'Tech Bubble Burst',
-    nameTH: 'ฟองสบู่เทคโนโลยีแตก',
-    description: 'When tech valuations collapse, value stocks and non-tech sectors provide stability.',
-    descriptionTH: 'เมื่อมูลค่าเทคโนโลยีพังทลาย หุ้นคุณค่าและกลุ่มที่ไม่ใช่เทคโนโลยีให้ความมั่นคง',
-    icon: 'cpu',
-    color: 'pink',
-    stocks: [
-      {
-        symbol: 'BRK.B',
-        name: 'Berkshire Hathaway',
-        sector: 'Diversified',
-        reason: 'Value investing approach avoids overvalued tech stocks.',
-        reasonTH: 'แนวทางการลงทุนแบบเน้นคุณค่าหลีกเลี่ยงหุ้นเทคโนโลยีที่มีมูลค่าสูงเกินไป',
-        riskLevel: 'low',
-        allocation: 25
-      },
-      {
-        symbol: 'JPM',
-        name: 'JPMorgan Chase',
-        sector: 'Financials',
-        reason: 'Strong bank with reasonable valuation and solid fundamentals.',
-        reasonTH: 'ธนาคารที่แข็งแกร่งมีการประเมินมูลค่าที่สมเหตุสมผลและพื้นฐานที่มั่นคง',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'XOM',
-        name: 'Exxon Mobil',
-        sector: 'Energy',
-        reason: 'Traditional energy company with strong cash flows, not tech-dependent.',
-        reasonTH: 'บริษัทพลังงานแบบดั้งเดิมที่มีกระแสเงินสดแข็งแกร่ง ไม่พึ่งพาเทคโนโลยี',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'JNJ',
-        name: 'Johnson & Johnson',
-        sector: 'Healthcare',
-        reason: 'Defensive healthcare stock with stable earnings and dividends.',
-        reasonTH: 'หุ้นป้องกันด้านสุขภาพที่มีรายได้และเงินปันผลมั่นคง',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'PG',
-        name: 'Procter & Gamble',
-        sector: 'Consumer Staples',
-        reason: 'Consumer staples provide stability when growth stocks falter.',
-        reasonTH: 'สินค้าอุปโภคบริโภคให้ความมั่นคงเมื่อหุ้นเติบโตสะดุด',
-        riskLevel: 'low',
-        allocation: 15
-      }
-    ]
-  },
-  {
-    id: 'energy-crisis',
-    name: 'Energy Crisis',
-    nameTH: 'วิกฤตพลังงาน',
-    description: 'During energy shortages, energy producers and alternative energy companies benefit.',
-    descriptionTH: 'ในช่วงขาดแคลนพลังงาน ผู้ผลิตพลังงานและบริษัทพลังงานทางเลือกได้รับประโยชน์',
-    icon: 'zap',
-    color: 'amber',
-    stocks: [
-      {
-        symbol: 'XOM',
-        name: 'Exxon Mobil',
-        sector: 'Oil & Gas',
-        reason: 'Integrated energy giant benefits from high oil and gas prices.',
-        reasonTH: 'ยักษ์ใหญ่พลังงานแบบครบวงจรได้รับประโยชน์จากราคาน้ำมันและก๊าซที่สูง',
-        riskLevel: 'medium',
-        allocation: 25
-      },
-      {
-        symbol: 'CVX',
-        name: 'Chevron Corporation',
-        sector: 'Oil & Gas',
-        reason: 'Strong upstream and downstream operations. High dividend yield.',
-        reasonTH: 'การดำเนินงานต้นน้ำและปลายน้ำที่แข็งแกร่ง อัตราเงินปันผลสูง',
-        riskLevel: 'medium',
-        allocation: 20
-      },
-      {
-        symbol: 'COP',
-        name: 'ConocoPhillips',
-        sector: 'Oil & Gas Exploration',
-        reason: 'Pure-play exploration and production company. Flexible operations.',
-        reasonTH: 'บริษัทสำรวจและผลิตล้วนๆ การดำเนินงานที่ยืดหยุ่น',
-        riskLevel: 'medium',
-        allocation: 15
-      },
-      {
-        symbol: 'NEE',
-        name: 'NextEra Energy',
-        sector: 'Renewable Energy',
-        reason: 'Largest renewable energy producer. Benefits from energy transition.',
-        reasonTH: 'ผู้ผลิตพลังงานหมุนเวียนที่ใหญ่ที่สุด ได้รับประโยชน์จากการเปลี่ยนผ่านพลังงาน',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'ENPH',
-        name: 'Enphase Energy',
-        sector: 'Solar Technology',
-        reason: 'Solar microinverter technology. Growing demand for home energy solutions.',
-        reasonTH: 'เทคโนโลยีไมโครอินเวอร์เตอร์โซลาร์ ความต้องการโซลูชันพลังงานในบ้านเพิ่มขึ้น',
-        riskLevel: 'high',
-        allocation: 20
-      }
-    ]
-  },
-  {
-    id: 'food-crisis',
-    name: 'Food Security Crisis',
-    nameTH: 'วิกฤตความมั่นคงทางอาหาร',
-    description: 'During food shortages, agricultural and food production companies become essential.',
-    descriptionTH: 'ในช่วงขาดแคลนอาหาร บริษัทการเกษตรและผลิตอาหารมีความสำคัญ',
-    icon: 'wheat',
-    color: 'emerald',
-    stocks: [
-      {
-        symbol: 'ADM',
-        name: 'Archer-Daniels-Midland',
-        sector: 'Agricultural Processing',
-        reason: 'Global food processor and commodity trader. Essential supply chain.',
-        reasonTH: 'ผู้แปรรูปอาหารและเทรดเดอร์สินค้าโภคภัณฑ์ระดับโลก โซ่อุปทานที่จำเป็น',
-        riskLevel: 'low',
-        allocation: 25
-      },
-      {
-        symbol: 'BG',
-        name: 'Bunge Limited',
-        sector: 'Agribusiness',
-        reason: 'Major soybean processor and agricultural supply chain company.',
-        reasonTH: 'ผู้แปรรูปถั่วเหลืองรายใหญ่และบริษัทโซ่อุปทานการเกษตร',
-        riskLevel: 'medium',
-        allocation: 20
-      },
-      {
-        symbol: 'DE',
-        name: 'Deere & Company',
-        sector: 'Agricultural Equipment',
-        reason: 'Leading farm equipment manufacturer. Essential for food production.',
-        reasonTH: 'ผู้ผลิตอุปกรณ์ฟาร์มชั้นนำ จำเป็นสำหรับการผลิตอาหาร',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'MOS',
-        name: 'Mosaic Company',
-        sector: 'Fertilizers',
-        reason: 'Major phosphate and potash fertilizer producer. Critical for crop yields.',
-        reasonTH: 'ผู้ผลิตปุ๋ยฟอสเฟตและโพแทชรายใหญ่ สำคัญสำหรับผลผลิตพืช',
-        riskLevel: 'high',
-        allocation: 20
-      },
-      {
-        symbol: 'TSN',
-        name: 'Tyson Foods',
-        sector: 'Food Processing',
-        reason: 'Largest meat processor in US. Essential protein supply.',
-        reasonTH: 'ผู้แปรรูปเนื้อสัตว์ที่ใหญ่ที่สุดในสหรัฐฯ แหล่งโปรตีนที่จำเป็น',
-        riskLevel: 'medium',
-        allocation: 15
-      }
-    ]
-  },
-  {
+  }),
+  createScenario({
     id: 'cyber-warfare',
-    name: 'Cyber Warfare & Security',
-    nameTH: 'สงครามไซเบอร์และความปลอดภัย',
-    description: 'During cyber threats, cybersecurity companies become critical for national and corporate security.',
-    descriptionTH: 'ในช่วงภัยคุกคามไซเบอร์ บริษัทความปลอดภัยทางไซเบอร์มีความสำคัญต่อความมั่นคงของชาติและองค์กร',
+    name: 'Systemic Cyber Collapse',
+    nameTH: 'สงครามไซเบอร์เชิงระบบ',
+    description: 'Widespread attacks on financial systems and power grids paralyzing the economy.',
+    descriptionTH: 'การโจมตีระบบการเงินและโครงข่ายไฟฟ้าอย่างกว้างขวางจนเศรษฐกิจหยุดชะงัก',
+    threatLevel: 'high',
+    color: 'emerald',
     icon: 'shield-check',
-    color: 'cyan',
-    stocks: [
-      {
-        symbol: 'PANW',
-        name: 'Palo Alto Networks',
-        sector: 'Cybersecurity',
-        reason: 'Leading cybersecurity platform with comprehensive security solutions.',
-        reasonTH: 'แพลตฟอร์มความปลอดภัยทางไซเบอร์ชั้นนำที่มีโซลูชันความปลอดภัยที่ครอบคลุม',
-        riskLevel: 'medium',
-        allocation: 25
-      },
-      {
-        symbol: 'CRWD',
-        name: 'CrowdStrike Holdings',
-        sector: 'Cybersecurity',
-        reason: 'Cloud-native endpoint security. AI-powered threat detection.',
-        reasonTH: 'ความปลอดภัย endpoint แบบ cloud-native การตรวจจับภัยคุกคามด้วย AI',
-        riskLevel: 'high',
-        allocation: 20
-      },
-      {
-        symbol: 'FTNT',
-        name: 'Fortinet Inc',
-        sector: 'Cybersecurity',
-        reason: 'Network security appliances and unified threat management.',
-        reasonTH: 'อุปกรณ์ความปลอดภัยเครือข่ายและการจัดการภัยคุกคามแบบรวม',
-        riskLevel: 'medium',
-        allocation: 20
-      },
-      {
-        symbol: 'NOC',
-        name: 'Northrop Grumman',
-        sector: 'Defense/Cyber',
-        reason: 'Major defense contractor with significant cybersecurity division.',
-        reasonTH: 'ผู้รับเหมาด้านกลาโหมรายใหญ่ที่มีแผนกความปลอดภัยทางไซเบอร์ที่สำคัญ',
-        riskLevel: 'low',
-        allocation: 20
-      },
-      {
-        symbol: 'MSFT',
-        name: 'Microsoft Corporation',
-        sector: 'Technology/Security',
-        reason: 'Enterprise security solutions and cloud security infrastructure.',
-        reasonTH: 'โซลูชันความปลอดภัยสำหรับองค์กรและโครงสร้างพื้นฐานความปลอดภัย cloud',
-        riskLevel: 'low',
-        allocation: 15
-      }
+    impactSectors: [
+      { sector: 'Cybersecurity', impact: 0.95 },
+      { sector: 'Cloud Computing', impact: -0.5 },
+      { sector: 'Physical Security', impact: 0.7 },
+      { sector: 'Fintech', impact: -0.8 }
+    ],
+    recommendedStocks: [
+      { symbol: 'CRWD', name: 'CrowdStrike', sector: 'Cyber', reason: 'Essential for endpoint protection.', reasonTH: 'เครื่องมือจำเป็นสำหรับการป้องกันจุดเชื่อมต่อข้อมูล', riskLevel: 'medium', allocation: 25 },
+      { symbol: 'PANW', name: 'Palo Alto Networks', sector: 'Cyber', reason: 'Enterprise-wide firewall dominance.', reasonTH: 'ผู้นำระบบไฟร์วอลล์ระดับองค์กร', riskLevel: 'low', allocation: 20 },
+      { symbol: 'GD', name: 'General Dynamics', sector: 'Defense', reason: 'Critical secure communication systems.', reasonTH: 'ผู้จัดหาระบบสื่อสารที่ปลอดภัยระดับกองทัพ', riskLevel: 'low', allocation: 15 }
+    ],
+    safeHavenAllocation: 20,
+    indicators: ['Cloud Provider Outages', 'SWIFT System Disruptions', 'Power Grid Glitches'],
+    indicatorsTH: ['ระบบคลาวด์ล่มทั่วโลก', 'ระบบโอนเงินระหว่างประเทศหยุดชะงัก', 'โครงข่ายไฟฟ้าทำงานผิดปกติ'],
+    playbook: [
+      { phase: 'Isolation', phaseTH: 'ตัดขาด', action: 'Verify cash accessibility offline.', actionTH: 'ตรวจสอบความสามารถในการเข้าถึงเงินสดออฟไลน์' },
+      { phase: 'Deployment', phaseTH: 'วางกำลัง', action: 'Heavy overweight in Cyber counters.', actionTH: 'เพิ่มน้ำหนักการลงทุนในกลุ่มความปลอดภัยไซเบอร์สูงสุด' },
+      { phase: 'Redundancy', phaseTH: 'สำรอง', action: 'Avoid pure-digital asset plays temporarily.', actionTH: 'หลีกเลี่ยงสินทรัพย์ดิจิทัลล้วนชั่วคราว' }
     ]
-  }
+  }),
+  createScenario({
+    id: 'food-security',
+    name: 'Food Supply Crisis',
+    nameTH: 'วิกฤตความมั่นคงทางอาหาร',
+    description: 'Crop failures and supply chain collapses causing global food price surges.',
+    descriptionTH: 'ผลผลิตทางการเกษตรเสียหายและโซ่อุปทานพังทลาย ทำให้ราคาอาหารทั่วโลกพุ่งสูงขึ้น',
+    threatLevel: 'high',
+    color: 'green',
+    icon: 'wheat',
+    impactSectors: [
+      { sector: 'Agriculture', impact: 0.9 },
+      { sector: 'Fertilizer', impact: 0.85 },
+      { sector: 'Packaging', impact: 0.4 },
+      { sector: 'Logistics', impact: -0.6 }
+    ],
+    recommendedStocks: [
+      { symbol: 'ADM', name: 'Archer-Daniels', sector: 'Food', reason: 'Dominant global supply chain position.', reasonTH: 'ผู้คุมสายโซ่อุปทานอาหารระดับโลก', riskLevel: 'low', allocation: 30 },
+      { symbol: 'MOS', name: 'Mosaic', sector: 'Fertilizer', reason: 'Supply shortage drives prices high.', reasonTH: 'การขาดแคลนปุ๋ยผลักดันให้ราคาพุ่งสูง', riskLevel: 'high', allocation: 20 },
+      { symbol: 'DE', name: 'John Deere', sector: 'Equipment', reason: 'Tech-driven farming efficiency demand.', reasonTH: 'ความต้องการเครื่องจักรเพิ่มประสิทธิภาพการผลิต', riskLevel: 'medium', allocation: 15 }
+    ],
+    safeHavenAllocation: 15,
+    indicators: ['Wheat/Corn Futures Spike', 'Nitrogen Shortages', 'Severe Drought Patterns'],
+    indicatorsTH: ['ราคาล่วงหน้าข้าวสาลี/ข้าวโพดพุ่ง', 'การขาดแคลนสารไนโตรเจน', 'รูปแบบภัยแล้งรุนแรง'],
+    playbook: [
+      { phase: 'Direct Hedge', phaseTH: 'ป้องกันตรง', action: 'Accumulate Ag-Commodity ETFs.', actionTH: 'สะสม ETF กลุ่มสินค้าเกษตรโดยตรง' },
+      { phase: 'Efficiency Play', phaseTH: 'เพิ่มผลผลิต', action: 'Invest in Precision Ag-Tech.', actionTH: 'ลงทุนในเทคโนโลยีการเกษตรแม่นยำสูง' },
+      { phase: 'Logistics Guard', phaseTH: 'ความเสี่ยงขนส่ง', action: 'Reduce exposure to global shipping.', actionTH: 'ลดความเสี่ยงหุ้นขนส่งระหว่างประเทศ' }
+    ]
+  }),
+  createScenario({
+    id: 'labor-shortage',
+    name: 'Demographic & Labor Crisis',
+    nameTH: 'วิกฤตขาดแคลนแรงงานและประชากร',
+    description: 'Aging populations and sudden labor shortages driving wage-price spirals.',
+    descriptionTH: 'สังคมผู้สูงอายุและการขาดแคลนแรงงานฉับพลัน ผลักดันให้เกิดวังวนค่าแรงพุ่งสูง',
+    threatLevel: 'elevated',
+    color: 'cyan',
+    icon: 'users',
+    impactSectors: [
+      { sector: 'Robotics/AI', impact: 0.9 },
+      { sector: 'Health Services', impact: 0.7 },
+      { sector: 'Hospitality', impact: -0.8 },
+      { sector: 'Construction', impact: -0.6 }
+    ],
+    recommendedStocks: [
+      { symbol: 'ISRG', name: 'Intuitive Surgical', sector: 'Robotics', reason: 'Automation in critical healthcare.', reasonTH: 'หุ่นยนต์ช่วยผ่าตัดลดการใช้แรงงานแพทย์', riskLevel: 'low', allocation: 20 },
+      { symbol: 'TER', name: 'Teradyne', sector: 'Automation', reason: 'Leader in collaborative robotics.', reasonTH: 'ผู้นำหุ่นยนต์ที่ทำงานร่วมกับมนุษย์', riskLevel: 'medium', allocation: 25 },
+      { symbol: 'UNH', name: 'UnitedHealth', sector: 'Healthcare', reason: 'Dominant player in aging care management.', reasonTH: 'ผู้เล่นหลักในการจัดการดูแลผู้สูงอายุ', riskLevel: 'low', allocation: 15 }
+    ],
+    safeHavenAllocation: 25,
+    indicators: ['Wage Growth > 5%', 'Record Low Birth Rates', 'Retirement Wave Peaks'],
+    indicatorsTH: ['การเติบโตค่าแรง > 5%', 'อัตราการเกิดต่ำสุดเป็นประวัติการณ์', 'คลื่นการเกษียณอายุถึงจุดสูงสุด'],
+    playbook: [
+      { phase: 'Automation Pivot', phaseTH: 'เปลี่ยนสู่ระบบอัตโนมัติ', action: 'Heavily invest in Service Robots.', actionTH: 'เน้นลงทุนในหุ่นยนต์บริการที่ทดแทนแรงงาน' },
+      { phase: 'Margin Screening', phaseTH: 'ตรวจสอบกำไร', action: 'Avoid labor-intensive, low-margin plays.', actionTH: 'หลีกเลี่ยงธุรกิจที่ใช้แรงงานเยอะและกำไรต่ำ' },
+      { phase: 'Efficiency Boost', phaseTH: 'เพิ่มประสิทธิภาพ', action: 'Focus on Enterprise AI software.', actionTH: 'เน้นซอฟต์แวร์ AI สำหรับองค์กรเพื่อเพิ่ม Productivity' }
+    ]
+  })
 ];
 
-export function getCrisisScenarioById(id: string): CrisisScenario | undefined {
-  return crisisScenarios.find(scenario => scenario.id === id);
-}
-
-export function getAllCrisisScenarios(): CrisisScenario[] {
-  return crisisScenarios;
-}
+export const getCrisisScenarioById = (id: string) => crisisScenarios.find(s => s.id === id);

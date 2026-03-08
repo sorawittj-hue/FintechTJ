@@ -3,7 +3,9 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { X, Minus, ArrowDownRight } from 'lucide-react';
-import { usePortfolio } from '@/context/hooks';
+import { usePortfolio, useSettings, usePrice } from '@/context/hooks';
+import { formatCurrency } from '@/lib/utils';
+import { usePriceStore } from '@/store/usePriceStore';
 
 interface WithdrawAssetDialogProps {
     isOpen: boolean;
@@ -13,7 +15,11 @@ interface WithdrawAssetDialogProps {
 
 export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetDialogProps) {
     const { t } = useTranslation();
+    const { settings } = useSettings();
+    const { convert } = usePrice();
     const { assets, updateAsset, removeAsset, addAsset, addTransaction } = usePortfolio();
+
+    const userCurrency = settings.currency || 'USD';
 
     const [quantity, setQuantity] = useState('');
     const [price, setPrice] = useState('');
@@ -23,14 +29,16 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
 
     useEffect(() => {
         if (isOpen && asset) {
-            setPrice(asset.currentPrice.toString());
+            // Asset currentPrice is in USD, convert to user currency for the input
+            const convertedPrice = convert(asset.currentPrice, userCurrency);
+            setPrice(convertedPrice.toString());
             setQuantity('');
         } else if (!isOpen) {
             setQuantity('');
             setPrice('');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, asset?.id]);
+    }, [isOpen, asset?.id, userCurrency]);
 
     const handleClose = () => {
         setQuantity('');
@@ -46,9 +54,9 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
         }
 
         const withdrawQty = parseFloat(quantity);
-        const withdrawPx = parseFloat(price);
+        const withdrawPxInUserCurrency = parseFloat(price);
 
-        if (withdrawQty <= 0 || withdrawPx <= 0) {
+        if (withdrawQty <= 0 || withdrawPxInUserCurrency <= 0) {
             toast.error(t('withdrawDialog.qtyAndPricePositive'));
             return;
         }
@@ -61,6 +69,9 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
         setIsProcessing(true);
 
         try {
+            // Convert price back to USD for internal calculations/storage
+            const withdrawPx = userCurrency === 'USD' ? withdrawPxInUserCurrency : withdrawPxInUserCurrency / (usePriceStore.getState().exchangeRates[userCurrency] || 1);
+            
             const saleValue = withdrawQty * withdrawPx;
             const remainingQty = asset.quantity - withdrawQty;
             const usdCashAsset = assets.find((item) => item.symbol.toUpperCase() === 'USD');
@@ -114,6 +125,8 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
 
             toast.success(t('withdrawDialog.soldSuccess', { qty: withdrawQty, symbol: asset.symbol }));
             handleClose();
+        } catch {
+            toast.error(t('common.error'));
         } finally {
             setIsProcessing(false);
         }
@@ -121,9 +134,9 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
 
     if (!isOpen || !asset) return null;
 
-    const withdrawQty = parseFloat(quantity || '0');
-    const withdrawPx = parseFloat(price || '0');
-    const estimatedReturn = withdrawQty * withdrawPx;
+    const withdrawQtyNum = parseFloat(quantity || '0');
+    const withdrawPxNum = parseFloat(price || '0');
+    const estimatedReturn = withdrawQtyNum * withdrawPxNum;
 
     return (
         <AnimatePresence>
@@ -142,13 +155,13 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
                 style={{ pointerEvents: 'none' }}
             >
                 <div
-                    className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden pointer-events-auto"
+                    className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden pointer-events-auto border border-white/10"
                 >
                     {/* Header */}
-                    <div className="relative p-6 bg-gradient-to-br from-red-50 to-orange-50 border-b border-red-100">
+                    <div className="relative p-6 bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 border-b border-red-100 dark:border-red-900/30">
                         <button
                             onClick={handleClose}
-                            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white text-gray-500 hover:text-gray-900 shadow-sm transition-colors"
+                            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 text-gray-500 hover:text-gray-900 dark:hover:text-white shadow-sm transition-colors"
                         >
                             <X size={18} />
                         </button>
@@ -157,28 +170,28 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
                                 <ArrowDownRight className="text-white" size={24} />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900">{t('withdrawDialog.title')}</h2>
-                                <p className="text-sm text-gray-500">{t('withdrawDialog.removeFromPortfolio', { symbol: asset.symbol })}</p>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('withdrawDialog.title')}</h2>
+                                <p className="text-sm text-gray-500 dark:text-slate-400">{t('withdrawDialog.removeFromPortfolio', { symbol: asset.symbol })}</p>
                             </div>
                         </div>
                     </div>
 
                     {/* Form */}
                     <div className="p-6 space-y-5">
-                        <div className="p-4 bg-gray-50 rounded-xl flex justify-between items-center">
+                        <div className="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl flex justify-between items-center border border-gray-100 dark:border-slate-700">
                             <div>
-                                <p className="text-xs text-gray-500">{t('withdrawDialog.asset')}</p>
-                                <p className="font-bold text-lg">{asset.symbol}</p>
+                                <p className="text-xs text-gray-500 dark:text-slate-400">{t('withdrawDialog.asset')}</p>
+                                <p className="font-bold text-lg dark:text-white">{asset.symbol}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-xs text-gray-500">{t('withdrawDialog.availableQty')}</p>
-                                <p className="font-semibold text-gray-900">{asset.quantity} {asset.symbol}</p>
+                                <p className="text-xs text-gray-500 dark:text-slate-400">{t('withdrawDialog.availableQty')}</p>
+                                <p className="font-semibold text-gray-900 dark:text-slate-200">{asset.quantity} {asset.symbol}</p>
                             </div>
                         </div>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                                     {t('withdrawDialog.withdrawQty')}
                                 </label>
                                 <div className="relative">
@@ -188,38 +201,37 @@ export function WithdrawAssetDialog({ isOpen, onClose, assetId }: WithdrawAssetD
                                         onChange={(e) => setQuantity(e.target.value)}
                                         placeholder="0.00"
                                         step="any"
-                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all font-medium"
+                                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-950 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all font-medium dark:text-white"
                                     />
                                     <button
                                         onClick={() => setQuantity(asset.quantity.toString())}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs font-semibold text-red-600 bg-red-100 rounded-md hover:bg-red-200"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs font-semibold text-red-600 bg-red-100 dark:bg-red-900/30 rounded-md hover:bg-red-200 dark:hover:bg-red-900/50"
                                     >
                                         MAX
                                     </button>
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    {t('withdrawDialog.withdrawPrice')}
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                                    Price ({userCurrency})
                                 </label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
-                                    <input
-                                        type="number"
-                                        value={price}
-                                        onChange={(e) => setPrice(e.target.value)}
-                                        placeholder="0.00"
-                                        step="any"
-                                        className="w-full pl-7 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all"
-                                    />
-                                </div>
+                                <input
+                                    type="number"
+                                    value={price}
+                                    onChange={(e) => setPrice(e.target.value)}
+                                    placeholder="0.00"
+                                    step="any"
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-950 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all dark:text-white"
+                                />
                             </div>
                         </div>
 
-                        <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                        <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700">
                             <div className="flex justify-between items-center mb-1 text-sm">
-                                <span className="text-gray-500">{t('withdrawDialog.estimatedValue')}</span>
-                                <span className="font-bold text-gray-900">${estimatedReturn.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span className="text-gray-500 dark:text-slate-400">{t('withdrawDialog.estimatedValue')}</span>
+                                <span className="font-bold text-gray-900 dark:text-white tabular-nums">
+                                    {formatCurrency(estimatedReturn, userCurrency)}
+                                </span>
                             </div>
                         </div>
 

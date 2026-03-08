@@ -21,6 +21,11 @@ export interface UserSettings {
   };
   soundEnabled: boolean;
   refreshInterval: number;
+  // Advanced Logic Settings
+  advancedMode: boolean;
+  riskThreshold: 'conservative' | 'moderate' | 'aggressive';
+  aiAnalyticsLevel: 'basic' | 'pro' | 'experimental';
+  autoRebalance: boolean;
 }
 
 interface SettingsState {
@@ -29,6 +34,9 @@ interface SettingsState {
   updateNotificationSettings: (settings: Partial<UserSettings['notifications']>) => void;
   updateDisplaySettings: (settings: Partial<UserSettings['display']>) => void;
   applyTheme: () => void;
+  exportData: () => void;
+  clearCache: () => void;
+  resetToDefaults: () => void;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -50,6 +58,10 @@ const DEFAULT_SETTINGS: UserSettings = {
   },
   soundEnabled: true,
   refreshInterval: 10000,
+  advancedMode: false,
+  riskThreshold: 'moderate',
+  aiAnalyticsLevel: 'basic',
+  autoRebalance: false,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -59,7 +71,19 @@ export const useSettingsStore = create<SettingsState>()(
 
       updateSettings: (newSettings) => {
         set((state) => ({ settings: { ...state.settings, ...newSettings } }));
-        get().applyTheme();
+        
+        // Handle theme side effects
+        if (newSettings.theme) {
+          get().applyTheme();
+        }
+        
+        // Advanced logic: If switching to advanced mode, enable pro analytics
+        if (newSettings.advancedMode === true) {
+          set((state) => ({ 
+            settings: { ...state.settings, aiAnalyticsLevel: 'pro' } 
+          }));
+        }
+        
         toast.success('Settings updated');
       },
 
@@ -97,6 +121,50 @@ export const useSettingsStore = create<SettingsState>()(
           root.classList.add(theme);
         }
       },
+
+      exportData: () => {
+        try {
+          const allData = {
+            settings: get().settings,
+            timestamp: new Date().toISOString(),
+            appVersion: '1.0.0',
+            // In a real app, you'd pull from other stores here too
+            exportType: 'full_config'
+          };
+          
+          const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `quantai-pro-config-${new Date().getTime()}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          toast.success('Configuration exported successfully');
+        } catch {
+          toast.error('Failed to export data');
+        }
+      },
+
+      clearCache: () => {
+        // Clear all non-essential localStorage
+        const keysToKeep = ['settings-storage', 'auth-storage'];
+        Object.keys(localStorage).forEach(key => {
+          if (!keysToKeep.includes(key)) {
+            localStorage.removeItem(key);
+          }
+        });
+        toast.success('Cache cleared successfully');
+        setTimeout(() => window.location.reload(), 1000);
+      },
+
+      resetToDefaults: () => {
+        set({ settings: DEFAULT_SETTINGS });
+        get().applyTheme();
+        toast.success('Settings reset to defaults');
+      }
     }),
     {
       name: 'settings-storage',

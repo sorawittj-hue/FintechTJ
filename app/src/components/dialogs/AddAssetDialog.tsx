@@ -13,13 +13,14 @@ import {
     Search,
     Loader2
 } from 'lucide-react';
-import { usePortfolio } from '@/context/hooks';
+import { usePortfolio, useSettings, usePrice } from '@/context/hooks';
 import {
     fetchCommodityPrices,
     fetchCryptoPrices,
     fetchForexRates,
     fetchStockQuote,
 } from '@/services/realDataService';
+import { formatCurrency } from '@/lib/utils';
 
 interface AddAssetDialogProps {
     isOpen: boolean;
@@ -28,7 +29,11 @@ interface AddAssetDialogProps {
 
 export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
     const { t } = useTranslation();
+    const { settings } = useSettings();
+    const { convert } = usePrice();
     const { addAsset, assets, updateAsset, addTransaction } = usePortfolio();
+
+    const userCurrency = settings.currency || 'USD';
 
     const [type, setType] = useState<'crypto' | 'stock' | 'commodity' | 'forex'>('crypto');
     const [symbol, setSymbol] = useState('');
@@ -118,11 +123,16 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         try {
             const quote = await fetchQuoteByType();
             if (quote) {
-                setAvgPrice(quote.price.toString());
+                // Price from API is in USD, convert to user currency for the input
+                const convertedPrice = convert(quote.price, userCurrency);
+                setAvgPrice(convertedPrice.toString());
                 if (!name.trim()) {
                     setName(quote.name);
                 }
-                toast.success(t('addAssetDialog.fetchedPrice', { symbol: symbol.toUpperCase(), price: quote.price.toLocaleString() }));
+                toast.success(t('addAssetDialog.fetchedPrice', { 
+                    symbol: symbol.toUpperCase(), 
+                    price: formatCurrency(convertedPrice, userCurrency) 
+                }));
             } else {
                 setFetchError(t('addAssetDialog.priceNotFound'));
                 toast.warning(t('addAssetDialog.priceNotFound'));
@@ -142,17 +152,20 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         }
 
         const qtyNum = parseFloat(quantity);
-        const pxNum = parseFloat(avgPrice);
+        const pxNumInUserCurrency = parseFloat(avgPrice);
 
-        if (isNaN(qtyNum) || isNaN(pxNum)) {
+        if (isNaN(qtyNum) || isNaN(pxNumInUserCurrency)) {
             toast.error(t('addAssetDialog.qtyAndPriceMustBeNumber'));
             return;
         }
 
-        if (qtyNum <= 0 || pxNum <= 0) {
+        if (qtyNum <= 0 || pxNumInUserCurrency <= 0) {
             toast.error(t('addAssetDialog.qtyAndPricePositive'));
             return;
         }
+
+        // Convert back to USD for storage
+        const pxNum = userCurrency === 'USD' ? pxNumInUserCurrency : pxNumInUserCurrency / (usePriceStore.getState().exchangeRates[userCurrency] || 1);
 
         // ตรวจสอบ symbol ซ้ำ
         const duplicateAsset = assets.find(a => a.symbol.toUpperCase() === symbol.toUpperCase());
@@ -262,12 +275,12 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         className="fixed inset-0 flex items-center justify-center z-50 p-4"
                     >
-                        <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
                             {/* Header */}
-                            <div className="relative p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-200">
+                            <div className="relative p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 border-b border-gray-200 dark:border-slate-800">
                                 <button
                                     onClick={handleClose}
-                                    className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white text-gray-500 hover:text-gray-900 shadow-sm transition-colors"
+                                    className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 text-gray-500 hover:text-gray-900 dark:hover:text-white shadow-sm transition-colors"
                                 >
                                     <X size={18} />
                                 </button>
@@ -276,8 +289,8 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                         <Briefcase className="text-white" size={24} />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-bold text-gray-900">{t('addAssetDialog.title')}</h2>
-                                        <p className="text-sm text-gray-500">{t('addAssetDialog.subtitle')}</p>
+                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('addAssetDialog.title')}</h2>
+                                        <p className="text-sm text-gray-500 dark:text-slate-400">{t('addAssetDialog.subtitle')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -286,7 +299,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                             <div className="p-6 space-y-5">
                                 {/* Type Selection */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                         {t('addAssetDialog.assetType')}
                                     </label>
                                     <div className="grid grid-cols-4 gap-2">
@@ -300,8 +313,8 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                                 key={t.id}
                                                 onClick={() => setType(t.id as typeof type)}
                                                 className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl border-2 transition-all ${type === t.id
-                                                    ? 'border-[#ee7d54] bg-orange-50 text-[#ee7d54]'
-                                                    : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
+                                                    ? 'border-[#ee7d54] bg-orange-50 dark:bg-orange-500/10 text-[#ee7d54]'
+                                                    : 'border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-800 text-gray-500 hover:border-gray-200 dark:hover:border-slate-700'
                                                     }`}
                                             >
                                                 <t.icon size={18} />
@@ -312,8 +325,8 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                 </div>
 
                                 {existingAsset && (
-                                    <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
-                                        <p className="text-sm text-red-600">
+                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl">
+                                        <p className="text-sm text-red-600 dark:text-red-400">
                                             {t('addAssetDialog.existingAssetWarning', { symbol: symbol.toUpperCase(), qty: existingAsset.quantity })}
                                         </p>
                                     </div>
@@ -321,7 +334,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                                             {t('addAssetDialog.symbol')}
                                         </label>
                                         <div className="relative">
@@ -333,7 +346,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                                     setFetchError(null);
                                                 }}
                                                 placeholder="e.g. BTC"
-                                                className="w-full px-4 py-2.5 pr-10 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all font-medium uppercase"
+                                                className="w-full px-4 py-2.5 pr-10 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-950 focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all font-medium uppercase dark:text-white"
                                             />
                                             <button
                                                 onClick={fetchCurrentPrice}
@@ -353,7 +366,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                         )}
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                                             {t('addAssetDialog.assetName')}
                                         </label>
                                         <input
@@ -361,14 +374,14 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                             value={name}
                                             onChange={(e) => setName(e.target.value)}
                                             placeholder="e.g. Bitcoin"
-                                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all"
+                                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-950 focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all dark:text-white"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                                             {t('addAssetDialog.quantity')}
                                         </label>
                                         <input
@@ -377,44 +390,41 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                             onChange={(e) => setQuantity(e.target.value)}
                                             placeholder="0.00"
                                             step="any"
-                                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all"
+                                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-950 focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all dark:text-white"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            {t('addAssetDialog.avgPriceUsd')}
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                                            Price ({userCurrency})
                                         </label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
-                                            <input
-                                                type="number"
-                                                value={avgPrice}
-                                                onChange={(e) => setAvgPrice(e.target.value)}
-                                                placeholder="0.00"
-                                                step="any"
-                                                className="w-full pl-7 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all"
-                                            />
-                                        </div>
+                                        <input
+                                            type="number"
+                                            value={avgPrice}
+                                            onChange={(e) => setAvgPrice(e.target.value)}
+                                            placeholder="0.00"
+                                            step="any"
+                                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-950 focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all dark:text-white"
+                                        />
                                     </div>
                                 </div>
 
                                 {/* Summary */}
-                                <div className="bg-orange-50 rounded-xl p-4 flex flex-col items-center justify-center border border-orange-100/50">
-                                    <p className="text-xs text-orange-600 font-medium mb-1">{t('addAssetDialog.totalValue')}</p>
-                                    <p className="text-2xl font-bold text-gray-900">
-                                        ${(parseFloat(quantity || '0') * parseFloat(avgPrice || '0')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                <div className="bg-orange-50 dark:bg-orange-500/5 rounded-xl p-4 flex flex-col items-center justify-center border border-orange-100/50 dark:border-orange-500/20">
+                                    <p className="text-xs text-orange-600 dark:text-orange-400 font-medium mb-1">{t('addAssetDialog.totalValue')}</p>
+                                    <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
+                                        {formatCurrency(parseFloat(quantity || '0') * parseFloat(avgPrice || '0'), userCurrency)}
                                     </p>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {t('addAssetDialog.quantityTimesPrice', { qty: parseFloat(quantity || '0').toLocaleString(), price: parseFloat(avgPrice || '0').toLocaleString() })}
+                                    <p className="text-[10px] text-gray-500 dark:text-slate-500 mt-1 uppercase tracking-wider font-bold">
+                                        Qty: {quantity || '0'} × {formatCurrency(parseFloat(avgPrice || '0'), userCurrency)}
                                     </p>
                                 </div>
                             </div>
 
                             {/* Footer */}
-                            <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
+                            <div className="p-6 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-800 flex gap-3">
                                 <button
                                     onClick={handleClose}
-                                    className="flex-1 py-3 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                                    className="flex-1 py-3 px-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                                 >
                                     {t('addAssetDialog.cancel')}
                                 </button>
@@ -440,3 +450,6 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         </AnimatePresence>
     );
 }
+
+// Ensure usePriceStore is imported for manual conversion in handleAddAsset
+import { usePriceStore } from '@/store/usePriceStore';

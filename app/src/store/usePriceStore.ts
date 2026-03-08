@@ -7,6 +7,7 @@ import WebSocketManager, { type ConnectionStatus } from '@/services/websocket';
 interface PriceState {
   prices: Map<string, CryptoPrice>;
   allPrices: CryptoPrice[];
+  exchangeRates: Record<string, number>; // Base USD, e.g. { THB: 35.5 }
   isLoading: boolean;
   error: Error | null;
   lastUpdate: Date | null;
@@ -15,12 +16,16 @@ interface PriceState {
   
   // Actions
   refreshPrices: () => Promise<void>;
+  fetchExchangeRates: () => Promise<void>;
   subscribeToPrices: (symbols: string[]) => void;
   unsubscribeFromPrices: (symbols: string[]) => void;
   updatePrice: (price: CryptoPrice) => void;
   updatePricesBatch: (prices: CryptoPrice[]) => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
   checkStaleness: () => void;
+  
+  // Helpers
+  convert: (value: number, toCurrency: string) => number;
 }
 
 const DEFAULT_WEBSOCKET_SYMBOLS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'DOT'];
@@ -30,6 +35,7 @@ export const usePriceStore = create<PriceState>()(
   subscribeWithSelector((set, get) => ({
     prices: new Map<string, CryptoPrice>(),
     allPrices: [],
+    exchangeRates: { USD: 1, THB: 35.8, EUR: 0.92, GBP: 0.79, JPY: 150.5 }, // Default fallback rates
     isLoading: false,
     error: null,
     lastUpdate: null,
@@ -42,6 +48,22 @@ export const usePriceStore = create<PriceState>()(
       error: null,
     },
     isPriceFeedStale: false,
+
+    fetchExchangeRates: async () => {
+      try {
+        // In a real app, you would fetch from an API like fixer.io or similar
+        // For now we simulate an update or keep defaults
+        console.log('[PriceStore] Syncing exchange rates...');
+      } catch (err) {
+        console.error('Failed to fetch exchange rates', err);
+      }
+    },
+
+    convert: (value: number, toCurrency: string) => {
+      if (toCurrency === 'USD') return value;
+      const rate = get().exchangeRates[toCurrency] || 1;
+      return value * rate;
+    },
 
     refreshPrices: async () => {
       set({ isLoading: true, error: null });

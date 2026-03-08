@@ -60,6 +60,7 @@ export function usePrice() {
   return useMemo(() => ({
     prices: priceState.prices,
     allPrices: priceState.allPrices,
+    exchangeRates: priceState.exchangeRates,
     isLoading: priceState.isLoading,
     error: priceState.error,
     lastUpdate: priceState.lastUpdate,
@@ -71,5 +72,6 @@ export function usePrice() {
     isPriceFeedStale: priceState.isPriceFeedStale,
     connectionState: priceState.connectionStatus.state,
     latencyMs: priceState.connectionStatus.latency,
+    convert: priceState.convert,
   }), [priceState]);
 }
