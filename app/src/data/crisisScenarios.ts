@@ -228,6 +228,38 @@ export const crisisScenarios: CrisisScenario[] = [
       { phase: 'Margin Screening', phaseTH: 'ตรวจสอบกำไร', action: 'Avoid labor-intensive, low-margin plays.', actionTH: 'หลีกเลี่ยงธุรกิจที่ใช้แรงงานเยอะและกำไรต่ำ' },
       { phase: 'Efficiency Boost', phaseTH: 'เพิ่มประสิทธิภาพ', action: 'Focus on Enterprise AI software.', actionTH: 'เน้นซอฟต์แวร์ AI สำหรับองค์กรเพื่อเพิ่ม Productivity' }
     ]
+  }),
+  createScenario({
+    id: 'hormuz-chokehold',
+    name: 'Hormuz: Global Chokehold',
+    nameTH: 'คอขวดโลก: วิกฤตช่องแคบฮอร์มุซ',
+    description: 'Total closure of the Strait of Hormuz causing a systemic collapse from energy to semiconductors and food.',
+    descriptionTH: 'การปิดช่องแคบฮอร์มุซอย่างสมบูรณ์ นำไปสู่การล่มสลายเชิงระบบตั้งแต่พลังงาน ชิปคอมพิวเตอร์ ไปจนถึงอาหารโลก',
+    threatLevel: 'critical',
+    color: 'amber',
+    icon: 'anchor',
+    impactSectors: [
+      { sector: 'Energy & LNG', impact: 0.95 },
+      { sector: 'Sulfuric Acid', impact: 0.9 },
+      { sector: 'Industrial Metals', impact: 0.85 },
+      { sector: 'Semiconductors', impact: -0.75 },
+      { sector: 'Agriculture', impact: 0.8 }
+    ],
+    recommendedStocks: [
+      { symbol: 'XOM', name: 'Exxon Mobil', sector: 'Energy', reason: 'Energy scarcity play.', reasonTH: 'ผู้เล่นหลักในสภาวะพลังงานขาดแคลน', riskLevel: 'low', allocation: 20 },
+      { symbol: 'FCX', name: 'Freeport-McMoRan', sector: 'Copper', reason: 'Copper supply chain disruption.', reasonTH: 'ได้รับอานิสงส์จากการขาดแคลนทองแดงทั่วโลก', riskLevel: 'medium', allocation: 20 },
+      { symbol: 'MOS', name: 'Mosaic', sector: 'Fertilizer', reason: 'Nitrogen feedstock collapse.', reasonTH: 'วิกฤตวัตถุดิบปุ๋ยไนโตรเจนพุ่งสูง', riskLevel: 'high', allocation: 15 },
+      { symbol: 'MP', name: 'MP Materials', sector: 'Rare Earths', reason: 'Strategic supply chain shift.', reasonTH: 'ได้รับประโยชน์จากการเปลี่ยนโซ่อุปทานเชิงกลยุทธ์', riskLevel: 'high', allocation: 15 }
+    ],
+    safeHavenAllocation: 40,
+    indicators: ['Strait Closure Duration > 7 Days', 'LNG Spot Prices Asia Surge', 'Copper Inventory Depletion'],
+    indicatorsTH: ['ระยะเวลาปิดช่องแคบ > 7 วัน', 'ราคา LNG สปอตในเอเชียพุ่งสูง', 'สต็อกทองแดงทั่วโลกลดลงอย่างรวดเร็ว'],
+    playbook: [
+      { phase: 'Chemical Shock', phaseTH: 'ช็อกกำมะถัน', action: 'Monitor Sulfuric Acid supplies; exit Copper/EV plays.', actionTH: 'ติดตามซัพพลายกำมะถัน; ย้ายออกจากการลงทุนกลุ่มทองแดงและรถ EV ชั่วคราว' },
+      { phase: 'Power & Silicon', phaseTH: 'วิกฤตไฟฟ้าและชิป', action: 'Reduce exposure to TSMC/Fab reliant on Taiwan grid.', actionTH: 'ลดการถือหุ้นกลุ่มผลิตชิป (TSMC) ที่พึ่งพาโครงข่ายไฟฟ้า LNG ในไต้หวัน' },
+      { phase: 'AI & Data Halt', phaseTH: 'โครงสร้าง AI หยุดชะงัก', action: 'Expect massive Capex delays in AI infrastructure.', actionTH: 'เตรียมรับมือความล่าช้าของการสร้างโครงสร้างพื้นฐาน AI ทั่วโลก' },
+      { phase: 'Food Chain Collapse', phaseTH: 'ห่วงโซ่อาหารล่ม', action: 'Heavy overweight in Ag/Fertilizer providers.', actionTH: 'เพิ่มน้ำหนักการลงทุนสูงสุดในกลุ่มเกษตรและผู้ผลิตปุ๋ย' }
+    ]
   })
 ];
 
