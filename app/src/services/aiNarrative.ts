@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { pb, isPocketBaseEnabled } from '@/lib/pocketbase';
 import type { PortfolioAsset } from '@/types';
 
 export interface NewsArticle {

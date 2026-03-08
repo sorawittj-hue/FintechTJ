@@ -17,7 +17,7 @@
 import type { NewsArticle } from '@/api/newsapi';
 import type { PortfolioSummary } from '@/types';
 import type { AllIndicators } from './indicators';
-import { pb, isPocketBaseEnabled } from '@/lib/pocketbase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 // ============================================================================
 // Type Definitions
@@ -183,14 +183,17 @@ async function getCachedResponseAsync(key: string): Promise<string | null> {
   if (entry && Date.now() < entry.expiresAt) return entry.data;
   aiResponseCache.delete(safeKey);
 
-  if (isPocketBaseEnabled && pb) {
+  if (isSupabaseConfigured && supabase) {
     try {
-      const record = await pb.collection('ai_cache').getFirstListItem(`key="${safeKey}"`);
-      if (new Date() < new Date(record.expiresAt)) {
-        aiResponseCache.set(safeKey, { data: record.data, expiresAt: new Date(record.expiresAt).getTime() });
-        return record.data;
-      } else {
-        await pb.collection('ai_cache').delete(record.id).catch(() => { });
+      const { data, error } = await supabase
+        .from('api_cache')
+        .select('data, expires_at')
+        .eq('cache_key', safeKey)
+        .single();
+      
+      if (!error && data && new Date() < new Date(data.expires_at)) {
+        aiResponseCache.set(safeKey, { data: data.data, expiresAt: new Date(data.expires_at).getTime() });
+        return data.data;
       }
     } catch {
       // not found or error
@@ -205,20 +208,15 @@ async function setCachedResponseAsync(key: string, data: string, ttlMs = 5 * 60 
   const expiresAt = Date.now() + ttlMs;
   aiResponseCache.set(safeKey, { data, expiresAt });
 
-  if (isPocketBaseEnabled && pb) {
+  if (isSupabaseConfigured && supabase) {
     try {
-      // Attempt to find if it exists
-      try {
-        const existing = await pb.collection('ai_cache').getFirstListItem(`key="${safeKey}"`);
-        await pb.collection('ai_cache').update(existing.id, { data, expiresAt: new Date(expiresAt).toISOString() });
-      } catch {
-        // Doesn't exist, create
-        await pb.collection('ai_cache').create({
-          key: safeKey,
+      await supabase
+        .from('api_cache')
+        .upsert({
+          cache_key: safeKey,
           data,
-          expiresAt: new Date(expiresAt).toISOString()
-        });
-      }
+          expires_at: new Date(expiresAt).toISOString()
+        }, { onConflict: 'cache_key' });
     } catch {
       // Ignore cache persistence errors
     }

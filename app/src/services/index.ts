@@ -4,6 +4,19 @@
  * Centralized export of all services.
  */
 
+// Supabase Service (REPLACES pocketbaseService)
+export {
+  portfolioService,
+  transactionService,
+  alertService,
+  watchlistService,
+  preferenceService,
+  type SBWatchlist,
+  type SBPerformanceHistory,
+  type SBInvestmentGoal,
+  type SBUserPreferences
+} from './supabaseService';
+
 // Real Data Service (NEW - replaces mock data)
 export {
   realDataService,
