@@ -220,12 +220,12 @@ const SidebarContent = memo(function SidebarContent({
       {/* Logo */}
       <div className="p-5 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#ee7d54] to-[#f59e0b] flex items-center justify-center shadow-lg shadow-[#ee7d54]/30 flex-shrink-0">
-            <Zap className="text-white" size={20} />
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-gray-800 to-black flex items-center justify-center shadow-lg shadow-black/30 flex-shrink-0 border border-gray-700">
+            <Terminal className="text-[#f59e0b]" size={20} />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-gray-900 dark:text-white leading-tight">{t('app.name')}</h1>
-            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide">{t('app.tagline')}</p>
+            <h1 className="font-bold text-lg text-gray-900 dark:text-white leading-tight">APEX <span className="text-[#f59e0b]">TERMINAL</span></h1>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide">INSTITUTIONAL INTELLIGENCE</p>
           </div>
         </div>
       </div>
