@@ -7,6 +7,7 @@
  * - Profit calculation with fees
  * - Real-time opportunity alerts
  * - Risk-adjusted opportunity ranking
+ * - Powered by Web Workers for performance
  */
 
 import { useEffect, useState } from 'react';
@@ -90,118 +91,7 @@ const EXCHANGES: Exchange[] = [
   { id: 'kucoin', name: 'KuCoin', fees: { maker: 0.1, taker: 0.1, withdrawal: 0.0005 }, latency: 90, reliability: 92, supportedPairs: ['BTC', 'ETH', 'AVAX'] },
 ];
 
-// Symbols to monitor
 const MONITORED_SYMBOLS = ['BTC', 'ETH', 'SOL', 'AVAX', 'LINK', 'UNI', 'AAVE'];
-
-// Generate simulated price data
-const generatePrices = (): ExchangePrice[] => {
-  const prices: ExchangePrice[] = [];
-  
-  MONITORED_SYMBOLS.forEach(symbol => {
-    // Base price varies by symbol
-    const basePrice = symbol === 'BTC' ? 67500 : 
-                      symbol === 'ETH' ? 3520 : 
-                      symbol === 'SOL' ? 142.50 : 
-                      symbol === 'AVAX' ? 38.20 :
-                      symbol === 'LINK' ? 18.50 :
-                      symbol === 'UNI' ? 12.30 :
-                      95.40; // AAVE
-    
-    EXCHANGES.forEach(exchange => {
-      if (!exchange.supportedPairs.includes(symbol)) return;
-      
-      // Add some random variation to prices
-      const variation = (Math.random() - 0.5) * 0.01; // ±0.5%
-      const price = basePrice * (1 + variation);
-      const spread = 0.02 + Math.random() * 0.08; // 0.02% - 0.1%
-      
-      prices.push({
-        exchange: exchange.id,
-        symbol,
-        bid: price * (1 - spread / 200),
-        ask: price * (1 + spread / 200),
-        spread,
-        volume24h: 10000000 + Math.random() * 500000000,
-        timestamp: new Date(),
-      });
-    });
-  });
-  
-  return prices;
-};
-
-// Find arbitrage opportunities
-const findOpportunities = (prices: ExchangePrice[]): ArbitrageOpportunity[] => {
-  const opportunities: ArbitrageOpportunity[] = [];
-  
-  MONITORED_SYMBOLS.forEach(symbol => {
-    const symbolPrices = prices.filter(p => p.symbol === symbol);
-    
-    // Compare all exchange pairs
-    for (let i = 0; i < symbolPrices.length; i++) {
-      for (let j = 0; j < symbolPrices.length; j++) {
-        if (i === j) continue;
-        
-        const buyPrice = symbolPrices[i];
-        const sellPrice = symbolPrices[j];
-        
-        // Calculate price difference
-        const priceDiff = sellPrice.bid - buyPrice.ask;
-        const priceDiffPercent = (priceDiff / buyPrice.ask) * 100;
-        
-        // Skip if not profitable before fees
-        if (priceDiffPercent <= 0.2) continue;
-        
-        const buyExchange = EXCHANGES.find(e => e.id === buyPrice.exchange)!;
-        const sellExchange = EXCHANGES.find(e => e.id === sellPrice.exchange)!;
-        
-        // Calculate fees
-        const tradeSize = 10000; // $10k for calculation
-        const takerFeeBuy = (tradeSize / buyPrice.ask) * (buyExchange.fees.taker / 100) * buyPrice.ask;
-        const takerFeeSell = (tradeSize / buyPrice.ask) * (sellExchange.fees.taker / 100) * sellPrice.bid;
-        const withdrawalFee = tradeSize * (buyExchange.fees.withdrawal / 100);
-        const totalFees = takerFeeBuy + takerFeeSell + withdrawalFee;
-        
-        // Calculate profit
-        const grossProfit = (tradeSize / buyPrice.ask) * priceDiff;
-        const netProfit = grossProfit - totalFees;
-        const netProfitPercent = (netProfit / tradeSize) * 100;
-        
-        // Skip if not profitable after fees
-        if (netProfitPercent <= 0.05) continue;
-        
-        // Calculate risk score
-        const latencyRisk = (buyExchange.latency + sellExchange.latency) / 2;
-        const reliabilityRisk = 200 - buyExchange.reliability - sellExchange.reliability;
-        const liquidityRisk = Math.max(0, 100 - (buyPrice.volume24h / 1000000));
-        const riskScore = Math.min(100, (latencyRisk + reliabilityRisk + liquidityRisk) / 3);
-        
-        opportunities.push({
-          id: `arb-${symbol}-${buyPrice.exchange}-${sellPrice.exchange}-${Date.now()}`,
-          symbol,
-          buyExchange,
-          sellExchange,
-          buyPrice: buyPrice.ask,
-          sellPrice: sellPrice.bid,
-          priceDiff,
-          priceDiffPercent: Math.round(priceDiffPercent * 100) / 100,
-          grossProfitPercent: Math.round(priceDiffPercent * 100) / 100,
-          netProfitPercent: Math.round(netProfitPercent * 100) / 100,
-          estimatedProfit: Math.round(netProfit * 100) / 100,
-          riskScore: Math.round(riskScore),
-          executionTime: Math.round((buyExchange.latency + sellExchange.latency) / 1000),
-          liquidityRisk: buyPrice.volume24h > 100000000 ? 'low' : buyPrice.volume24h > 10000000 ? 'medium' : 'high',
-          timestamp: new Date(),
-          expiresAt: new Date(Date.now() + 1000 * 60 * 5), // 5 min
-          priority: netProfitPercent > 1 ? 'critical' : netProfitPercent > 0.5 ? 'high' : netProfitPercent > 0.2 ? 'medium' : 'low',
-        });
-      }
-    }
-  });
-  
-  // Sort by net profit
-  return opportunities.sort((a, b) => b.netProfitPercent - a.netProfitPercent);
-};
 
 /**
  * Arbitrage Scanner Service
@@ -212,8 +102,10 @@ export class ArbitrageScannerService {
   private prices: ExchangePrice[] = [];
   private subscribers: Set<(data: { opportunities: ArbitrageOpportunity[]; prices: ExchangePrice[] }) => void> = new Set();
   private intervalId: ReturnType<typeof setInterval> | null = null;
+  private worker: Worker | null = null;
 
   private constructor() {
+    this.initWorker();
     this.startScanning();
   }
 
@@ -222,6 +114,20 @@ export class ArbitrageScannerService {
       ArbitrageScannerService.instance = new ArbitrageScannerService();
     }
     return ArbitrageScannerService.instance;
+  }
+
+  private initWorker(): void {
+    if (typeof window !== 'undefined' && window.Worker) {
+      this.worker = new Worker(new URL('../workers/arbitrage.worker.ts', import.meta.url), { type: 'module' });
+      
+      this.worker.onmessage = (event) => {
+        if (event.data.type === 'SCAN_RESULTS') {
+          this.prices = event.data.payload.prices;
+          this.opportunities = event.data.payload.opportunities;
+          this.notifySubscribers();
+        }
+      };
+    }
   }
 
   /**
@@ -245,15 +151,19 @@ export class ArbitrageScannerService {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
   }
 
   /**
    * Perform a scan
    */
   private scan(): void {
-    this.prices = generatePrices();
-    this.opportunities = findOpportunities(this.prices);
-    this.notifySubscribers();
+    if (this.worker) {
+      this.worker.postMessage({ type: 'START_SCAN' });
+    }
   }
 
   /**

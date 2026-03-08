@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare,
   TrendingUp,
@@ -12,10 +13,17 @@ import {
   Users,
   BarChart3,
   Minus,
+  Sparkles,
+  RefreshCw,
+  AlertTriangle,
+  ArrowRight
 } from 'lucide-react';
 import { useNarrativeCycle } from '@/services/narrativeCycle';
+import { aiNarrativeService, type AINarrativeAnalysis } from '@/services/aiNarrative';
+import { usePortfolio } from '@/context/hooks';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 const itemVariants = {
   hidden: { y: 20, opacity: 0 },
@@ -27,8 +35,34 @@ const itemVariants = {
 };
 
 export function NarrativeCycle() {
-  const { narratives, mentions, cycle, stats, loading } = useNarrativeCycle();
+  const { narratives, mentions, cycle, stats, loading: narrativeLoading } = useNarrativeCycle();
+  const { portfolio, assets } = usePortfolio();
+  
   const [selectedNarrative, setSelectedNarrative] = useState<string | null>(null);
+  
+  // AI Arbitrage State
+  const [aiAnalysis, setAiAnalysis] = useState<AINarrativeAnalysis | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  const runAiArbitrage = useCallback(async () => {
+    if (assets.length === 0) {
+      toast.error('Add assets to your portfolio first to run AI Narrative Analysis');
+      return;
+    }
+    
+    setIsAiLoading(true);
+    try {
+      // Pass empty articles for now since we mock the backend logic
+      const result = await aiNarrativeService.analyzeNarrativeArbitrage([], assets);
+      setAiAnalysis(result);
+      toast.success('AI Analysis Complete');
+    } catch (error) {
+      toast.error('AI Analysis failed. Please try again.');
+      console.error(error);
+    } finally {
+      setIsAiLoading(false);
+    }
+  }, [assets]);
 
   const getSentimentColor = (score: number) => {
     if (score > 50) return 'text-green-600';
@@ -63,7 +97,7 @@ export function NarrativeCycle() {
     }
   };
 
-  if (loading) {
+  if (narrativeLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ee7d54]" />
@@ -85,8 +119,8 @@ export function NarrativeCycle() {
               <MessageSquare className="text-white" size={24} />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Narrative Cycle</h1>
-              <p className="text-gray-500">Heuristic narrative and sentiment tracking from recent news coverage</p>
+              <h1 className="text-3xl font-bold">Narrative Arbitrage</h1>
+              <p className="text-gray-500">Capital flow cycles and AI-powered lagging alpha detection</p>
             </div>
           </div>
         </div>
@@ -96,6 +130,149 @@ export function NarrativeCycle() {
             <p className="text-xl font-bold">{stats?.activeNarratives}</p>
           </div>
         </div>
+      </motion.div>
+
+      {/* AI Narrative Arbitrage Engine */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-xl overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 z-0"></div>
+          
+          {/* Animated Background Elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-fuchsia-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob z-0"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000 z-0"></div>
+          
+          <CardContent className="p-8 relative z-10 text-white">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="text-cyan-400" size={24} />
+                  <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">
+                    AI Narrative Alpha Engine
+                  </h2>
+                </div>
+                <p className="text-indigo-200 max-w-xl">
+                  Gemini analyzes real-time news flows against your portfolio to identify "Lagging Alpha" — assets where news sentiment has shifted but price has not yet reacted.
+                </p>
+              </div>
+              <button 
+                onClick={runAiArbitrage}
+                disabled={isAiLoading}
+                className="mt-4 md:mt-0 flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-xl border border-white/20 transition-all font-medium whitespace-nowrap"
+              >
+                {isAiLoading ? (
+                  <RefreshCw className="animate-spin" size={18} />
+                ) : (
+                  <Brain size={18} className="text-fuchsia-300" />
+                )}
+                {isAiLoading ? 'Synthesizing Data...' : 'Analyze Portfolio Alpha'}
+              </button>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {aiAnalysis ? (
+                <motion.div
+                  key="results"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+                >
+                  {/* Left Column: Macro Context */}
+                  <div className="lg:col-span-1 space-y-4">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
+                      <p className="text-indigo-300 text-sm mb-1 uppercase tracking-wider font-semibold">Dominant Narrative</p>
+                      <p className="text-xl font-bold mb-4">{aiAnalysis.dominantNarrative}</p>
+                      
+                      <p className="text-indigo-300 text-sm mb-1 uppercase tracking-wider font-semibold">Market Context</p>
+                      <p className="text-gray-300 text-sm leading-relaxed mb-4">{aiAnalysis.marketContext}</p>
+                      
+                      <div className="pt-4 border-t border-white/10">
+                        <p className="text-indigo-300 text-sm mb-2 uppercase tracking-wider font-semibold">AI Confidence</p>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${aiAnalysis.confidence}%` }}
+                              transition={{ duration: 1 }}
+                              className="h-full bg-gradient-to-r from-cyan-400 to-blue-500"
+                            />
+                          </div>
+                          <span className="text-sm font-bold text-cyan-400">{aiAnalysis.confidence}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Asset Impact */}
+                  <div className="lg:col-span-2">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm h-full">
+                      <div className="flex items-center gap-2 mb-4">
+                        <AlertTriangle size={18} className="text-yellow-400" />
+                        <h3 className="font-semibold text-lg">Direct Portfolio Impact</h3>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {aiAnalysis.affectedAssets.map((asset, idx) => (
+                          <div key={idx} className={`p-4 rounded-xl border ${
+                            asset.impact === 'positive' ? 'bg-green-900/20 border-green-500/30' :
+                            asset.impact === 'negative' ? 'bg-red-900/20 border-red-500/30' :
+                            'bg-white/5 border-white/10'
+                          }`}>
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="text-lg font-bold bg-white/10 px-2 py-1 rounded text-white">
+                                  {asset.symbol}
+                                </div>
+                                <Badge className={
+                                  asset.impact === 'positive' ? 'bg-green-500 text-white' :
+                                  asset.impact === 'negative' ? 'bg-red-500 text-white' :
+                                  'bg-gray-500 text-white'
+                                }>
+                                  {asset.impact.toUpperCase()}
+                                </Badge>
+                              </div>
+                              {asset.laggingAlpha && (
+                                <Badge className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 animate-pulse">
+                                  LAGGING ALPHA DETECTED
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-300 mb-3">{asset.reasoning}</p>
+                            
+                            {asset.laggingAlpha && (
+                              <div className="flex items-center gap-2 text-xs font-medium text-cyan-400 bg-cyan-900/30 px-3 py-2 rounded-lg">
+                                <ArrowRight size={14} />
+                                Action: Price has not yet priced in this narrative. Consider increasing allocation.
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-5 p-4 bg-indigo-900/40 rounded-xl border border-indigo-500/30">
+                        <p className="text-xs text-indigo-300 uppercase tracking-wider font-semibold mb-1">Execution Strategy</p>
+                        <p className="text-sm text-indigo-100">{aiAnalysis.actionableAdvice}</p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="py-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/10 rounded-2xl"
+                >
+                  <Brain size={48} className="text-white/20 mb-4" />
+                  <p className="text-white/60 font-medium">Awaiting Execution Command</p>
+                  <p className="text-white/40 text-sm mt-1">Press the button above to run real-time AI analysis against your current holdings</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Cycle Status */}

@@ -65,36 +65,36 @@ export interface WebSocketConfig {
 // Default configurations for different sources
 const DEFAULT_CONFIGS: Record<WebSocketSource, Partial<WebSocketConfig>> = {
   binance: {
-    reconnectAttempts: 10,
-    reconnectDelay: 1000,
-    maxReconnectDelay: 30000,
+    reconnectAttempts: 3,
+    reconnectDelay: 2000,
+    maxReconnectDelay: 10000,
     heartbeatInterval: 30000,
     heartbeatTimeout: 10000,
     bufferSize: 1000,
     bufferDuration: 60000,
   },
   coinbase: {
-    reconnectAttempts: 10,
-    reconnectDelay: 1000,
-    maxReconnectDelay: 30000,
+    reconnectAttempts: 3,
+    reconnectDelay: 2000,
+    maxReconnectDelay: 10000,
     heartbeatInterval: 30000,
     heartbeatTimeout: 10000,
     bufferSize: 1000,
     bufferDuration: 60000,
   },
   kraken: {
-    reconnectAttempts: 10,
-    reconnectDelay: 1000,
-    maxReconnectDelay: 30000,
+    reconnectAttempts: 3,
+    reconnectDelay: 2000,
+    maxReconnectDelay: 10000,
     heartbeatInterval: 30000,
     heartbeatTimeout: 10000,
     bufferSize: 1000,
     bufferDuration: 60000,
   },
   custom: {
-    reconnectAttempts: 5,
-    reconnectDelay: 1000,
-    maxReconnectDelay: 30000,
+    reconnectAttempts: 2,
+    reconnectDelay: 2000,
+    maxReconnectDelay: 10000,
     heartbeatInterval: 30000,
     heartbeatTimeout: 10000,
     bufferSize: 500,
@@ -106,7 +106,7 @@ const DEFAULT_CONFIGS: Record<WebSocketSource, Partial<WebSocketConfig>> = {
 const SOURCE_URLS: Record<WebSocketSource, (symbols: string[]) => string> = {
   binance: (symbols) => {
     const streams = symbols.map((s) => `${s.toLowerCase()}usdt@ticker`).join('/');
-    return `wss://stream.binance.com:9443/ws/stream?streams=${streams}`;
+    return `wss://stream.binance.com:9443/stream?streams=${streams}`;
   },
   coinbase: () => 'wss://ws-feed.exchange.coinbase.com',
   kraken: () => 'wss://ws.kraken.com',
@@ -130,6 +130,7 @@ const REST_API_URLS: Record<WebSocketSource, (symbols: string[]) => string> = {
  */
 export class WebSocketManager {
   private static instance: WebSocketManager | null = null;
+  private static isWebSocketBlocked = false; // Persistent session flag
 
   private ws: WebSocket | null = null;
   private config: WebSocketConfig;
@@ -256,6 +257,18 @@ export class WebSocketManager {
    * Connect to WebSocket
    */
   connect(symbols: string[] = [], source: WebSocketSource = 'binance'): void {
+    if (typeof WebSocket === 'undefined') {
+      this.log('WebSocket is not supported in this environment, using polling');
+      this.startPollingFallback();
+      return;
+    }
+
+    if (WebSocketManager.isWebSocketBlocked) {
+      this.log('WebSocket is known to be blocked, skipping and using polling');
+      this.startPollingFallback();
+      return;
+    }
+
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.log('Already connected');
       return;
@@ -284,13 +297,21 @@ export class WebSocketManager {
    * Create WebSocket connection
    */
   private createConnection(): void {
+    if (WebSocketManager.isWebSocketBlocked) return;
+
     try {
       this.log('Creating WebSocket connection to', this.config.url);
       this.ws = new WebSocket(this.config.url);
 
       this.ws.onopen = () => this.handleOpen();
       this.ws.onmessage = (event) => this.handleMessage(event);
-      this.ws.onerror = (error) => this.handleError(error);
+      this.ws.onerror = (error) => {
+        if (this.status.reconnectAttempts >= this.config.reconnectAttempts - 1) {
+          this.log('WebSocket connection failed multiple times, flagging as blocked');
+          WebSocketManager.isWebSocketBlocked = true;
+        }
+        this.handleError(error);
+      };
       this.ws.onclose = () => this.handleClose();
     } catch (error) {
       this.log('Failed to create WebSocket:', error);
@@ -521,13 +542,13 @@ export class WebSocketManager {
     try {
       const url = REST_API_URLS[this.source](this.currentSymbols);
       const response = await fetch(url);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
 
       const data = await response.json();
-      
+
       // Transform and route data
       if (Array.isArray(data)) {
         for (const item of data) {

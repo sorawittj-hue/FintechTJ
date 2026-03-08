@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
+import { toast } from 'sonner';
 
 // Global error log type
 interface ErrorLog {
@@ -182,6 +183,20 @@ export function initializeGlobalErrorHandlers(
       console.error('[Global Error]', errorInfo);
     }
 
+    // Show toast for user
+    toast.error('Application Error Detected', {
+      description: String(message).slice(0, 100) + (String(message).length > 100 ? '...' : ''),
+      duration: 5000,
+      action: {
+        label: 'Copy Details',
+        onClick: () => {
+          const details = `Error: ${message}\nSource: ${source}\nLine: ${lineno}:${colno}\nStack: ${error?.stack}`;
+          navigator.clipboard.writeText(details);
+          toast.success('Error details copied to clipboard!');
+        }
+      }
+    });
+
     if (enableReporting) {
       reportError({
         id: generateErrorId(),
@@ -209,6 +224,20 @@ export function initializeGlobalErrorHandlers(
     if (enableConsole) {
       console.error('[Unhandled Promise Rejection]', errorInfo);
     }
+
+    // Show toast for user
+    toast.error('Async Operation Failed', {
+      description: String(reason?.message || reason).slice(0, 100),
+      duration: 5000,
+      action: {
+        label: 'Copy Details',
+        onClick: () => {
+          const details = `Async Error: ${reason?.message || reason}\nStack: ${reason?.stack}`;
+          navigator.clipboard.writeText(details);
+          toast.success('Error details copied to clipboard!');
+        }
+      }
+    });
 
     if (enableReporting) {
       reportError({

@@ -91,6 +91,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <ErrorFallback
           error={this.state.error}
+          errorInfo={this.state.errorInfo}
           sectionName={this.props.sectionName}
           providerName={this.props.providerName}
           onRetry={this.handleReset}

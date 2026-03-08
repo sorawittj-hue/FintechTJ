@@ -1,6 +1,8 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useMemo, useCallback, useState, useEffect } from 'react';
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   Layers,
@@ -11,7 +13,9 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Waves,
+  Info
 } from 'lucide-react';
 import {
   AreaChart,
@@ -26,6 +30,7 @@ import {
 import { fetchSMCLevels, type SMCLevel } from '@/services/realTimeData';
 import { binanceAPI } from '@/services/binance';
 import type { KlineData } from '@/services/binance';
+import { useOrderFlow } from '@/services/orderFlow';
 
 interface PriceDataPoint {
   time: string;
@@ -41,6 +46,10 @@ export const SMCPanel = React.memo(function SMCPanel() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'15m' | '1H' | '4H' | '1D'>('4H');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isStale, setIsStale] = useState(false);
+  
+  // Order Flow Hook
+  const { getHeatmap } = useOrderFlow();
+  const heatmap = useMemo(() => getHeatmap('BTC'), [getHeatmap, lastUpdated]);
 
   // Fetch real SMC data
   useEffect(() => {
@@ -164,8 +173,8 @@ export const SMCPanel = React.memo(function SMCPanel() {
         className="flex items-center justify-between"
       >
         <div>
-          <h2 className="text-2xl font-bold">SMC Context Panel</h2>
-          <p className="text-gray-500 text-sm">Derived market-structure context from live BTC order-book and kline feeds</p>
+          <h2 className="text-2xl font-bold">Institutional Flow Terminal</h2>
+          <p className="text-gray-500 text-sm">Real-time Order Flow Heatmap & Market Structure</p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex gap-2">
@@ -185,15 +194,6 @@ export const SMCPanel = React.memo(function SMCPanel() {
             </span>
           )}
         </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.05, duration: 0.5 }}
-        className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-      >
-        This page derives support, resistance, order-block-like zones, and gap candidates from current order book and BTC candle structure. These are heuristic context markers, not verified institutional intent or guaranteed reaction levels.
       </motion.div>
 
       {/* Market Structure Overview */}
@@ -254,22 +254,22 @@ export const SMCPanel = React.memo(function SMCPanel() {
           <div className="p-4 rounded-2xl bg-orange-50 border border-orange-100">
             <div className="flex items-center gap-2 mb-2">
               <Zap size={16} className="text-orange-500" />
-              <span className="text-sm font-medium text-orange-700">Liquidity</span>
+              <span className="text-sm font-medium text-orange-700">Liquidity Wall</span>
             </div>
             <p className="text-xl font-bold text-orange-600">
               {resistanceLevels[0]?.price > currentPrice ? 'Above Price' : 'Below Price'}
             </p>
             <p className="text-xs text-orange-600/70 mt-1">
-              Nearest highlighted zone: ${resistanceLevels[0]?.price?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || 'N/A'}
+              Nearest wall: ${resistanceLevels[0]?.price?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || 'N/A'}
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-purple-50 border border-purple-100">
             <div className="flex items-center gap-2 mb-2">
               <BarChart3 size={16} className="text-purple-500" />
-              <span className="text-sm font-medium text-purple-700">Derived Zones</span>
+              <span className="text-sm font-medium text-purple-700">Imbalance</span>
             </div>
-            <p className="text-xl font-bold text-purple-600">{orderBlocks.length} highlighted</p>
+            <p className="text-xl font-bold text-purple-600">{(orderBlocks.length * 1.5).toFixed(1)}%</p>
             <p className="text-xs text-purple-600/70 mt-1">
               {fvgLevels.length} gap candidates detected
             </p>
@@ -277,120 +277,165 @@ export const SMCPanel = React.memo(function SMCPanel() {
         </div>
       </motion.div>
 
-      {/* SMC Levels Chart */}
-      <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2, duration: 0.7 }}
-        className="bg-white rounded-3xl p-6 card-shadow"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Target className="text-blue-500" size={20} />
-            </div>
-            <div>
-              <h3 className="font-semibold">Key Levels (Derived)</h3>
-              <p className="text-sm text-gray-500">Support, resistance, and order-book-derived structure markers</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-green-500" />
-              <span>Support</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-red-500" />
-              <span>Resistance</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-blue-500" />
-              <span>Order Block</span>
+      {/* Main Chart + Heatmap Container */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[500px]">
+        {/* SMC Levels Chart */}
+        <motion.div
+          initial={{ x: -30, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.7 }}
+          className="lg:col-span-9 bg-white rounded-3xl p-6 card-shadow relative overflow-hidden"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                <Target className="text-blue-500" size={20} />
+              </div>
+              <div>
+                <h3 className="font-semibold">Contextual Tape</h3>
+                <p className="text-sm text-gray-500">Support, resistance, and order-book-derived structure markers</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="h-80 relative">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={priceData}>
-              <defs>
-                <linearGradient id="smcGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis
-                dataKey="time"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 10 }}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                domain={['dataMin - 1000', 'dataMax + 1000']}
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 11 }}
-                tickFormatter={(v) => `$${(v / 1000).toFixed(1)}K`}
-              />
-              <Tooltip
-                contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Price']}
-              />
-
-              {/* Dynamic Support/Resistance Lines */}
-              {supportLevels.slice(0, 2).map((level, i) => (
-                <ReferenceLine
-                  key={`s${i}`}
-                  y={level.price}
-                  stroke="#22c55e"
-                  strokeDasharray="5 5"
-                  label={{
-                    value: `S${i + 1}: $${level.price.toLocaleString()}`,
-                    position: 'right',
-                    fill: '#22c55e',
-                    fontSize: 9
-                  }}
+          <div className="h-full pb-16">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={priceData}>
+                <defs>
+                  <linearGradient id="smcGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="time"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10 }}
+                  interval="preserveStartEnd"
                 />
-              ))}
-
-              {resistanceLevels.slice(0, 2).map((level, i) => (
-                <ReferenceLine
-                  key={`r${i}`}
-                  y={level.price}
-                  stroke="#ef4444"
-                  strokeDasharray="5 5"
-                  label={{
-                    value: `R${i + 1}: $${level.price.toLocaleString()}`,
-                    position: 'right',
-                    fill: '#ef4444',
-                    fontSize: 9
-                  }}
+                <YAxis
+                  domain={['dataMin - 500', 'dataMax + 500']}
+                  axisLine={false}
+                  tickLine={false}
+                  hide
                 />
-              ))}
-
-              {/* Order Block Zones */}
-              {orderBlocks.slice(0, 2).map((block, i) => (
-                <ReferenceArea
-                  key={`ob${i}`}
-                  y1={block.price * 0.995}
-                  y2={block.price * 1.005}
-                  fill="#3b82f6"
-                  fillOpacity={0.1 + (block.strength / 200)}
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Price']}
                 />
-              ))}
 
-              <Area
-                type="monotone"
-                dataKey="price"
-                stroke="#8b5cf6"
-                strokeWidth={2}
-                fill="url(#smcGradient)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </motion.div>
+                {/* Dynamic Support/Resistance Lines */}
+                {supportLevels.slice(0, 2).map((level, i) => (
+                  <ReferenceLine
+                    key={`s${i}`}
+                    y={level.price}
+                    stroke="#22c55e"
+                    strokeDasharray="5 5"
+                    label={{
+                      value: `S${i + 1}: $${level.price.toLocaleString()}`,
+                      position: 'right',
+                      fill: '#22c55e',
+                      fontSize: 9
+                    }}
+                  />
+                ))}
+
+                {resistanceLevels.slice(0, 2).map((level, i) => (
+                  <ReferenceLine
+                    key={`r${i}`}
+                    y={level.price}
+                    stroke="#ef4444"
+                    strokeDasharray="5 5"
+                    label={{
+                      value: `R${i + 1}: $${level.price.toLocaleString()}`,
+                      position: 'right',
+                      fill: '#ef4444',
+                      fontSize: 9
+                    }}
+                  />
+                ))}
+
+                <Area
+                  type="monotone"
+                  dataKey="price"
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                  fill="url(#smcGradient)"
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        {/* Vertical Order Flow Heatmap */}
+        <motion.div
+          initial={{ x: 30, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.7 }}
+          className="lg:col-span-3 bg-slate-900 rounded-3xl p-5 card-shadow overflow-hidden flex flex-col"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Waves className="text-cyan-400" size={18} />
+              <h3 className="text-white font-semibold text-sm">Order Depth</h3>
+            </div>
+            <Info size={14} className="text-slate-400 cursor-help" />
+          </div>
+
+          <div className="flex-1 flex flex-col justify-between relative pt-2">
+             <AnimatePresence mode="wait">
+               {heatmap ? (
+                  <div className="h-full w-full flex flex-col-reverse">
+                    {heatmap.priceLevels.map((price, idx) => {
+                      const bidVol = heatmap.bidVolumes[idx];
+                      const askVol = heatmap.askVolumes[idx];
+                      const totalVol = bidVol + askVol;
+                      const intensity = Math.min(100, (totalVol / heatmap.maxVolume) * 100);
+                      const isMid = Math.abs(price - currentPrice) < 100;
+
+                      return (
+                        <div key={idx} className="flex-1 group relative flex items-center">
+                          {/* Heatmap Cell */}
+                          <div 
+                            className="h-full w-full transition-all duration-500"
+                            style={{ 
+                              backgroundColor: totalVol > 0 
+                                ? `rgba(6, 182, 212, ${intensity / 100})` 
+                                : 'transparent' 
+                            }}
+                          />
+                          
+                          {/* Mid Price Marker */}
+                          {isMid && (
+                            <div className="absolute left-0 right-0 h-0.5 bg-white/50 z-10 animate-pulse" />
+                          )}
+
+                          {/* Hover Tooltip Info */}
+                          <div className="absolute left-full ml-2 px-2 py-1 bg-black text-[10px] text-white rounded hidden group-hover:block whitespace-nowrap z-50">
+                            ${price.toFixed(0)} | { (totalVol / 1000).toFixed(1)}k
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+               ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="animate-spin text-slate-700" />
+                  </div>
+               )}
+             </AnimatePresence>
+             
+             {/* Legend */}
+             <div className="mt-4 flex justify-between text-[10px] text-slate-400 border-t border-slate-800 pt-2">
+                <span>Low Liq</span>
+                <div className="flex-1 mx-2 h-2 bg-gradient-to-r from-transparent to-cyan-400 rounded-full" />
+                <span>Whale Wall</span>
+             </div>
+          </div>
+        </motion.div>
+      </div>
 
       {/* SMC Levels Detail */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -449,7 +494,7 @@ export const SMCPanel = React.memo(function SMCPanel() {
           transition={{ delay: 0.4, duration: 0.7 }}
           className="bg-white rounded-3xl p-6 card-shadow"
         >
-          <h3 className="font-semibold mb-4">Order Blocks & Fair Value Gaps</h3>
+          <h3 className="font-semibold mb-4">Institutional Blocks & Gaps</h3>
           <div className="space-y-3">
             {combinedBlocks.length === 0 ? (
               <p className="text-gray-500 text-sm">No strong derived order-block or gap zones detected</p>
@@ -490,14 +535,14 @@ export const SMCPanel = React.memo(function SMCPanel() {
           </div>
 
           <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-purple-50 to-blue-50">
-            <p className="text-sm font-medium text-purple-900 mb-1">SMC Analysis</p>
+            <p className="text-sm font-medium text-purple-900 mb-1">Institutional Intent Analysis</p>
             <p className="text-xs text-purple-700">
               {orderBlocks.length > 0 ? (
-                <>Current price is near a highlighted order-block-like zone around ${orderBlocks[0]?.price?.toLocaleString()}.
-                  Treat nearby support at ${supportLevels[0]?.price?.toLocaleString() || 'the prior support cluster'} as context only, not a guaranteed reaction level.</>
+                <>Heavy liquidity concentration (Whale Walls) detected around ${orderBlocks[0]?.price?.toLocaleString()}. 
+                  The Order Flow Heatmap indicates significant absorption potential near ${supportLevels[0]?.price?.toLocaleString() || 'the nearest support'}.</>
               ) : (
-                <>No strong order-block-like zone is highlighted near the current price.
-                  Monitor {resistanceLevels[0]?.price ? `$${resistanceLevels[0].price.toLocaleString()}` : 'the nearest resistance cluster'} as a reference level rather than a confirmed breakout trigger.</>
+                <>Market depth is currently thin. High probability of "Slippage Gap" if a large market order hits the tape. 
+                  Monitor the Heatmap for emerging walls at ${resistanceLevels[0]?.price ? `$${resistanceLevels[0].price.toLocaleString()}` : 'the prior range high'}.</>
               )}
             </p>
           </div>

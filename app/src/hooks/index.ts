@@ -5,7 +5,7 @@
  */
 
 // Data hooks
-export { useData } from '@/context/useData';
+export { useData } from './useData';
 export { usePrices } from './usePrices';
 export { usePortfolio } from './usePortfolio';
 export { useAlerts } from './useAlerts';

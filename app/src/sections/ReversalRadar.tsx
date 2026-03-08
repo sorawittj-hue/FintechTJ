@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useMemo, useCallback, useState, useEffect } from 'react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';

@@ -1,11 +1,12 @@
-import { Suspense, lazy, useMemo } from 'react';
+import { Suspense, lazy, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './App.css';
 import { Sidebar } from '@/components/ui/custom/Sidebar';
 import { Header } from '@/components/ui/custom/Header';
 import { AppProvider } from '@/context/AppProvider';
-import { usePortfolio } from '@/context/hooks';
+import { usePortfolio, useAuth } from '@/context/hooks';
+import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { DepositDialog, WithdrawDialog, AlertDialog } from '@/components/dialogs';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SectionSkeleton } from '@/components/SectionSkeleton';
@@ -21,7 +22,7 @@ const News = lazy(() => import('@/sections/News'));
 const Settings = lazy(() => import('@/sections/Settings'));
 const HelpCenter = lazy(() => import('@/sections/HelpCenter'));
 
-// Advanced sections - now fully enabled
+// Advanced sections
 const OilIntelligence = lazy(() => import('@/sections/OilIntelligence'));
 const WhaleVault = lazy(() => import('@/sections/WhaleVault'));
 const QuantLab = lazy(() => import('@/sections/QuantLab'));
@@ -77,6 +78,16 @@ function SectionWrapper({ section, children }: { section: string; children: Reac
 function AppContent() {
   const location = useLocation();
   const { isDepositOpen, setIsDepositOpen, isWithdrawOpen, setIsWithdrawOpen, isAlertOpen, setIsAlertOpen } = usePortfolio();
+  const { user } = useAuth();
+  const { setupRealtimeSync } = usePortfolioStore();
+
+  // Setup real-time sync
+  useEffect(() => {
+    if (user && !user.isGuest && user.id) {
+      const cleanup = setupRealtimeSync(user.id);
+      return cleanup;
+    }
+  }, [user, setupRealtimeSync]);
 
   const skeletonType = useMemo(() => getSkeletonType(location.pathname), [location.pathname]);
   const isLogin = location.pathname === '/login';

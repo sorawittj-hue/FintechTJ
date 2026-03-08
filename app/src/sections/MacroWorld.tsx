@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -109,6 +110,7 @@ async function fetchFREDData(seriesId: string): Promise<{ value: number; date: s
   try {
     // Try multiple CORS proxies
     const proxies = [
+      { url: 'https://corsproxy.io/?', encode: true },
       { url: 'https://api.allorigins.win/get?url=', encode: true },
       { url: 'https://api.codetabs.com/v1/proxy?quest=', encode: true },
     ];
@@ -150,6 +152,7 @@ async function fetchFREDData(seriesId: string): Promise<{ value: number; date: s
 async function fetchM2History(): Promise<LiquidityData[]> {
   try {
     const proxies = [
+      { url: 'https://corsproxy.io/?', encode: true },
       { url: 'https://api.allorigins.win/get?url=', encode: true },
       { url: 'https://api.codetabs.com/v1/proxy?quest=', encode: true },
     ];

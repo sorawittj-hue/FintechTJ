@@ -1,0 +1,179 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
+import { binanceAPI, type CryptoPrice } from '@/services/binance';
+import WebSocketManager, { type ConnectionStatus } from '@/services/websocket';
+
+interface PriceState {
+  prices: Map<string, CryptoPrice>;
+  allPrices: CryptoPrice[];
+  isLoading: boolean;
+  error: Error | null;
+  lastUpdate: Date | null;
+  connectionStatus: ConnectionStatus;
+  isPriceFeedStale: boolean;
+  
+  // Actions
+  refreshPrices: () => Promise<void>;
+  subscribeToPrices: (symbols: string[]) => void;
+  unsubscribeFromPrices: (symbols: string[]) => void;
+  updatePrice: (price: CryptoPrice) => void;
+  updatePricesBatch: (prices: CryptoPrice[]) => void;
+  setConnectionStatus: (status: ConnectionStatus) => void;
+  checkStaleness: () => void;
+}
+
+const DEFAULT_WEBSOCKET_SYMBOLS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'DOT'];
+const PRICE_FEED_STALE_AFTER_SECONDS = 45;
+
+export const usePriceStore = create<PriceState>()(
+  subscribeWithSelector((set, get) => ({
+    prices: new Map<string, CryptoPrice>(),
+    allPrices: [],
+    isLoading: false,
+    error: null,
+    lastUpdate: null,
+    connectionStatus: {
+      state: 'disconnected',
+      lastConnectedAt: null,
+      lastDisconnectedAt: null,
+      reconnectAttempts: 0,
+      latency: 0,
+      error: null,
+    },
+    isPriceFeedStale: false,
+
+    refreshPrices: async () => {
+      set({ isLoading: true, error: null });
+      try {
+        const prices = await binanceAPI.getMultiplePrices(DEFAULT_WEBSOCKET_SYMBOLS);
+        const priceMap = new Map<string, CryptoPrice>();
+        prices.forEach((p) => priceMap.set(p.symbol, p));
+        
+        const allPrices = await binanceAPI.getAllPrices();
+        
+        set({ 
+          prices: priceMap, 
+          allPrices, 
+          lastUpdate: new Date(), 
+          isLoading: false 
+        });
+      } catch (error) {
+        set({ 
+          error: error instanceof Error ? error : new Error('Failed to refresh prices'), 
+          isLoading: false 
+        });
+      }
+    },
+
+    subscribeToPrices: (symbols: string[]) => {
+      const wsManager = WebSocketManager.getInstance();
+      symbols.forEach((symbol) => {
+        const normalizedSymbol = symbol.toUpperCase();
+        wsManager.subscribe('ticker', [normalizedSymbol], (data: CryptoPrice) => {
+          get().updatePrice(data);
+        }, 'binance');
+      });
+    },
+
+    unsubscribeFromPrices: (symbols: string[]) => {
+      const wsManager = WebSocketManager.getInstance();
+      symbols.forEach((symbol) => {
+        const normalizedSymbol = symbol.toUpperCase();
+        // Since we can't easily track the handler here without a map, 
+        // we might need to rethink this or keep a map in the store.
+        // For now, let's keep it simple.
+      });
+    },
+
+    updatePrice: (price: CryptoPrice) => {
+      set((state) => {
+        const newPrices = new Map(state.prices);
+        newPrices.set(price.symbol, price);
+        
+        // Efficiently update allPrices
+        const allPricesIndex = state.allPrices.findIndex(p => p.symbol === price.symbol);
+        const newAllPrices = [...state.allPrices];
+        if (allPricesIndex > -1) {
+          newAllPrices[allPricesIndex] = price;
+        } else {
+          newAllPrices.push(price);
+        }
+
+        return {
+          prices: newPrices,
+          allPrices: newAllPrices,
+          lastUpdate: new Date(),
+          isPriceFeedStale: false,
+        };
+      });
+    },
+
+    updatePricesBatch: (prices: CryptoPrice[]) => {
+      set((state) => {
+        const newPrices = new Map(state.prices);
+        const newAllPricesMap = new Map(state.allPrices.map(p => [p.symbol, p]));
+        
+        prices.forEach(price => {
+          newPrices.set(price.symbol, price);
+          newAllPricesMap.set(price.symbol, price);
+        });
+
+        return {
+          prices: newPrices,
+          allPrices: Array.from(newAllPricesMap.values()),
+          lastUpdate: new Date(),
+          isPriceFeedStale: false,
+        };
+      });
+    },
+
+    setConnectionStatus: (status: ConnectionStatus) => {
+      set({ connectionStatus: status });
+    },
+
+    checkStaleness: () => {
+      const { lastUpdate } = get();
+      if (!lastUpdate) return;
+      const ageSeconds = Math.max(0, Math.round((Date.now() - lastUpdate.getTime()) / 1000));
+      set({ isPriceFeedStale: ageSeconds > PRICE_FEED_STALE_AFTER_SECONDS });
+    }
+  }))
+);
+
+// Initialization logic
+if (typeof window !== 'undefined') {
+  const wsManager = WebSocketManager.getInstance();
+  
+  // Update connection status
+  wsManager.on('state-change', (status: ConnectionStatus) => {
+    usePriceStore.getState().setConnectionStatus(status);
+  });
+
+  // Handle batch updates for performance (throttle)
+  let pendingUpdates: CryptoPrice[] = [];
+  let updateTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  const flushUpdates = () => {
+    if (pendingUpdates.length > 0) {
+      usePriceStore.getState().updatePricesBatch(pendingUpdates);
+      pendingUpdates = [];
+    }
+    updateTimeout = null;
+  };
+
+  // Subscribe to default symbols
+  DEFAULT_WEBSOCKET_SYMBOLS.forEach(symbol => {
+    wsManager.subscribe('ticker', [symbol], (data: CryptoPrice) => {
+      pendingUpdates.push(data);
+      if (!updateTimeout) {
+        updateTimeout = setTimeout(flushUpdates, 300); // 300ms throttle
+      }
+    }, 'binance');
+  });
+
+  // Periodically check staleness
+  setInterval(() => {
+    usePriceStore.getState().checkStaleness();
+  }, 5000);
+}

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * ═══════════════════════════════════════════════════════════════════
  * OIL INTELLIGENCE ENGINE v6.0 PRO — ระบบวิเคราะห์น้ำมัน WTI ระดับสถาบัน
@@ -235,6 +236,7 @@ const WS_RECONNECT_DELAY = 3000;
 const PRICE_UPDATE_INTERVAL = 5000; // 5 seconds for simulated real-time
 
 const CORS_PROXIES = [
+    'https://corsproxy.io/?',
     'https://api.allorigins.win/get?url=',
     'https://api.codetabs.com/v1/proxy?quest=',
 ];

@@ -1,5 +1,4 @@
 import { useMemo, useCallback } from 'react';
-import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -67,7 +66,7 @@ function loadPortfolioHistory(): PortfolioHistoryPoint[] {
   }
 }
 
-export default function PortfolioOverview() {
+function PortfolioOverview() {
   const { t } = useTranslation();
   const { portfolio, setIsDepositOpen, setIsWithdrawOpen } = usePortfolio();
   const {
@@ -531,6 +530,6 @@ export default function PortfolioOverview() {
       </motion.div>
     </div>
   );
-});
+}
 
 export default PortfolioOverview;

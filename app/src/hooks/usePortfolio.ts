@@ -14,9 +14,8 @@
  */
 
 import { useMemo, useCallback, useEffect } from 'react';
-import { useData } from '@/context/useData';
-import type { PortfolioAsset } from '@/types';
-import type { Transaction } from '@/context/DataContext';
+import { useData } from '@/hooks/useData';
+import type { PortfolioAsset, Transaction } from '@/types';
 
 export interface UsePortfolioReturn {
   // Data

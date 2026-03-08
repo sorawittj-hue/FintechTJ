@@ -7,8 +7,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function Login() {
     const { t } = useTranslation();
-    const { login, register, loginAsGuest, isLoading, error, isPocketBaseEnabled } = useAuth();
+    const { login, register, loginAsGuest, isLoading, error } = useAuth();
     const navigate = useNavigate();
+    const [isSupabaseEnabled] = useState(true); 
+
     const location = useLocation();
 
     const [isLogin, setIsLogin] = useState(true);
@@ -81,22 +83,22 @@ export default function Login() {
                 </motion.p>
             </div>
 
-            {/* PocketBase status banner */}
+            {/* Supabase status banner */}
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.25 }}
                 className="mt-4 sm:mx-auto sm:w-full sm:max-w-md"
             >
-                {isPocketBaseEnabled ? (
-                    <div className="flex items-center gap-2 justify-center text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-4 py-2">
+                {isSupabaseEnabled ? (
+                    <div className="flex items-center gap-2 justify-center text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-2">
                         <Wifi size={14} />
-                        <span>{t('auth.pocketBaseConnected')}</span>
+                        <span>Supabase Enterprise Sync Connected</span>
                     </div>
                 ) : (
                     <div className="flex items-center gap-2 justify-center text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-2">
                         <WifiOff size={14} />
-                        <span>{t('auth.noDatabaseConfigured')}</span>
+                        <span>Using Local Offline Mode</span>
                     </div>
                 )}
             </motion.div>
@@ -121,7 +123,7 @@ export default function Login() {
                         <ArrowRight size={16} />
                     </motion.button>
 
-                    {isPocketBaseEnabled && (
+                    {isSupabaseEnabled && (
                         <>
                             {/* Divider */}
                             <div className="relative mb-6">
@@ -241,19 +243,9 @@ export default function Login() {
                         </>
                     )}
 
-                    {/* If PocketBase not configured, show explanation */}
-                    {!isPocketBaseEnabled && (
+                    {!isSupabaseEnabled && (
                         <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-2">
-                            {t('auth.persistentAccounts')}{' '}
-                            <a
-                                href="https://pocketbase.io"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[#ee7d54] underline"
-                            >
-                                PocketBase
-                            </a>{' '}
-                            and add <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">VITE_POCKETBASE_URL</code> to your .env
+                            Persistent cloud sync is currently unavailable. Using local storage.
                         </p>
                     )}
                 </div>

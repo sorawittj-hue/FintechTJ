@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -13,8 +13,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-
-const ONBOARDING_KEY = 'nava2-onboarding-completed';
+import { ONBOARDING_KEY } from '@/lib/onboarding';
 
 const STEP_CONFIG = [
   {
@@ -56,18 +55,9 @@ const STEP_CONFIG = [
 
 export function Onboarding() {
   const { t } = useTranslation();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
   const [currentStep, setCurrentStep] = useState(0);
-  const [hasCompleted, setHasCompleted] = useState(true);
-
-  useEffect(() => {
-    // ตรวจสอบว่าเคยดู onboarding แล้วหรือไม่
-    const completed = localStorage.getItem(ONBOARDING_KEY);
-    if (!completed) {
-      setHasCompleted(false);
-      setIsOpen(true);
-    }
-  }, []);
+  const [hasCompleted, setHasCompleted] = useState(() => !!localStorage.getItem(ONBOARDING_KEY));
 
   const handleClose = () => {
     setIsOpen(false);
@@ -95,13 +85,6 @@ export function Onboarding() {
 
   const handleSkip = () => {
     handleComplete();
-  };
-
-  const resetOnboarding = () => {
-    localStorage.removeItem(ONBOARDING_KEY);
-    setHasCompleted(false);
-    setCurrentStep(0);
-    setIsOpen(true);
   };
 
   const step = STEP_CONFIG[currentStep];
@@ -234,9 +217,4 @@ export function Onboarding() {
       )}
     </AnimatePresence>
   );
-}
-
-// Export function to reset onboarding (for settings)
-export function resetOnboarding() {
-  localStorage.removeItem(ONBOARDING_KEY);
 }

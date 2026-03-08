@@ -1,17 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
- * AuthContext
+ * AuthContext (Supabase Bridge)
  *
- * Manages user authentication via PocketBase.
- * Guest mode: when PocketBase is not configured OR the user hasn't logged in,
- * they are automatically signed in as a "guest" so the app is fully usable.
- *
- * Features:
- * - Email/password login & registration (requires PocketBase)
- * - Guest mode - full app access without any server
- * - Persistent auth across page reloads
- * - Logout
- * - isLoading / error states
+ * Manages user authentication via Supabase.
+ * Replaces PocketBase for better reliability and performance.
  */
 
 import {
@@ -22,7 +14,9 @@ import {
     useCallback,
     type ReactNode,
 } from 'react';
-import { pb, isPocketBaseEnabled, getCurrentUser } from '@/lib/pocketbase';
+import { supabase } from '@/lib/supabase';
+import { clearSecureStorage } from '@/lib/secureStorage';
+import type { User } from '@supabase/supabase-js';
 
 // ============================================================================
 // Types
@@ -41,7 +35,6 @@ interface AuthState {
     isAuthenticated: boolean;
     isLoading: boolean;
     error: string | null;
-    isPocketBaseEnabled: boolean;
 }
 
 interface AuthActions {
@@ -61,10 +54,10 @@ interface AuthContextType extends AuthState, AuthActions { }
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // ============================================================================
-// Guest user helpers (stored in localStorage for persistence)
+// Guest user helpers
 // ============================================================================
 
-const GUEST_KEY = 'kimi_guest_session';
+const GUEST_KEY = 'quantai_guest_session';
 
 function loadGuestUser(): AuthUser | null {
     try {
@@ -96,33 +89,18 @@ function removeGuestUser() {
 }
 
 // ============================================================================
-// Helper
+// Mapper
 // ============================================================================
 
-function mapPbUser(model: Record<string, unknown> | null): AuthUser | null {
-    if (!model) return null;
+function mapSupabaseUser(user: User | null): AuthUser | null {
+    if (!user) return null;
     return {
-        id: model.id as string,
-        email: model.email as string,
-        name: (model.name as string | undefined) ?? '',
-        avatar: (model.avatar as string | undefined) ?? '',
+        id: user.id,
+        email: user.email!,
+        name: user.user_metadata?.full_name ?? '',
+        avatar: user.user_metadata?.avatar_url ?? '',
         isGuest: false,
     };
-}
-
-/** Resolve initial user: PocketBase > stored guest > new guest (if no PB) */
-function resolveInitialUser(): AuthUser | null {
-    const pbUser = mapPbUser(getCurrentUser() as Record<string, unknown> | null);
-    if (pbUser) return pbUser;
-
-    const storedGuest = loadGuestUser();
-    if (storedGuest) return storedGuest;
-
-    // No PocketBase and no stored session → auto create guest
-    if (!isPocketBaseEnabled) return buildGuestUser();
-
-    // PocketBase is configured but user hasn't logged in yet
-    return null;
 }
 
 // ============================================================================
@@ -130,25 +108,47 @@ function resolveInitialUser(): AuthUser | null {
 // ============================================================================
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<AuthUser | null>(resolveInitialUser);
-    const [isLoading, setIsLoading] = useState(false);
+    const [user, setUser] = useState<AuthUser | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Subscribe to PocketBase auth store changes
+    // Initial session check
     useEffect(() => {
-        if (!pb) return;
-        const unsubscribe = pb.authStore.onChange(() => {
-            const pbUser = mapPbUser(getCurrentUser() as Record<string, unknown> | null);
-            if (pbUser) {
-                removeGuestUser();
-                setUser(pbUser);
-                setError(null);
+        const initAuth = async () => {
+            if (!supabase) {
+                setUser(buildGuestUser());
+                setIsLoading(false);
                 return;
             }
-            setUser(null);
-            setError(null);
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (session?.user) {
+                setUser(mapSupabaseUser(session.user));
+            } else {
+                const guest = loadGuestUser();
+                if (guest) setUser(guest);
+                else {
+                    // Default to guest for seamless dev exp
+                    setUser(buildGuestUser());
+                }
+            }
+            setIsLoading(false);
+        };
+
+        initAuth();
+
+        // Listen for auth changes
+        if (!supabase) return;
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
+                removeGuestUser();
+                setUser(mapSupabaseUser(session.user));
+            } else if (!loadGuestUser()) {
+                setUser(buildGuestUser());
+            }
         });
-        return () => unsubscribe();
+
+        return () => subscription.unsubscribe();
     }, []);
 
     const loginAsGuest = useCallback(() => {
@@ -158,72 +158,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-        if (!pb) {
-            // No PocketBase — switch to guest mode instead of failing hard
-            loginAsGuest();
-            return false;
-        }
         setIsLoading(true);
         setError(null);
         try {
-            await pb.collection('users').authWithPassword(email, password);
+            if (!supabase) throw new Error("Supabase is not configured.");
+            const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+            if (err) throw err;
             removeGuestUser();
             return true;
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Login failed';
-            setError(message);
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [loginAsGuest]);
-
-    const register = useCallback(async (email: string, password: string, name?: string): Promise<boolean> => {
-        if (!pb) {
-            setError('PocketBase is not configured. Register is unavailable in guest mode.');
-            return false;
-        }
-        setIsLoading(true);
-        setError(null);
-        try {
-            await pb.collection('users').create({
-                email,
-                password,
-                passwordConfirm: password,
-                name: name ?? '',
-            });
-            await pb.collection('users').authWithPassword(email, password);
-            removeGuestUser();
-            return true;
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Registration failed';
-            setError(message);
+            setError(err instanceof Error ? err.message : 'Login failed');
             return false;
         } finally {
             setIsLoading(false);
         }
     }, []);
 
-    const logout = useCallback(() => {
-        if (pb) pb.authStore.clear();
-        removeGuestUser();
-        // Without PocketBase, immediately restore guest so app stays usable
-        if (!isPocketBaseEnabled) {
-            setUser(buildGuestUser());
-        } else {
-            setUser(null);
+    const register = useCallback(async (email: string, password: string, name?: string): Promise<boolean> => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            if (!supabase) throw new Error("Supabase is not configured.");
+            const { error: err } = await supabase.auth.signUp({
+                email,
+                password,
+                options: { data: { full_name: name } }
+            });
+            if (err) throw err;
+            return true;
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Registration failed');
+            return false;
+        } finally {
+            setIsLoading(false);
         }
+    }, []);
+
+    const logout = useCallback(async () => {
+        if (supabase) {
+            await supabase.auth.signOut();
+        }
+        removeGuestUser();
+        clearSecureStorage();
+        setUser(buildGuestUser());
     }, []);
 
     const clearError = useCallback(() => setError(null), []);
 
     const value: AuthContextType = {
         user,
-        // Guest users are considered authenticated (they can use all features)
         isAuthenticated: !!user,
         isLoading,
         error,
-        isPocketBaseEnabled,
         login,
         register,
         loginAsGuest,
@@ -233,10 +219,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-// ============================================================================
-// Hook
-// ============================================================================
 
 export function useAuth(): AuthContextType {
     const context = useContext(AuthContext);

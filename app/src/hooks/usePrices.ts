@@ -15,7 +15,7 @@
  */
 
 import { useMemo, useCallback, useEffect, useRef } from 'react';
-import { useData } from '@/context/useData';
+import { useData } from './useData';
 import type { CryptoPrice } from '@/services/binance';
 
 export interface UsePricesReturn {

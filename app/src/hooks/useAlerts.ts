@@ -9,8 +9,8 @@
  */
 
 import { useMemo, useCallback, useEffect, useRef } from 'react';
-import { useData } from '@/context/useData';
-import type { Alert } from '@/context/DataContext';
+import { useData } from '@/hooks/useData';
+import type { Alert } from '@/types';
 
 export interface UseAlertsReturn {
   // Data

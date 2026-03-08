@@ -30,10 +30,9 @@ import {
   analyzeSmartMoneyFlow,
   VolatilityRadar,
   type PositionRequest,
-  type MarketDataContext,
-  type SqueezeSignal
 } from '@/lib/trading';
-import { useData } from '@/context/hooks';
+import type { MarketDataContext, SqueezeSignal } from '@/types';
+import { useData } from '@/hooks/useData';
 
 // ============================================
 // 🛡️ POSITION SIZER COMPONENT
@@ -68,7 +67,7 @@ function PositionSizerPanel() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('institutional.errorOccurred'));
     }
-  }, [params]);
+  }, [params, t]);
 
   return (
     <div className="space-y-6">
@@ -303,7 +302,7 @@ function SqueezeDetectorPanel() {
     } else {
       toast.success(t('institutional.scenarioAnalysisUpdated'));
     }
-  }, [marketData]);
+  }, [marketData, t]);
 
   const getSignalIcon = (type: string) => {
     switch (type) {
@@ -547,7 +546,7 @@ function CircuitBreakerPanel() {
     setCurrentPrice(livePrice.price);
     updatePrice(livePrice.price);
     toast.success(t('institutional.usingLivePrice', { symbol: normalizedSymbol }));
-  }, [livePrice, normalizedSymbol, updatePrice]);
+  }, [livePrice, normalizedSymbol, updatePrice, t]);
 
   const getLevelColor = (level: string) => {
     switch (level) {

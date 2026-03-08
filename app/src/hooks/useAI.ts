@@ -12,8 +12,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { AIAnalysisService, type AIInsight, type MarketAnalysis, type SentimentScore, type Narrative } from '@/services/aiAnalysis';
-import { usePortfolio } from '@/context/PortfolioContext';
-import { useData } from '@/context/hooks';
+import { usePortfolio, useData } from '@/context/hooks';
 import { useNews } from './useNews';
 
 export interface UseAIResult {

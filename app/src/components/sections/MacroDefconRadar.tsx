@@ -16,13 +16,10 @@ import {
   getDefconWithTrend, 
   getRecommendedAllocation,
   getDefconColor,
-  type MacroConditions,
-  type DefconResult
+  type MacroConditions
 } from '@/lib/macroRisk';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { useState } from 'react';
 import { toast } from 'sonner';
 
 interface MacroDefconRadarProps {

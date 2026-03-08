@@ -6,14 +6,7 @@
  * เพื่อหาโอกาสเกิดการ "บีบให้ล้างพอร์ต" (Short Squeeze / Long Squeeze)
  */
 
-export interface MarketDataContext {
-  fundingRate: number;           // เช่น 0.0001 = 0.01%
-  longShortRatio: number;        // เช่น 2.5 (รายย่อย Long เยอะมาก)
-  openInterestChange24h: number; // การเปลี่ยนแปลง OI เป็น % (เช่น 15%)
-  priceChange24h: number;        // เปอร์เซ็นต์ราคาเปลี่ยน (เช่น -5%)
-  symbol?: string;               // ชื่อเหรียญ (เช่น BTCUSDT)
-  timestamp?: number;            // เวลาที่บันทึกข้อมูล
-}
+import type { MarketDataContext, SqueezeSignal } from '@/types';
 
 export type SqueezeType = 
   | 'SHORT_SQUEEZE_WARNING'   // ระวัง Short Squeeze (ราคาพุ่ง)
@@ -21,18 +14,6 @@ export type SqueezeType =
   | 'NEUTRAL'                 // ตลาดปกติ
   | 'EXTREME_FEAR'            // ตลาดตื่นตระหนกมาก
   | 'EXTREME_GREED';          // ตลาดโลภมาก
-
-export interface SqueezeSignal {
-  type: SqueezeType;
-  probability: number;       // 0 - 100%
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  advice: string;
-  details: {
-    crowdSentiment: 'LONG_HEAVY' | 'SHORT_HEAVY' | 'BALANCED';
-    smartMoneyDirection: 'UP' | 'DOWN' | 'UNCLEAR';
-    oiMomentum: 'RISING' | 'FALLING' | 'STABLE';
-  };
-}
 
 /**
  * ตรวจจับสัญญาณการบีบล้างพอร์ต (Liquidation Hunt / Squeeze)

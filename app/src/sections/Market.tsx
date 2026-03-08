@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
@@ -8,8 +8,6 @@ import {
   Star,
   Globe,
   Zap,
-  ArrowUpRight,
-  ArrowDownRight,
   RefreshCw,
   Building2,
   Bitcoin,
@@ -25,13 +23,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { binanceAPI } from '@/services/binance';
-import { 
-  fetchCommodityPrices, 
-  fetchForexRates, 
+import {
+  fetchCommodityPrices,
+  fetchForexRates,
   fetchStockQuote,
   type CommodityPrice,
   type ForexRate,
-  type StockQuote 
+  type StockQuote
 } from '@/services/realDataService';
 import type { CryptoPrice } from '@/services/binance';
 
@@ -54,9 +52,9 @@ interface UnifiedAsset {
   sector?: string;
 }
 
-export default function Market() {
+function Market() {
   const { t } = useTranslation();
-  
+
   // Asset Classes with translations
   const ASSET_CLASSES = [
     { id: 'all', label: t('dashboard.all'), icon: Globe, color: 'from-gray-500 to-gray-600' },
@@ -65,7 +63,7 @@ export default function Market() {
     { id: 'commodities', label: t('dashboard.commodities'), icon: Droplet, color: 'from-amber-500 to-orange-500' },
     { id: 'forex', label: t('dashboard.forex'), icon: DollarSign, color: 'from-green-500 to-emerald-500' },
   ];
-  
+
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([]);
   const [stockQuotes, setStockQuotes] = useState<StockQuote[]>([]);
   const [commodities, setCommodities] = useState<CommodityPrice[]>([]);
@@ -77,10 +75,10 @@ export default function Market() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch all real market data
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
     try {
       setRefreshing(true);
-      
+
       // Fetch crypto from Binance
       const cryptoData = await binanceAPI.getAllPrices();
       setCryptoPrices(cryptoData.slice(0, 50));
@@ -106,13 +104,13 @@ export default function Market() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     fetchAllData();
     const interval = setInterval(fetchAllData, 60000); // Refresh every minute
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchAllData]);
 
   // Convert all data to unified format
   const allAssets: UnifiedAsset[] = useMemo(() => {
@@ -170,28 +168,28 @@ export default function Market() {
   // Filter assets
   const filteredAssets = useMemo(() => {
     let filtered = allAssets;
-    
+
     if (activeTab !== 'all') {
       filtered = filtered.filter(a => a.type === activeTab);
     }
-    
+
     if (searchQuery) {
-      filtered = filtered.filter(a => 
+      filtered = filtered.filter(a =>
         a.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
+
     return filtered;
   }, [allAssets, activeTab, searchQuery]);
 
   // Top movers (real data)
-  const topMovers = useMemo(() => 
+  const topMovers = useMemo(() =>
     allAssets
       .filter(a => Math.abs(a.change24hPercent) > 0)
       .sort((a, b) => Math.abs(b.change24hPercent) - Math.abs(a.change24hPercent))
       .slice(0, 6),
-  [allAssets]);
+    [allAssets]);
 
   // Market stats
   const marketStats = useMemo(() => ({
@@ -201,12 +199,12 @@ export default function Market() {
   }), [allAssets]);
 
   const toggleWatchlist = (symbol: string) => {
-    setWatchlist(prev => 
-      prev.includes(symbol) 
+    setWatchlist(prev =>
+      prev.includes(symbol)
         ? prev.filter(s => s !== symbol)
         : [...prev, symbol]
     );
-    toast.success(watchlist.includes(symbol) 
+    toast.success(watchlist.includes(symbol)
       ? t('dashboard.removeFromWatchlist', { symbol })
       : t('dashboard.addToWatchlist', { symbol })
     );
@@ -231,8 +229,8 @@ export default function Market() {
           <h1 className="text-2xl font-bold text-gray-900">{t('dashboard.marketCenter')}</h1>
           <p className="text-gray-500">{t('dashboard.marketSubtitle')}</p>
         </div>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={fetchAllData}
           disabled={refreshing}
           className="w-full lg:w-auto"
@@ -246,10 +244,10 @@ export default function Market() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {ASSET_CLASSES.map((assetClass) => {
           const Icon = assetClass.icon;
-          const count = assetClass.id === 'all' 
-            ? allAssets.length 
+          const count = assetClass.id === 'all'
+            ? allAssets.length
             : allAssets.filter(a => a.type === assetClass.id).length;
-          
+
           return (
             <motion.button
               key={assetClass.id}
@@ -264,9 +262,8 @@ export default function Market() {
                 }
               `}
             >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-                activeTab === assetClass.id ? 'bg-white/20' : 'bg-gray-100'
-              }`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${activeTab === assetClass.id ? 'bg-white/20' : 'bg-gray-100'
+                }`}>
                 <Icon size={20} />
               </div>
               <p className={`text-xs ${activeTab === assetClass.id ? 'text-white/80' : 'text-gray-500'}`}>
@@ -471,11 +468,10 @@ export default function Market() {
                     <td className="text-center py-3 px-2">
                       <button
                         onClick={() => toggleWatchlist(asset.symbol)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          watchlist.includes(asset.symbol)
-                            ? 'text-yellow-500 hover:bg-yellow-50'
-                            : 'text-gray-300 hover:bg-gray-100'
-                        }`}
+                        className={`p-2 rounded-lg transition-colors ${watchlist.includes(asset.symbol)
+                          ? 'text-yellow-500 hover:bg-yellow-50'
+                          : 'text-gray-300 hover:bg-gray-100'
+                          }`}
                       >
                         <Star size={16} fill={watchlist.includes(asset.symbol) ? 'currentColor' : 'none'} />
                       </button>

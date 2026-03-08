@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useData } from '@/context/useData';
+import { useData } from '@/hooks/useData';
 import { usePrice } from '@/context/hooks';
 import { Button } from '@/components/ui/button';
 import {

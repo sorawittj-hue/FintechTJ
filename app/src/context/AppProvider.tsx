@@ -2,22 +2,15 @@
  * AppProvider
  *
  * Root provider that wraps all context providers with proper error boundaries.
- * Uses DataProvider as the foundation for unified state management.
+ * Now simplified as core state is managed by Zustand stores.
  *
  * Provider Hierarchy:
- * 1. DataProvider - Unified state management
- * 2. SettingsProvider - Theme and user preferences
- * 3. PortfolioProvider - Portfolio state (delegates to DataContext)
- * 4. PriceProvider - Price data (delegates to DataContext)
+ * 1. AuthProvider - Authentication state
  */
 
 import { type ReactNode, Suspense } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SectionSkeleton } from '@/components/SectionSkeleton';
-import { DataProvider } from './DataContext';
-import { SettingsProvider } from './SettingsContext';
-import { PortfolioProvider } from './PortfolioContext';
-import { PriceProvider } from './PriceContext';
 import { AuthProvider } from './AuthContext';
 
 interface AppProviderProps {
@@ -25,16 +18,17 @@ interface AppProviderProps {
 }
 
 const RECOVERY_STORAGE_KEYS = [
+  'settings-storage',
+  'portfolio-storage',
   'app-settings',
   'app-portfolio-v2',
   'app-alerts',
   'app-transactions',
-  'kimi_guest_session',
 ];
 
 /**
  * Provider Error Fallback Component
- * Shows when a context provider fails to initialize
+ * Shows when the app fails to initialize
  */
 function ProviderErrorFallback({ provider }: { provider: string }) {
   return (
@@ -56,10 +50,10 @@ function ProviderErrorFallback({ provider }: { provider: string }) {
           </svg>
         </div>
         <h2 className="text-xl font-semibold text-red-700 dark:text-red-400">
-          {provider} Service Error
+          Application Error
         </h2>
         <p className="text-muted-foreground">
-          The {provider} service failed to initialize. This may be due to corrupted settings or storage issues.
+          The application failed to initialize {provider}. This may be due to corrupted local storage.
         </p>
         <div className="flex gap-3 justify-center">
           <button
@@ -70,13 +64,12 @@ function ProviderErrorFallback({ provider }: { provider: string }) {
           </button>
           <button
             onClick={() => {
-              // Clear localStorage as a recovery option
               RECOVERY_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
               window.location.reload();
             }}
             className="px-4 py-2 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"
           >
-            Clear & Reload
+            Reset Everything
           </button>
         </div>
       </div>
@@ -85,44 +78,22 @@ function ProviderErrorFallback({ provider }: { provider: string }) {
 }
 
 /**
- * AppProvider - Wraps all context providers with ErrorBoundaries
- * DataProvider is the root provider that provides unified state management
+ * AppProvider - Root provider
+ * AuthProvider is kept as a context provider, others are replaced by Zustand stores.
  */
 export function AppProvider({ children }: AppProviderProps) {
   return (
     <AuthProvider>
       <ErrorBoundary
-        fallback={<ProviderErrorFallback provider="Data" />}
-        providerName="DataProvider"
+        fallback={<ProviderErrorFallback provider="Core State" />}
+        providerName="AppRoot"
       >
-        <DataProvider>
-          <ErrorBoundary
-            fallback={<ProviderErrorFallback provider="Settings" />}
-            providerName="SettingsProvider"
-          >
-            <SettingsProvider>
-              <ErrorBoundary
-                fallback={<ProviderErrorFallback provider="Portfolio" />}
-                providerName="PortfolioProvider"
-              >
-                <PortfolioProvider>
-                  <ErrorBoundary
-                    fallback={<ProviderErrorFallback provider="Price" />}
-                    providerName="PriceProvider"
-                  >
-                    <PriceProvider>
-                      <Suspense fallback={<SectionSkeleton type="default" />}>
-                        {children}
-                      </Suspense>
-                    </PriceProvider>
-                  </ErrorBoundary>
-                </PortfolioProvider>
-              </ErrorBoundary>
-            </SettingsProvider>
-          </ErrorBoundary>
-        </DataProvider>
+        <Suspense fallback={<SectionSkeleton type="default" />}>
+          {children}
+        </Suspense>
       </ErrorBoundary>
     </AuthProvider>
   );
 }
+
 

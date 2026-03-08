@@ -59,17 +59,17 @@ const LivePrice = memo(function LivePrice({ symbol, price, change, isFlashing }:
   const isUp = change >= 0;
   return (
     <div className={`flex items-center justify-between p-2.5 rounded-xl transition-all duration-500 ${isFlashing
-        ? isUp ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-        : 'bg-gray-50 border border-transparent'
+      ? isUp ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+      : 'bg-gray-50 border border-transparent'
       }`}>
       <div className="flex items-center gap-2">
         <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold text-white ${symbol.includes('BTC') ? 'bg-orange-500' :
-            symbol.includes('ETH') ? 'bg-blue-500' :
-              symbol.includes('SOL') ? 'bg-purple-500' :
-                symbol.includes('Gold') || symbol.includes('XAU') ? 'bg-yellow-500' :
-                  symbol.includes('Oil') || symbol.includes('CL') ? 'bg-gray-700' :
-                    symbol.includes('Silver') || symbol.includes('SI') ? 'bg-gray-400' :
-                      'bg-teal-500'
+          symbol.includes('ETH') ? 'bg-blue-500' :
+            symbol.includes('SOL') ? 'bg-purple-500' :
+              symbol.includes('Gold') || symbol.includes('XAU') ? 'bg-yellow-500' :
+                symbol.includes('Oil') || symbol.includes('CL') ? 'bg-gray-700' :
+                  symbol.includes('Silver') || symbol.includes('SI') ? 'bg-gray-400' :
+                    'bg-teal-500'
           }`}>
           {symbol.slice(0, 2)}
         </div>
@@ -228,9 +228,9 @@ function calculateSimpleMovingAverage(values: number[], period: number): number 
   return slice.reduce((sum, value) => sum + value, 0) / slice.length;
 }
 
-export default function DashboardHome() {
+function DashboardHome() {
   const { t } = useTranslation();
-  const { portfolio, isLoading: portfolioLoading, refresh: refreshPortfolio } = usePortfolio();
+  const { portfolio, setIsDepositOpen, setIsAlertOpen } = usePortfolio();
   const {
     allPrices,
     lastUpdate: lastPriceUpdate,
@@ -384,7 +384,7 @@ export default function DashboardHome() {
       setRefreshing(false);
       isFetchingRef.current = false;
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (allPrices.length === 0) {
@@ -496,7 +496,7 @@ export default function DashboardHome() {
       gradient: 'from-purple-500 to-violet-600',
       bg: 'from-purple-50 to-violet-50',
     },
-  ], [portfolio, dataState.alerts]);
+  ], [portfolio, dataState.alerts, t]);
 
   const riskIndicators = useMemo<RiskIndicator[]>(() => (
     calculateRiskIndicators(
@@ -573,7 +573,7 @@ export default function DashboardHome() {
     const latestClose = btcCloses[btcCloses.length - 1];
     const hasRealVolatility = dailyVolatility !== null;
     const hasRealTrend = sma200 !== null && Number.isFinite(latestClose);
-    
+
     return {
       fearAndGreedIndex: fgValue,
       btcVolatility30d: hasRealVolatility ? dailyVolatility : Math.abs(btcChange) / 100 || 0.05,
@@ -699,7 +699,7 @@ export default function DashboardHome() {
     }
 
     toast.success(t('dashboard.refreshComplete'));
-  }, [refreshPrices, fetchAllData, fetchBtcMacroInputs]);
+  }, [refreshPrices, fetchAllData, fetchBtcMacroInputs, t]);
 
   if (loading) {
     return (
@@ -759,8 +759,8 @@ export default function DashboardHome() {
                 ฿{portfolio.totalValue.toLocaleString('th-TH', { minimumFractionDigits: 0 })}
               </div>
               <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${portfolio.totalChange24hPercent >= 0
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-red-500/20 text-red-400'
+                ? 'bg-green-500/20 text-green-400'
+                : 'bg-red-500/20 text-red-400'
                 }`}>
                 {portfolio.totalChange24hPercent >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                 {portfolio.totalChange24hPercent >= 0 ? '+' : ''}{portfolio.totalChange24hPercent.toFixed(2)}% {t('dashboard.today')}
@@ -873,19 +873,19 @@ export default function DashboardHome() {
           </div>
 
           {/* DEFCON Radar - Full Width */}
-          <MacroDefconRadar 
+          <MacroDefconRadar
             conditions={macroConditions}
             className="w-full"
           />
 
           {/* Whale Tracker & Rebalancing Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <PortfolioWhaleTracker 
+            <PortfolioWhaleTracker
               assets={whaleAssets}
               className="w-full"
             />
-            
-            <RebalanceEngine 
+
+            <RebalanceEngine
               assets={rebalanceAssets}
               thresholdPct={5}
               onRebalance={(actions) => {
@@ -1113,8 +1113,8 @@ export default function DashboardHome() {
                     <p className="font-bold text-gray-900 text-sm mt-0.5">{typeof risk.value === 'number' ? risk.value.toFixed(2) : risk.value}</p>
                   </div>
                   <Badge className={`text-xs ${risk.status === 'low' || risk.status === 'good' ? 'bg-green-100 text-green-700 border-green-200' :
-                      risk.status === 'medium' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                        'bg-red-100 text-red-700 border-red-200'
+                    risk.status === 'medium' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                      'bg-red-100 text-red-700 border-red-200'
                     }`}>
                     {risk.label}
                   </Badge>
@@ -1198,13 +1198,12 @@ export default function DashboardHome() {
             </div>
           </div>
           {fearGreedIndex && (
-            <Badge className={`text-sm px-4 py-1.5 ${
-              fearGreedIndex.value >= 75 ? 'bg-green-100 text-green-700 border-green-200' :
+            <Badge className={`text-sm px-4 py-1.5 ${fearGreedIndex.value >= 75 ? 'bg-green-100 text-green-700 border-green-200' :
               fearGreedIndex.value >= 55 ? 'bg-lime-100 text-lime-700 border-lime-200' :
-              fearGreedIndex.value <= 25 ? 'bg-red-100 text-red-700 border-red-200' :
-              fearGreedIndex.value <= 45 ? 'bg-orange-100 text-orange-700 border-orange-200' :
-              'bg-yellow-100 text-yellow-700 border-yellow-200'
-            }`}>
+                fearGreedIndex.value <= 25 ? 'bg-red-100 text-red-700 border-red-200' :
+                  fearGreedIndex.value <= 45 ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                    'bg-yellow-100 text-yellow-700 border-yellow-200'
+              }`}>
               <Thermometer size={14} className="mr-1" />
               {fearGreedIndex.classification}
             </Badge>
@@ -1215,7 +1214,7 @@ export default function DashboardHome() {
           {/* Gauge */}
           <div className="relative w-32 h-16 overflow-hidden">
             <div className="absolute bottom-0 left-0 right-0 h-32 rounded-full border-[12px] border-gray-100 dark:border-gray-800" />
-            <div 
+            <div
               className="absolute bottom-0 left-0 right-0 h-32 rounded-full border-[12px] border-transparent border-t-[#ef4444] border-r-[#f59e0b] border-l-[#22c55e] rotate-[-90deg]"
               style={{ transform: `rotate(${-90 + (fearGreedIndex?.value || 0) * 1.8}deg)` }}
             />
@@ -1242,20 +1241,20 @@ export default function DashboardHome() {
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {fearGreedIndex?.value && fearGreedIndex.value >= 75 ? '🟢 Extreme Greed' :
-                   fearGreedIndex?.value && fearGreedIndex.value >= 55 ? '🟡 Greed' :
-                   fearGreedIndex?.value && fearGreedIndex.value <= 25 ? '🔴 Extreme Fear' :
-                   fearGreedIndex?.value && fearGreedIndex.value <= 45 ? '🟠 Fear' :
-                   '⚪ Neutral'}
+                    fearGreedIndex?.value && fearGreedIndex.value >= 55 ? '🟡 Greed' :
+                      fearGreedIndex?.value && fearGreedIndex.value <= 25 ? '🔴 Extreme Fear' :
+                        fearGreedIndex?.value && fearGreedIndex.value <= 45 ? '🟠 Fear' :
+                          '⚪ Neutral'}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {t('dashboard.updated')}: {fearGreedIndex?.updatedAt
                     ? new Date(fearGreedIndex.updatedAt).toLocaleString('th-TH', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
                     : t('dashboard.noDataAvailable')}
                 </p>
               </div>
@@ -1268,10 +1267,10 @@ export default function DashboardHome() {
           <p className="text-xs text-gray-600 dark:text-gray-400">
             <span className="font-medium">{t('dashboard.advice')}</span>
             {fearGreedIndex?.value && fearGreedIndex.value >= 75 ? t('dashboard.extremeGreedAdvice') :
-             fearGreedIndex?.value && fearGreedIndex.value >= 55 ? t('dashboard.greedAdvice') :
-             fearGreedIndex?.value && fearGreedIndex.value <= 25 ? t('dashboard.extremeFearAdvice') :
-             fearGreedIndex?.value && fearGreedIndex.value <= 45 ? t('dashboard.fearAdvice') :
-             t('dashboard.neutralAdvice')}
+              fearGreedIndex?.value && fearGreedIndex.value >= 55 ? t('dashboard.greedAdvice') :
+                fearGreedIndex?.value && fearGreedIndex.value <= 25 ? t('dashboard.extremeFearAdvice') :
+                  fearGreedIndex?.value && fearGreedIndex.value <= 45 ? t('dashboard.fearAdvice') :
+                    t('dashboard.neutralAdvice')}
           </p>
         </div>
       </motion.div>
@@ -1358,6 +1357,6 @@ export default function DashboardHome() {
       </motion.div>
     </div>
   );
-});
+}
 
 export default DashboardHome;

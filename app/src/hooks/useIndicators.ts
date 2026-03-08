@@ -21,7 +21,7 @@ import {
   type BollingerData,
   type AllIndicators,
 } from '@/services/indicators';
-import { usePrice } from '@/context/PriceContext';
+import { usePrice } from '@/context/hooks';
 import { binanceAPI } from '@/services/binance';
 import { LRUCache } from '@/api/cache';
 

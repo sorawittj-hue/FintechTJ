@@ -14,6 +14,29 @@ export interface PortfolioAsset {
   allocation: number;
 }
 
+export interface Transaction {
+  id: string;
+  type: 'deposit' | 'withdraw' | 'buy' | 'sell';
+  amount: number;
+  asset: string;
+  symbol: string;
+  timestamp: Date;
+  price?: number;
+  quantity?: number;
+  fee?: number;
+}
+
+export interface Alert {
+  id: string;
+  type: 'price' | 'volume' | 'pattern' | 'portfolio';
+  symbol: string;
+  condition: 'above' | 'below' | 'change_percent';
+  value: number;
+  isActive: boolean;
+  createdAt: Date;
+  triggeredAt?: Date;
+}
+
 export interface PortfolioSummary {
   totalValue: number;
   totalCost: number;
@@ -244,3 +267,32 @@ export interface HeatmapCell {
   change: number;
   category: string;
 }
+
+// Institutional Trading Types
+export interface MarketDataContext {
+  fundingRate: number;
+  longShortRatio: number;
+  openInterestChange24h: number;
+  priceChange24h: number;
+  symbol: string;
+}
+
+export interface SqueezeSignal {
+  type: 'SHORT_SQUEEZE_WARNING' | 'LONG_SQUEEZE_WARNING' | 'EXTREME_FEAR' | 'EXTREME_GREED' | 'NEUTRAL';
+  probability: number;
+  advice: string;
+  details: {
+    crowdSentiment: 'LONG_HEAVY' | 'SHORT_HEAVY' | 'BALANCED';
+    smartMoneyDirection: 'UP' | 'DOWN' | 'UNCLEAR';
+  };
+}
+
+export interface PositionRequest {
+  accountBalance: number;
+  riskPercentage: number;
+  entryPrice: number;
+  stopLossPrice: number;
+  leverage: number;
+  positionType: 'LONG' | 'SHORT';
+}
+

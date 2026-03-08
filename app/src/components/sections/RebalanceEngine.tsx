@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   RefreshCcw, 
@@ -6,7 +7,6 @@ import {
   AlertCircle, 
   CheckCircle2, 
   ArrowRightLeft,
-  DollarSign,
   PieChart,
   Shield
 } from 'lucide-react';

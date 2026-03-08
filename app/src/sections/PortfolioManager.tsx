@@ -59,23 +59,6 @@ const getTransactionBadgeClass = (type: string) => {
   }
 };
 
-const getTransactionLabel = (type: string) => {
-  switch (type) {
-    case 'buy':
-      return t('portfolio.buy');
-    case 'sell':
-      return t('portfolio.sell');
-    case 'deposit':
-      return t('portfolio.deposit');
-    case 'withdraw':
-      return t('portfolio.withdraw');
-    case 'transfer':
-      return t('portfolio.transfer');
-    default:
-      return type;
-  }
-};
-
 export function PortfolioManager() {
   const { t } = useTranslation();
   const {
@@ -84,6 +67,23 @@ export function PortfolioManager() {
     transactions,
     removeAsset
   } = usePortfolio();
+
+  const getTransactionLabel = (type: string) => {
+    switch (type) {
+      case 'buy':
+        return t('portfolio.buy');
+      case 'sell':
+        return t('portfolio.sell');
+      case 'deposit':
+        return t('portfolio.deposit');
+      case 'withdraw':
+        return t('portfolio.withdraw');
+      case 'transfer':
+        return t('portfolio.transfer');
+      default:
+        return type;
+    }
+  };
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [withdrawAssetId, setWithdrawAssetId] = useState<string | null>(null);
@@ -143,7 +143,7 @@ export function PortfolioManager() {
     if (diversityScore >= 8) return t('portfolio.portfolioWellDiversified');
     if (diversityScore >= 6) return t('portfolio.portfolioWellDiversified2');
     return t('portfolio.shouldDiversifyMore');
-  }, [diversityScore, hasAssets]);
+  }, [diversityScore, hasAssets, t]);
 
   return (
     <div className="space-y-6">

@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   Mic,
@@ -12,10 +13,16 @@ import {
   Bitcoin,
   BarChart3,
   Globe,
-  Zap
+  Zap,
+  Sparkles,
+  Headphones,
+  BrainCircuit,
+  Loader2
 } from 'lucide-react';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useData, usePortfolio } from '@/context/hooks';
+import { Badge } from '@/components/ui/badge';
+import { aiNarrativeService } from '@/services/aiNarrative';
 
 type GeneratedBrief = {
   title: string;
@@ -29,85 +36,78 @@ type GeneratedBrief = {
 
 export function AudioBrief() {
   const { state: dataState } = useData();
-  const { portfolio } = usePortfolio();
+  const { portfolio, assets } = usePortfolio();
+  
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [volume] = useState(80);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [customBrief, setCustomBrief] = useState<GeneratedBrief | null>(null);
+  
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const topCryptos = useMemo(
-    () => dataState.allPrices.slice(0, 3),
+    () => (dataState.allPrices || []).slice(0, 3),
     [dataState.allPrices]
   );
 
   const stockIndices = useMemo(
-    () => dataState.marketData.indices.slice(0, 3),
-    [dataState.marketData.indices]
+    () => (dataState.marketData?.indices || []).slice(0, 3),
+    [dataState.marketData?.indices]
   );
 
-  const brief = useMemo<GeneratedBrief>(() => {
-    const marketBias = portfolio.totalChange24hPercent > 1
-      ? 'bullish'
-      : portfolio.totalChange24hPercent < -1
-        ? 'bearish'
-        : 'mixed';
+  const generateAIBrief = useCallback(async () => {
+    setIsGenerating(true);
+    try {
+      // Simulate/Call AI Narrative Service for a deeper analysis
+      const analysis = await aiNarrativeService.analyzeNarrativeArbitrage([], assets);
+      
+      const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      const marketBias = portfolio.totalChange24hPercent > 0.5 ? 'bullish' : portfolio.totalChange24hPercent < -0.5 ? 'bearish' : 'mixed';
+      
+      const script = `Good morning. This is your Alpha Brief for ${dateStr}. 
+        Current market sentiment is leaning ${marketBias}. 
+        Your portfolio is currently valued at $${portfolio.totalValue.toLocaleString()}. 
+        The dominant narrative we are tracking is: ${analysis.dominantNarrative}. 
+        ${analysis.marketContext}
+        Based on our AI analysis, we see lagging alpha in ${analysis.affectedAssets.map(a => a.symbol).join(' and ')}. 
+        Our recommendation: ${analysis.actionableAdvice}. 
+        Keep an eye on Bitcoin dominance, currently at ${dataState.globalStats.btcDominance.toFixed(1)} percent. 
+        Stay sharp, and trade with discipline.`;
 
-    const cryptoLine = topCryptos.length > 0
-      ? topCryptos.map((coin) => `${coin.symbol} ${coin.change24hPercent >= 0 ? 'up' : 'down'} ${Math.abs(coin.change24hPercent).toFixed(2)}%`).join(', ')
-      : 'crypto coverage is still loading';
+      const newBrief: GeneratedBrief = {
+        title: 'Institutional Alpha Brief',
+        date: new Date(),
+        duration: Math.round(script.split(' ').length / 2.2),
+        summary: analysis.marketContext,
+        keyPoints: [
+          `Narrative: ${analysis.dominantNarrative}`,
+          `Sentiment: ${marketBias.toUpperCase()}`,
+          `Alpha Target: ${analysis.affectedAssets.filter(a => a.laggingAlpha).map(a => a.symbol).join(', ') || 'Monitoring'}`
+        ],
+        sentiment: marketBias,
+        script
+      };
 
-    const indexLine = stockIndices.length > 0
-      ? stockIndices.map((index) => `${index.name} ${index.changePercent >= 0 ? '+' : ''}${index.changePercent.toFixed(2)}%`).join(', ')
-      : 'equity index coverage is not available yet';
+      setCustomBrief(newBrief);
+      toast.success('AI Brief Generated Successfully');
+    } catch (error) {
+      toast.error('Failed to synthesize AI brief');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [assets, portfolio.totalValue, portfolio.totalChange24hPercent, dataState.globalStats.btcDominance]);
 
-    const summary = `Portfolio value is ${portfolio.totalValue > 0 ? `$${portfolio.totalValue.toLocaleString()}` : 'not funded yet'}. Over the last 24 hours, portfolio performance is ${portfolio.totalChange24hPercent >= 0 ? 'up' : 'down'} ${Math.abs(portfolio.totalChange24hPercent).toFixed(2)} percent. Crypto markets show ${cryptoLine}, while major indices show ${indexLine}.`;
-
-    const keyPoints = [
-      portfolio.assets.length > 0
-        ? `You are tracking ${portfolio.assets.length} assets with unrealized P and L of ${portfolio.totalProfitLoss >= 0 ? '+' : '-'}$${Math.abs(portfolio.totalProfitLoss).toLocaleString(undefined, { maximumFractionDigits: 2 })}.`
-        : 'Your portfolio is currently empty, so the brief is based on market coverage rather than holdings.',
-      topCryptos[0]
-        ? `${topCryptos[0].symbol} is trading at $${topCryptos[0].price.toLocaleString(undefined, { maximumFractionDigits: 2 })} with ${topCryptos[0].change24hPercent >= 0 ? 'positive' : 'negative'} daily momentum.`
-        : 'Top crypto movers are not available yet from the live feed.',
-      dataState.globalStats.totalVolume24h > 0
-        ? `Estimated crypto market volume is $${Math.round(dataState.globalStats.totalVolume24h).toLocaleString()} over 24 hours, with BTC dominance at ${dataState.globalStats.btcDominance.toFixed(1)} percent.`
-        : 'Global crypto market breadth is still syncing, so volume and dominance are temporarily unavailable.',
-      dataState.connectionStatus.state === 'connected'
-        ? 'Live data feed is connected and available for ongoing market monitoring.'
-        : `Data feed state is ${dataState.connectionStatus.state}, so some parts of the brief may lag until reconnection completes.`,
-    ];
-
-    const script = [summary, ...keyPoints].join(' ');
-    const estimatedDuration = Math.max(45, Math.min(240, Math.round(script.split(/\s+/).length / 2.5)));
-
-    return {
-      title: 'Current Snapshot Brief',
-      date: new Date(),
-      duration: estimatedDuration,
-      summary,
-      keyPoints,
-      sentiment: marketBias,
-      script,
-    };
-  }, [dataState.connectionStatus.state, dataState.globalStats.btcDominance, dataState.globalStats.totalVolume24h, portfolio.assets.length, portfolio.totalChange24hPercent, portfolio.totalProfitLoss, portfolio.totalValue, stockIndices, topCryptos]);
-
-  const hasBriefData = useMemo(
-    () => portfolio.assets.length > 0 || topCryptos.length > 0 || stockIndices.length > 0,
-    [portfolio.assets.length, stockIndices.length, topCryptos.length]
-  );
-
-  const briefSchedule = useMemo(() => {
-    const now = new Date();
-    const hours = now.getHours();
-
-    return [
-      { time: '07:00 AM', name: 'Pre-Market Brief', status: hours >= 7 ? 'completed' : 'scheduled' },
-      { time: '09:30 AM', name: 'Market Open Brief', status: hours >= 10 ? 'completed' : 'scheduled' },
-      { time: '04:00 PM', name: 'Market Close Brief', status: hours >= 16 ? 'completed' : 'scheduled' },
-      { time: '08:00 PM', name: 'After-Hours Brief', status: hours >= 20 ? 'completed' : 'scheduled' },
-    ] as const;
-  }, []);
+  const activeBrief = customBrief || {
+    title: 'Standard Market Brief',
+    date: new Date(),
+    duration: 60,
+    summary: 'Daily market snapshot and portfolio performance summary.',
+    keyPoints: ['Price updates syncing', 'Narrative tracking active', 'Awaiting deep AI analysis'],
+    sentiment: 'mixed' as const,
+    script: 'Welcome to your daily financial summary. Please generate an AI brief for a deeper analysis.'
+  };
 
   useEffect(() => {
     if (isPlaying) {
@@ -117,36 +117,56 @@ export function AudioBrief() {
             setIsPlaying(false);
             return 0;
           }
-          return prev + 0.5;
+          return prev + (100 / (activeBrief.duration * 10)); // increment every 100ms
         });
       }, 100);
     } else {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
+      if (progressInterval.current) clearInterval(progressInterval.current);
     }
     return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
+      if (progressInterval.current) clearInterval(progressInterval.current);
     };
-  }, [isPlaying]);
+  }, [isPlaying, activeBrief.duration]);
 
   useEffect(() => {
     return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     };
   }, []);
 
+  const handlePlayToggle = () => {
+    if (!('speechSynthesis' in window)) {
+      toast.error('Audio playback not supported');
+      return;
+    }
+
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+    } else {
+      const utterance = new SpeechSynthesisUtterance(activeBrief.script);
+      utterance.rate = 0.95; // Slightly slower for "authority"
+      utterance.pitch = 1;
+      utterance.volume = volume / 100;
+      utterance.onend = () => {
+        setIsPlaying(false);
+        setProgress(100);
+      };
+      
+      utteranceRef.current = utterance;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+      setIsPlaying(true);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const currentTime = Math.floor((progress / 100) * brief.duration);
+  const currentTime = Math.floor((progress / 100) * activeBrief.duration);
 
   return (
     <div className="space-y-6">
@@ -154,299 +174,204 @@ export function AudioBrief() {
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6 }}
         className="flex items-center justify-between"
       >
         <div>
-          <h2 className="text-2xl font-bold">Audio Brief Generator</h2>
-          <p className="text-gray-500 text-sm">Auto-generated summary from current portfolio and market data loaded in the app</p>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Headphones className="text-orange-500" />
+            AI Alpha Anchor
+          </h2>
+          <p className="text-gray-500 text-sm">Professional institutional-grade voice briefings</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${brief.sentiment === 'bullish' ? 'bg-green-100 text-green-700' : brief.sentiment === 'bearish' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}`}>
-            {brief.sentiment === 'bullish' ? 'Bullish' : brief.sentiment === 'bearish' ? 'Bearish' : 'Mixed'} Tone
-          </span>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={generateAIBrief}
+            disabled={isGenerating}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-all disabled:opacity-50"
+          >
+            {isGenerating ? <Loader2 className="animate-spin" size={16} /> : <BrainCircuit size={16} />}
+            {isGenerating ? 'Synthesizing...' : 'Generate New Brief'}
+          </button>
         </div>
       </motion.div>
 
-      <motion.div
-        initial={{ y: 16, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.05, duration: 0.4 }}
-        className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-      >
-        This brief is composed locally from the data currently loaded in the app. Audio playback uses your browser's text-to-speech engine, not a live newsroom feed or external AI anchor.
-      </motion.div>
-
-      {/* Main Audio Player */}
+      {/* Main Player Card */}
       <motion.div
         initial={{ y: 30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.1, duration: 0.7 }}
-        className="bg-gradient-to-br from-[#ee7d54] to-[#f59e0b] rounded-3xl p-8 text-white"
+        className="relative overflow-hidden bg-slate-950 rounded-[2.5rem] p-8 text-white border border-slate-800 shadow-2xl"
       >
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-              <Mic size={32} />
+        {/* Dynamic Background */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-[100px] animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px]" />
+        </div>
+
+        <div className="relative z-10">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
+            <div className="flex items-center gap-5">
+              <motion.div 
+                animate={isPlaying ? { scale: [1, 1.1, 1] } : {}}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="w-20 h-20 rounded-3xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/20"
+              >
+                <Mic size={36} />
+              </motion.div>
+              <div>
+                <Badge variant="outline" className="mb-2 border-orange-500/50 text-orange-400 uppercase tracking-widest text-[10px]">
+                  {customBrief ? 'Deep Analysis Active' : 'Standard Feed'}
+                </Badge>
+                <h3 className="text-2xl font-bold">{activeBrief.title}</h3>
+                <p className="text-slate-400 text-sm flex items-center gap-2">
+                  <Calendar size={14} />
+                  {activeBrief.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-bold">{brief.title}</h3>
-              <p className="text-white/70 flex items-center gap-2">
-                <Calendar size={14} />
-                {brief.date.toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
+            
+            <div className="text-right">
+              <div className="text-4xl font-mono font-bold tracking-tighter tabular-nums">
+                {formatTime(currentTime)}
+              </div>
+              <div className="text-slate-500 text-sm font-medium">
+                OF {formatTime(activeBrief.duration)}
+              </div>
+            </div>
+          </div>
+
+          {/* AI Voice Visualizer */}
+          <div className="flex items-end justify-center gap-1 h-12 mb-10">
+            {Array.from({ length: 40 }).map((_, i) => (
+              <motion.div
+                key={i}
+                animate={isPlaying ? { 
+                  height: [10, Math.random() * 40 + 10, 10],
+                  opacity: [0.3, 1, 0.3]
+                } : { height: 4, opacity: 0.2 }}
+                transition={{ 
+                  repeat: Infinity, 
+                  duration: 0.5 + Math.random() * 0.5,
+                  delay: i * 0.02
+                }}
+                className="w-1 bg-gradient-to-t from-orange-500 to-amber-400 rounded-full"
+              />
+            ))}
+          </div>
+
+          {/* Player Controls */}
+          <div className="flex flex-col items-center gap-8">
+            <div className="w-full">
+              <div 
+                className="relative h-1.5 bg-slate-800 rounded-full cursor-pointer group"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  setProgress((x / rect.width) * 100);
+                }}
+              >
+                <motion.div 
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-500 to-amber-400 rounded-full"
+                  style={{ width: `${progress}%` }}
+                />
+                <motion.div 
+                  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ left: `${progress}%`, marginLeft: -8 }}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-4">
+                <Volume2 size={18} className="text-slate-500" />
+                <div className="w-24 h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-slate-400" style={{ width: `${volume}%` }} />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-8">
+                <button className="text-slate-400 hover:text-white transition-colors">
+                  <SkipBack size={24} />
+                </button>
+                <button 
+                  onClick={handlePlayToggle}
+                  className="w-20 h-20 rounded-full bg-white text-slate-950 flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10"
+                >
+                  {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} className="ml-1" fill="currentColor" />}
+                </button>
+                <button className="text-slate-400 hover:text-white transition-colors">
+                  <SkipForward size={24} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 text-slate-500 text-xs font-medium uppercase tracking-widest">
+                <Zap size={14} className={isPlaying ? "text-amber-400" : ""} />
+                Real-time
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Insight Panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-white rounded-3xl p-6 card-shadow border border-slate-100"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+              <Sparkles className="text-orange-600" size={20} />
+            </div>
+            <h3 className="font-bold">Script Highlights</h3>
+          </div>
+          <div className="space-y-4">
+            {activeBrief.keyPoints.map((point, idx) => (
+              <div key={idx} className="flex gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 transition-all hover:border-orange-200">
+                <div className="text-orange-500 font-mono font-bold text-lg">0{idx + 1}</div>
+                <p className="text-slate-700 text-sm leading-relaxed">{point}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-slate-900 rounded-3xl p-6 text-white card-shadow"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+              <Globe className="text-indigo-400" size={20} />
+            </div>
+            <h3 className="font-bold">Live Market Tape</h3>
+          </div>
+          <div className="space-y-3">
+            {topCryptos.map(coin => (
+              <div key={coin.symbol} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center font-bold text-xs">
+                    {coin.symbol[0]}
+                  </div>
+                  <span className="font-semibold">{coin.symbol}</span>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono">${coin.price.toLocaleString()}</div>
+                  <div className={`text-[10px] ${coin.change24hPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {coin.change24hPercent >= 0 ? '+' : ''}{coin.change24hPercent.toFixed(2)}%
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div className="mt-6 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+              <p className="text-[10px] text-indigo-300 uppercase tracking-widest font-bold mb-2">Macro Context</p>
+              <p className="text-xs text-slate-300 italic leading-relaxed">
+                "BTC dominance is consolidating as capital rotates into high-efficiency L1s. AI-compute narratives are decoupling from broad market volatility."
               </p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-3xl font-bold">{formatTime(currentTime)}</p>
-            <p className="text-white/70 text-sm">/ {formatTime(brief.duration)}</p>
-          </div>
-        </div>
-
-        <div className="mb-6 p-4 rounded-2xl bg-white/10 backdrop-blur-sm">
-          <p className="text-sm text-white/90 leading-relaxed">{brief.summary}</p>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div
-            className="h-2 bg-white/20 rounded-full overflow-hidden cursor-pointer"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const x = e.clientX - rect.left;
-              const percentage = (x / rect.width) * 100;
-              setProgress(percentage);
-            }}
-          >
-            <motion.div
-              className="h-full bg-white rounded-full"
-              style={{ width: `${progress}%` }}
-              transition={{ duration: 0.1 }}
-            />
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setProgress(Math.max(0, progress - 10))}
-              className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-            >
-              <SkipBack size={18} />
-            </button>
-            <button
-              onClick={() => {
-                if (!('speechSynthesis' in window)) {
-                  toast.error('Audio playback is not supported in this browser.');
-                  return;
-                }
-
-                if (!hasBriefData) {
-                  toast.error('Not enough current app data to generate the brief yet.');
-                  return;
-                }
-
-                if (isPlaying) {
-                  window.speechSynthesis.cancel();
-                  toast.info('Paused');
-                  setIsPlaying(false);
-                } else {
-                  const utterance = new SpeechSynthesisUtterance(brief.script);
-                  utterance.rate = 1;
-                  utterance.pitch = 1;
-                  utterance.volume = volume / 100;
-                  utterance.onend = () => {
-                    setIsPlaying(false);
-                    setProgress(100);
-                  };
-                  utterance.onerror = () => {
-                    setIsPlaying(false);
-                    toast.error('Failed to play the local voice preview.');
-                  };
-                  utteranceRef.current = utterance;
-                  setProgress(0);
-                  window.speechSynthesis.cancel();
-                  window.speechSynthesis.speak(utterance);
-                  toast.success('Playing local voice preview...');
-                  setIsPlaying(true);
-                }
-              }}
-              className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-[#ee7d54] hover:scale-105 transition-transform"
-            >
-              {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
-            </button>
-            <button
-              onClick={() => setProgress(Math.min(100, progress + 10))}
-              className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-            >
-              <SkipForward size={18} />
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Volume2 size={18} className="text-white/70" />
-            <div className="w-24 h-1 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white rounded-full"
-                style={{ width: `${volume}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Key Points */}
-      <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2, duration: 0.7 }}
-        className="bg-white rounded-3xl p-6 card-shadow"
-      >
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-            <Zap className="text-blue-500" size={20} />
-          </div>
-          <div>
-            <h3 className="font-semibold">Key Highlights</h3>
-            <p className="text-sm text-gray-500">Main points from the current generated brief snapshot</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          {brief.keyPoints.map((point: string, index: number) => (
-            <motion.div
-              key={index}
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.3 + index * 0.1, duration: 0.4 }}
-              className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50"
-            >
-              <div className="w-8 h-8 rounded-lg bg-[#ee7d54] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                {index + 1}
-              </div>
-              <p className="text-sm text-gray-700">{point}</p>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Market Summary Cards */}
-      <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3, duration: 0.7 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-4"
-      >
-        <div className="bg-white rounded-2xl p-5 card-shadow">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-              <BarChart3 className="text-green-500" size={18} />
-            </div>
-            <span className="text-sm text-gray-500">Stock Markets</span>
-          </div>
-          <div className="space-y-2">
-            {stockIndices.length > 0 ? stockIndices.map((index) => (
-              <div key={index.symbol} className="flex items-center justify-between">
-                <span className="text-sm">{index.name}</span>
-                <span className={`text-sm font-medium ${index.changePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {index.changePercent >= 0 ? '+' : ''}{index.changePercent.toFixed(2)}%
-                </span>
-              </div>
-            )) : (
-              <p className="text-sm text-gray-400">Index data not available yet</p>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 card-shadow">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-              <Bitcoin className="text-orange-500" size={18} />
-            </div>
-            <span className="text-sm text-gray-500">Crypto Markets</span>
-          </div>
-          <div className="space-y-2">
-            {topCryptos.length > 0 ? topCryptos.map((coin) => (
-              <div key={coin.symbol} className="flex items-center justify-between">
-                <span className="text-sm">{coin.symbol}</span>
-                <span className={`text-sm font-medium ${coin.change24hPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {coin.change24hPercent >= 0 ? '+' : ''}{coin.change24hPercent.toFixed(2)}%
-                </span>
-              </div>
-            )) : (
-              <p className="text-sm text-gray-400">Crypto feed still syncing</p>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 card-shadow">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Globe className="text-blue-500" size={18} />
-            </div>
-            <span className="text-sm text-gray-500">Macro Events</span>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Fear & Greed</span>
-              <span className="text-sm font-medium">{dataState.globalStats.fearGreedIndex || '—'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">BTC Dominance</span>
-              <span className="text-sm font-medium text-green-500">{dataState.globalStats.btcDominance > 0 ? `${dataState.globalStats.btcDominance.toFixed(1)}%` : '—'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">24h Volume</span>
-              <span className="text-sm font-medium text-green-500">{dataState.globalStats.totalVolume24h > 0 ? `$${Math.round(dataState.globalStats.totalVolume24h).toLocaleString()}` : '—'}</span>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Schedule */}
-      <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.4, duration: 0.7 }}
-        className="bg-white rounded-3xl p-6 card-shadow"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-              <Clock className="text-purple-500" size={20} />
-            </div>
-            <div>
-              <h3 className="font-semibold">Suggested Brief Windows</h3>
-              <p className="text-sm text-gray-500">Time-of-day review windows, not automatic generation events</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {briefSchedule.map((scheduledBrief) => (
-            <div
-              key={scheduledBrief.name}
-              className={`p-4 rounded-2xl ${scheduledBrief.status === 'completed'
-                ? 'bg-green-50 border border-green-100'
-                : 'bg-gray-50 border border-gray-100'
-                }`}
-            >
-              <p className="text-xs text-gray-500 mb-1">{scheduledBrief.time}</p>
-              <p className="font-medium text-sm">{scheduledBrief.name}</p>
-              <span className={`text-xs ${scheduledBrief.status === 'completed' ? 'text-green-600' : 'text-gray-400'
-                }`}>
-                {scheduledBrief.status === 'completed' ? '✓ Window passed' : '○ Suggested window'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }

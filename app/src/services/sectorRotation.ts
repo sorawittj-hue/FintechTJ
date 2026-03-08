@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Sector Rotation Service v2.0 — Real Crypto Sector Data
  *
