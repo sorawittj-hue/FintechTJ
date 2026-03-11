@@ -57,6 +57,7 @@ export function useData() {
     refreshPrices: priceState.refreshPrices,
     subscribeToPrices: priceState.subscribeToPrices,
     unsubscribeFromPrices: priceState.unsubscribeFromPrices,
+    updatePricesBatch: priceState.updatePricesBatch,
 
     // Portfolio actions
     addAsset: (asset: any) => portfolioState.addAsset(asset, user?.id),

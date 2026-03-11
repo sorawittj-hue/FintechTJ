@@ -39,12 +39,13 @@ export interface UsePricesReturn {
   // Actions
   refreshPrices: () => Promise<void>;
   subscribeToPrices: (symbols: string[]) => void;
+  updatePricesBatch: (prices: CryptoPrice[]) => void;
 }
 
 export function usePrices(): UsePricesReturn {
   const { state, actions } = useData();
   const { prices, allPrices, isLoading, error, lastUpdate, connectionStatus } = state;
-  const { refreshPrices, subscribeToPrices } = actions;
+  const { refreshPrices, subscribeToPrices, updatePricesBatch } = actions;
 
   // Ref to track mounted state
   const isMountedRef = useRef(true);

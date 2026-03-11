@@ -12,6 +12,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SectionSkeleton } from '@/components/SectionSkeleton';
 import { AuthGuard } from '@/components/AuthGuard';
 import { Onboarding } from '@/components/Onboarding';
+import { AppMonitor } from '@/components/AppMonitor';
 
 // Lazy load all sections
 const Login = lazy(() => import('@/sections/Login'));
@@ -194,6 +195,7 @@ function App() {
     <AppProvider>
       <div className="min-h-screen bg-[#f4f6f9] dark:bg-gray-950 transition-colors duration-300">
         <AppContent />
+        <AppMonitor />
       </div>
     </AppProvider>
   );

@@ -73,5 +73,6 @@ export function usePrice() {
     connectionState: priceState.connectionStatus.state,
     latencyMs: priceState.connectionStatus.latency,
     convert: priceState.convert,
+    updatePricesBatch: priceState.updatePricesBatch,
   }), [priceState]);
 }

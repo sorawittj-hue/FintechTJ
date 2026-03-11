@@ -107,7 +107,8 @@ function DashboardHome() {
     allPrices,
     refreshPrices,
     latencyMs,
-    convert
+    convert,
+    updatePricesBatch
   } = usePrice();
   const { state: dataState } = useData();
 
@@ -129,6 +130,17 @@ function DashboardHome() {
   const lastFetchRef = useRef<number>(0);
   const isFetchingRef = useRef(false);
   const portfolioHistoryRef = useRef<PortfolioHistoryPoint[]>(loadPortfolioHistory());
+
+  // Safety Timeout for Loading
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        console.warn('[Dashboard] Loading safety timeout reached - showing UI anyway');
+        setLoading(false);
+      }, 8000); // Max 8 seconds of "Initializing"
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
 
   // Data Fetching Logic
   const fetchAllData = useCallback(async (isRefresh = false) => {
@@ -152,22 +164,56 @@ function DashboardHome() {
 
       let successSources = 0;
       const failedSources: string[] = [];
+      const globalPricesToUpdate: any[] = [];
 
       if (commodityData.status === 'fulfilled' && commodityData.value.length > 0) {
         setCommodities(commodityData.value);
         successSources++;
+        
+        // Push to global price store
+        commodityData.value.forEach(c => {
+          globalPricesToUpdate.push({
+            symbol: c.symbol,
+            price: c.price,
+            change24h: c.change24h,
+            change24hPercent: c.change24hPercent,
+            source: 'Yahoo'
+          });
+        });
       } else failedSources.push('Commodities');
 
       const stocks: { symbol: string; price: number; change: number }[] = [];
       if (nvdaData.status === 'fulfilled' && nvdaData.value) {
         stocks.push({ symbol: 'NVDA', price: nvdaData.value.price, change: nvdaData.value.changePercent });
         successSources++;
+        
+        globalPricesToUpdate.push({
+          symbol: 'NVDA',
+          price: nvdaData.value.price,
+          change24h: nvdaData.value.change,
+          change24hPercent: nvdaData.value.changePercent,
+          source: 'Yahoo'
+        });
       } else failedSources.push('NVDA');
+      
       if (aaplData.status === 'fulfilled' && aaplData.value) {
         stocks.push({ symbol: 'AAPL', price: aaplData.value.price, change: aaplData.value.changePercent });
         successSources++;
+        
+        globalPricesToUpdate.push({
+          symbol: 'AAPL',
+          price: aaplData.value.price,
+          change24h: aaplData.value.change,
+          change24hPercent: aaplData.value.changePercent,
+          source: 'Yahoo'
+        });
       } else failedSources.push('AAPL');
       setStockData(stocks);
+
+      // Batch update the global price store to trigger portfolio recalculation
+      if (globalPricesToUpdate.length > 0) {
+        updatePricesBatch(globalPricesToUpdate);
+      }
 
       if (whales.status === 'fulfilled') {
         setWhaleActivity(whales.value);

@@ -197,15 +197,19 @@ function CountdownTimer({ seconds, onComplete }: { seconds: number; onComplete: 
   useEffect(() => {
     const interval = setInterval(() => {
       setRemaining(prev => {
-        if (prev <= 1) {
-          onComplete();
-          return seconds;
-        }
+        if (prev <= 1) return 0;
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [seconds, onComplete]);
+  }, []);
+
+  useEffect(() => {
+    if (remaining === 0) {
+      onComplete();
+      setRemaining(seconds);
+    }
+  }, [remaining, onComplete, seconds]);
 
   return (
     <div className="flex items-center gap-1 text-xs text-gray-400">
