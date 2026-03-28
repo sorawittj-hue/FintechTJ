@@ -45,7 +45,9 @@ interface AuthActions {
     clearError: () => void;
 }
 
-interface AuthContextType extends AuthState, AuthActions { }
+interface AuthContextType extends AuthState, AuthActions {
+    isGuest: boolean;
+}
 
 // ============================================================================
 // Context
@@ -208,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const value: AuthContextType = {
         user,
         isAuthenticated: !!user,
+        isGuest: !!user?.isGuest,
         isLoading,
         error,
         login,

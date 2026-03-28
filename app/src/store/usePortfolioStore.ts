@@ -334,15 +334,31 @@ export const usePortfolioStore = create<PortfolioState>()(
   )
 );
 
-// Subscribe to price changes to recalculate portfolio
-if (typeof window !== 'undefined') {
-  usePriceStore.subscribe(
+let portfolioUnsubscribe: (() => void) | null = null;
+
+/**
+ * Initialize portfolio store side effects.
+ * Must be called from a React component to avoid module-level side effects.
+ */
+export function initPortfolioStore(): () => void {
+  if (typeof window === 'undefined') return () => {};
+  if (portfolioUnsubscribe) return () => {}; // Already initialized
+
+  // Subscribe to price changes to recalculate portfolio
+  portfolioUnsubscribe = usePriceStore.subscribe(
     (state) => state.lastUpdate,
     () => {
       usePortfolioStore.getState().calculateSummary();
       usePortfolioStore.getState().checkAlerts();
     }
   );
+
+  return () => {
+    if (portfolioUnsubscribe) {
+      portfolioUnsubscribe();
+      portfolioUnsubscribe = null;
+    }
+  };
 }
 
 

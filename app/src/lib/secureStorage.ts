@@ -11,10 +11,11 @@ const IV_LENGTH = 12;
 
 /**
  * Generate a cryptographic key from a seed
- * In production, this should be derived from a user password or stored securely
+ * Uses sessionStorage to avoid persisting keys alongside encrypted data in localStorage.
+ * Session keys are cleared when the browser tab is closed.
  */
 async function getOrCreateKey(): Promise<CryptoKey> {
-    const storedKey = localStorage.getItem('_sk');
+    const storedKey = sessionStorage.getItem('_sk');
 
     if (storedKey) {
         const keyData = JSON.parse(storedKey);
@@ -34,7 +35,7 @@ async function getOrCreateKey(): Promise<CryptoKey> {
     );
 
     const exportedKey = await crypto.subtle.exportKey('jwk', key);
-    localStorage.setItem('_sk', JSON.stringify(exportedKey));
+    sessionStorage.setItem('_sk', JSON.stringify(exportedKey));
 
     return key;
 }
@@ -125,8 +126,10 @@ export function removeSecureItem(key: string): void {
  * Clear all secure storage (use on logout)
  */
 export function clearSecureStorage(): void {
-    const keysToRemove = ['_sk', 'kimi_guest_session'];
-    keysToRemove.forEach(key => localStorage.removeItem(key));
+    const localKeysToRemove = ['quantai_guest_session', 'portfolio-storage'];
+    localKeysToRemove.forEach(key => localStorage.removeItem(key));
+    const sessionKeysToRemove = ['_sk'];
+    sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
 }
 
 export default {

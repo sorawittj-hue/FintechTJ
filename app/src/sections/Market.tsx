@@ -101,6 +101,7 @@ function Market() {
   const [activeTab, setActiveTab] = useState('all'); // all, watchlist, crypto, stock, commodity, forex
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(30);
   
   const [watchlist, setWatchlist] = useState<string[]>(() => {
     const saved = localStorage.getItem('market-watchlist');
@@ -241,7 +242,8 @@ function Market() {
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
-    setSelectedSector(null); // Reset sector when switching main tabs
+    setSelectedSector(null);
+    setVisibleCount(30);
   };
 
   if (loading) {
@@ -396,25 +398,38 @@ function Market() {
 
           <AnimatePresence mode="wait">
             {viewMode === 'grid' ? (
-              <motion.div 
-                key="grid"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-              >
-                {filteredAssets.slice(0, 60).map((asset, idx) => (
-                  <MarketCard 
-                    key={asset.symbol} 
-                    asset={asset} 
-                    idx={idx} 
-                    userCurrency={userCurrency} 
-                    convert={convert}
-                    isWatched={watchlist.includes(asset.symbol)}
-                    onToggleWatch={() => toggleWatchlist(asset.symbol)}
-                  />
-                ))}
-              </motion.div>
+              <div key="grid-wrapper">
+                <motion.div 
+                  key="grid"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  {filteredAssets.slice(0, visibleCount).map((asset, idx) => (
+                    <MarketCard 
+                      key={asset.symbol} 
+                      asset={asset} 
+                      idx={idx} 
+                      userCurrency={userCurrency} 
+                      convert={convert}
+                      isWatched={watchlist.includes(asset.symbol)}
+                      onToggleWatch={() => toggleWatchlist(asset.symbol)}
+                    />
+                  ))}
+                </motion.div>
+                {visibleCount < filteredAssets.length && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setVisibleCount(prev => prev + 30)}
+                      className="rounded-2xl font-bold text-xs uppercase tracking-widest"
+                    >
+                      Load More ({filteredAssets.length - visibleCount} remaining)
+                    </Button>
+                  </div>
+                )}
+              </div>
             ) : (
               <motion.div
                 key="list"
@@ -435,7 +450,7 @@ function Market() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {filteredAssets.slice(0, 100).map((asset, idx) => (
+                      {filteredAssets.slice(0, visibleCount).map((asset, idx) => (
                         <MarketRow 
                           key={asset.symbol} 
                           asset={asset} 
@@ -448,6 +463,17 @@ function Market() {
                       ))}
                     </tbody>
                   </table>
+                  {visibleCount < filteredAssets.length && (
+                    <div className="flex justify-center py-6">
+                      <Button
+                        variant="outline"
+                        onClick={() => setVisibleCount(prev => prev + 30)}
+                        className="rounded-2xl font-bold text-xs uppercase tracking-widest"
+                      >
+                        Load More ({filteredAssets.length - visibleCount} remaining)
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}

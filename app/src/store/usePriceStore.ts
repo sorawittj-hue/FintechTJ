@@ -172,20 +172,41 @@ export const usePriceStore = create<PriceState>()(
   }))
 );
 
-// Initialization logic
-if (typeof window !== 'undefined') {
+let stalenessInterval: ReturnType<typeof setInterval> | null = null;
+let wsUnsubscribe: (() => void) | null = null;
+
+/**
+ * Initialize price store side effects.
+ * Must be called from a React component (e.g., App root) to avoid module-level side effects.
+ */
+export function initPriceStore(): () => void {
+  if (typeof window === 'undefined') return () => {};
+  if (stalenessInterval) return () => {}; // Already initialized
+
   const wsManager = WebSocketManager.getInstance();
   
   // Update connection status
-  wsManager.on('state-change', (status: ConnectionStatus) => {
-    usePriceStore.getState().setConnectionStatus(status);
+  wsUnsubscribe = wsManager.on('state-change', (status: ConnectionStatus) => {
+    usePriceStore.getState().setConnectionStatus(status as ConnectionStatus);
   });
 
   // Initial fetch
   usePriceStore.getState().refreshPrices();
 
   // Periodically check staleness
-  setInterval(() => {
+  stalenessInterval = setInterval(() => {
     usePriceStore.getState().checkStaleness();
   }, 5000);
+
+  // Return cleanup function
+  return () => {
+    if (stalenessInterval) {
+      clearInterval(stalenessInterval);
+      stalenessInterval = null;
+    }
+    if (wsUnsubscribe) {
+      wsUnsubscribe();
+      wsUnsubscribe = null;
+    }
+  };
 }

@@ -6,12 +6,10 @@ import { useAuth } from '@/context/AuthContext';
  * AuthGuard
  *
  * Protects routes that require authentication.
- * Guest users (isGuest=true) are treated as authenticated — they can access
- * all dashboard features without signing in to PocketBase.
+ * Guest users (isGuest=true) can access dashboard features in read-only mode.
  *
  * Only redirects to /login when:
- *   - PocketBase IS enabled, AND
- *   - The user is NOT authenticated (no PB session, no guest session)
+ *   - The user is NOT authenticated (no session, no guest session)
  */
 export const AuthGuard: React.FC = () => {
     const { isAuthenticated, isLoading } = useAuth();
@@ -33,6 +31,23 @@ export const AuthGuard: React.FC = () => {
     }
 
     return <Outlet />;
+};
+
+/**
+ * GuestGuard
+ * 
+ * Protects routes/features that require a real account (not guest).
+ * Redirects guest users to login page.
+ */
+export const GuestGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { user } = useAuth();
+    const location = useLocation();
+
+    if (user?.isGuest) {
+        return <Navigate to="/login" state={{ from: location, requireAuth: true }} replace />;
+    }
+
+    return <>{children}</>;
 };
 
 export default AuthGuard;

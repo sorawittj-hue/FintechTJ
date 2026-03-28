@@ -111,28 +111,31 @@ interface SubItemListProps {
 const SubItemList = memo(function SubItemList({ group, onClose }: SubItemListProps) {
   const { t } = useTranslation();
   return (
-    <div className="ml-3 mt-1 pl-3 border-l-2 border-gray-100 dark:border-gray-800 space-y-0.5">
-      {group.items.map((subItem) => (
-        <NavLink
-          key={subItem.id}
-          to={subItem.path}
-          onClick={onClose}
-          className={({ isActive }) => `
-            flex items-center gap-3 px-3 py-2 rounded-lg text-sm
-            transition-all duration-150
-            ${isActive
-              ? 'bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] text-white shadow-sm'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
-            }
-          `}
-        >
-          <subItem.icon size={14} className="flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="font-medium truncate text-xs">{t(subItem.labelKey)}</p>
-            <p className="text-[10px] opacity-70 truncate">{t(subItem.descKey)}</p>
-          </div>
-        </NavLink>
-      ))}
+    <div className="ml-3 mt-1 pl-3 border-l border-slate-200 dark:border-slate-800 space-y-0.5">
+        {group.items.map((subItem: any) => (
+          <NavLink
+            key={subItem.id}
+            to={subItem.path}
+            onClick={onClose}
+            className={({ isActive }: { isActive: boolean }) => `
+              flex items-center gap-3 px-3 py-2 rounded-xl text-xs
+              transition-all duration-300 group/sub
+              ${isActive
+                ? 'bg-slate-900/5 dark:bg-white/5 text-[#ee7d54] font-black'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50'
+              }
+            `}
+          >
+            {({ isActive }: { isActive: boolean }) => (
+              <>
+                <subItem.icon size={12} className={`flex-shrink-0 transition-transform duration-300 group-hover/sub:scale-125 ${isActive ? 'text-[#ee7d54]' : ''}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate uppercase tracking-tight">{t(subItem.labelKey)}</p>
+                </div>
+              </>
+            )}
+          </NavLink>
+        ))}
     </div>
   );
 });
@@ -161,23 +164,23 @@ const SuiteGroupRow = memo(function SuiteGroupRow({
       <button
         onClick={handleToggle}
         className={`
-          w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium
-          transition-colors duration-150
+          w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest
+          transition-all duration-300 group/btn
           ${isActive
-            ? 'text-[#ee7d54] bg-[#ee7d54]/5 dark:bg-[#ee7d54]/10'
-            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+            ? 'text-[#ee7d54] bg-[#ee7d54]/5 dark:bg-[#ee7d54]/10 shadow-[inset_0_0_20px_rgba(238,125,84,0.05)]'
+            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
           }
         `}
       >
         <div className="flex items-center gap-3">
-          <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${group.color} flex items-center justify-center`}>
+          <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${group.color} flex items-center justify-center shadow-lg transition-transform duration-300 group-hover/btn:scale-110`}>
             <group.icon size={14} className="text-white" />
           </div>
           <span>{t(group.labelKey)}</span>
         </div>
         <ChevronDown
           size={14}
-          className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''} text-gray-400 dark:text-gray-500`}
+          className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} text-slate-400 dark:text-slate-500`}
         />
       </button>
 
@@ -217,14 +220,16 @@ const SidebarContent = memo(function SidebarContent({
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="p-5 border-b border-gray-100 dark:border-gray-800">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-gray-800 to-black flex items-center justify-center shadow-lg shadow-black/30 flex-shrink-0 border border-gray-700">
-            <Terminal className="text-[#f59e0b]" size={20} />
+      <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-[1.25rem] bg-slate-900 flex items-center justify-center shadow-2xl shadow-black/40 flex-shrink-0 border border-slate-800 group cursor-pointer transition-all duration-500 hover:scale-110">
+            <Terminal className="text-[#f59e0b] drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" size={24} />
           </div>
-          <div>
-            <h1 className="font-bold text-lg text-gray-900 dark:text-white leading-tight">APEX <span className="text-[#f59e0b]">TERMINAL</span></h1>
-            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide">INSTITUTIONAL INTELLIGENCE</p>
+          <div className="min-w-0">
+            <h1 className="font-black text-lg text-slate-900 dark:text-white leading-none tracking-tighter uppercase italic">
+              TJ APEX <span className="text-[#f59e0b]">3.0</span>
+            </h1>
+            <p className="text-[9px] text-slate-500 dark:text-slate-500 font-bold tracking-[0.2em] mt-1.5 uppercase truncate">Neural FinTech Engine</p>
           </div>
         </div>
       </div>
@@ -232,24 +237,28 @@ const SidebarContent = memo(function SidebarContent({
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar" role="navigation" aria-label="Main navigation">
         {/* Core Nav */}
-        <div className="space-y-0.5">
-          {CORE_NAV.map((item) => (
+        <div className="space-y-1 mt-2">
+          {CORE_NAV.map((item: any) => (
             <NavLink
               key={item.id}
               to={item.path}
               end={item.path === '/'}
               onClick={onClose}
-              className={({ isActive }) => `
-                flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
-                transition-colors duration-150
+              className={({ isActive }: { isActive: boolean }) => `
+                flex items-center gap-3 px-3 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest
+                transition-all duration-300 group
                 ${isActive
-                  ? 'bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] text-white shadow-md shadow-[#ee7d54]/25'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-[#ee7d54] via-[#f59e0b] to-[#ee7d54] bg-[length:200%_auto] animate-gradient-shift text-white shadow-xl shadow-[#ee7d54]/20'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
                 }
               `}
             >
-              <item.icon size={18} />
-              <span>{t(item.labelKey)}</span>
+              {({ isActive }: { isActive: boolean }) => (
+                <>
+                  <item.icon size={18} className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                  <span>{t(item.labelKey)}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </div>
@@ -278,12 +287,12 @@ const SidebarContent = memo(function SidebarContent({
 
       {/* Bottom Navigation */}
       <div className="p-3 border-t border-gray-100 dark:border-gray-800 space-y-0.5">
-        {BOTTOM_NAV.map((item) => (
+        {BOTTOM_NAV.map((item: any) => (
           <NavLink
             key={item.path}
             to={item.path}
             onClick={onClose}
-            className={({ isActive }) => `
+            className={({ isActive }: { isActive: boolean }) => `
               flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
               transition-colors duration-150
               ${isActive
@@ -292,8 +301,12 @@ const SidebarContent = memo(function SidebarContent({
               }
             `}
           >
-            <item.icon size={18} />
-            <span>{t(item.labelKey)}</span>
+            {({ isActive }: { isActive: boolean }) => (
+              <>
+                <item.icon size={18} />
+                <span>{t(item.labelKey)}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </div>
@@ -325,7 +338,7 @@ export function Sidebar() {
     SUITE_GROUPS.forEach(group => {
       const hasActiveChild = group.items.some(item => location.pathname === item.path);
       if (hasActiveChild) {
-        setExpandedGroups(prev => {
+        setExpandedGroups((prev: Set<string>) => {
           if (prev.has(group.id)) return prev; // already expanded, no re-render
           const next = new Set(prev);
           next.add(group.id);
@@ -336,7 +349,7 @@ export function Sidebar() {
   }, [location.pathname]);
 
   const toggleGroup = useCallback((groupId: string) => {
-    setExpandedGroups(prev => {
+    setExpandedGroups((prev: Set<string>) => {
       const next = new Set(prev);
       if (next.has(groupId)) {
         next.delete(groupId);
@@ -360,7 +373,7 @@ export function Sidebar() {
     <>
       {/* Mobile Menu Button */}
       <button
-        onClick={() => setMobileOpen(prev => !prev)}
+        onClick={() => setMobileOpen((prev: boolean) => !prev)}
         className="lg:hidden fixed top-4 left-4 z-[70] w-10 h-10 bg-white dark:bg-gray-900 rounded-xl shadow-lg flex items-center justify-center border border-gray-100 dark:border-gray-800 transition-colors"
         aria-label="Toggle navigation"
       >

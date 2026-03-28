@@ -41,6 +41,7 @@ import {
   RiskFactorRow,
   WhaleAlertItem
 } from './DashboardWidgets';
+import { DashboardAnalyst } from './DashboardAnalyst';
 import type { MacroConditions } from '@/lib/macroRisk';
 import { formatCurrency } from '@/lib/utils';
 
@@ -117,7 +118,6 @@ function DashboardHome() {
   // State
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([]);
   const [commodities, setCommodities] = useState<CommodityPrice[]>([]);
-  const [, setStockData] = useState<{ symbol: string; price: number; change: number }[]>([]);
   const [whaleActivity, setWhaleActivity] = useState<WhaleTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -208,7 +208,6 @@ function DashboardHome() {
           source: 'Yahoo'
         });
       } else failedSources.push('AAPL');
-      setStockData(stocks);
 
       // Batch update the global price store to trigger portfolio recalculation
       if (globalPricesToUpdate.length > 0) {
@@ -244,7 +243,7 @@ function DashboardHome() {
     if (allPrices.length === 0) return;
     const nextCryptoPrices = allPrices.slice(0, 10);
     const newFlash: Record<string, boolean> = {};
-    nextCryptoPrices.forEach((price) => {
+    nextCryptoPrices.forEach((price: CryptoPrice) => {
       const prev = prevPricesRef.current[price.symbol];
       if (prev && Math.abs(prev - price.price) / prev > 0.0005) {
         newFlash[price.symbol] = true;
@@ -274,7 +273,7 @@ function DashboardHome() {
 
   const chartData = useMemo(() => {
     if (portfolioHistory.length < 2) return [];
-    return portfolioHistory.map((point) => ({
+    return portfolioHistory.map((point: PortfolioHistoryPoint) => ({
       date: new Date(point.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }),
       value: convert(point.value, userCurrency),
     }));
@@ -292,11 +291,11 @@ function DashboardHome() {
   }, [dataState.globalStats]);
 
   const riskIndicators = useMemo<RiskIndicator[]>(() => (
-    calculateRiskIndicators(portfolio.totalValue, dataState.assets, portfolioHistory.map(p => p.value))
-  ), [portfolio.totalValue, dataState.assets, portfolioHistory]);
+    calculateRiskIndicators(portfolio.totalValue, dataState.assets)
+  ), [portfolio.totalValue, dataState.assets]);
 
   const macroConditions: MacroConditions = useMemo(() => {
-    const btcChange = cryptoPrices.find(c => c.symbol === 'BTC')?.change24hPercent || 0;
+    const btcChange = cryptoPrices.find((c: CryptoPrice) => c.symbol === 'BTC')?.change24hPercent || 0;
     return {
       fearAndGreedIndex: fearGreedIndex?.value || 50,
       btcVolatility30d: 0.05,
@@ -345,27 +344,33 @@ function DashboardHome() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-200 dark:border-slate-800 pb-6">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-900 rounded-lg border border-slate-800"><Terminal size={20} className="text-[#f59e0b]" /></div>
-            <h1 className="text-2xl font-black dark:text-white tracking-widest uppercase italic">
+            <div className="p-2 bg-slate-900 rounded-lg border border-slate-800 shadow-xl shadow-slate-900/10 transition-transform hover:scale-105 duration-300">
+              <Terminal size={20} className="text-[#f59e0b] drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
+            </div>
+            <h1 className="text-2xl font-black dark:text-white tracking-widest uppercase italic bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400">
               TERMINAL <span className="text-[#f59e0b]">OPS CENTER</span>
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/5 border border-emerald-500/20 rounded-full">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/5 border border-emerald-500/20 rounded-full group cursor-default">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse group-hover:scale-150 transition-transform duration-300" />
               <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Live Engine</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Feed:</span>
-              <span className="text-[10px] font-black dark:text-slate-300 uppercase tracking-widest">v{dashboardHealth.successSources}.{latencyMs}ms</span>
+              <span className="text-[10px] font-black dark:text-slate-300 uppercase tracking-widest transition-all group cursor-default">
+                v{dashboardHealth.successSources}.{latencyMs}ms
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-900/50 p-2 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-3 glass p-2 rounded-2xl">
           <div className="px-4 py-2">
             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">System Time</p>
-            <p className="text-sm font-black dark:text-white font-mono tabular-nums">{new Date().toLocaleTimeString([], { hour12: false })}</p>
+            <p className="text-sm font-black dark:text-white font-mono tabular-nums leading-none mt-1">
+              {new Date().toLocaleTimeString([], { hour12: false })}
+            </p>
           </div>
           <div className="w-px h-8 bg-slate-200 dark:bg-slate-800" />
           <div className="flex items-center gap-2 px-2">
@@ -373,13 +378,13 @@ function DashboardHome() {
               variant="ghost"
               size="icon"
               onClick={handleRefresh}
-              className="h-10 w-10 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800"
+              className="h-10 w-10 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 group"
             >
-              <RefreshCw size={18} className={refreshing ? 'animate-spin text-[#f59e0b]' : 'text-slate-500'} />
+              <RefreshCw size={18} className={refreshing ? 'animate-spin text-[#f59e0b]' : 'text-slate-500 group-hover:text-[#f59e0b] transition-colors'} />
             </Button>
             <Button
               onClick={() => setIsDepositOpen(true)}
-              className="h-10 rounded-xl bg-[#f59e0b] hover:bg-[#d97706] text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-[#f59e0b]/20"
+              className="h-10 rounded-xl bg-[#f59e0b] hover:bg-[#d97706] text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-[#f59e0b]/20 btn-hover-effect"
             >
               <Plus size={16} className="mr-2" />
               New Entry
@@ -398,12 +403,14 @@ function DashboardHome() {
             updatedAt={fearGreedIndex?.updatedAt || new Date()}
           />
 
-          <div className="bg-white dark:bg-[#09090b] rounded-[2rem] p-6 shadow-xl border border-slate-200 dark:border-slate-800">
+          <DashboardAnalyst />
+
+          <div className="card-premium">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xs font-black dark:text-white uppercase tracking-widest italic flex items-center gap-2">
                 <Radio size={14} className="text-[#f59e0b]" /> Market Stream
               </h3>
-              <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-ping" />
+              <div className="w-2 h-2 rounded-full bg-[#f59e0b] shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-shimmer" />
             </div>
             <div className="space-y-1">
               {cryptoPrices.slice(0, 4).map(c => (
@@ -434,8 +441,8 @@ function DashboardHome() {
         <div className="xl:col-span-6 space-y-6">
 
           {/* APEX HERO CARD */}
-          <div className="relative overflow-hidden rounded-[3rem] bg-black p-10 text-white shadow-2xl border border-slate-800">
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#f59e0b]/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+          <div className="relative overflow-hidden rounded-[3rem] bg-black p-10 text-white shadow-2xl border border-white/5 group hover:border-white/10 transition-colors duration-500">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#f59e0b]/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 group-hover:bg-[#f59e0b]/10 transition-colors duration-700" />
             <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2" />
 
             <div className="relative">
@@ -519,17 +526,17 @@ function DashboardHome() {
         {/* ─── RIGHT: OPS MONITOR (3/12) ─── */}
         <div className="xl:col-span-3 space-y-6">
 
-          <div className="bg-white dark:bg-[#09090b] rounded-[2rem] p-6 shadow-xl border border-slate-200 dark:border-slate-800">
+          <div className="card-premium">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shadow-lg shadow-black/30 group-hover:scale-110 transition-transform duration-300">
                 <Shield size={20} className="text-[#f59e0b]" />
               </div>
               <div>
-                <h3 className="text-xs font-black dark:text-white uppercase tracking-widest italic">Risk Matrix</h3>
-                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Intelligence Scan</p>
+                <h3 className="text-xs font-black dark:text-white uppercase tracking-widest italic leading-none">Risk Matrix</h3>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Intelligence Scan</p>
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {riskIndicators.length > 0 ? (
                 riskIndicators.slice(0, 4).map(risk => (
                   <RiskFactorRow key={risk.name} name={risk.name} value={risk.value} label={risk.label} status={risk.status as 'low' | 'good' | 'medium' | 'high' | 'critical'} />
@@ -540,29 +547,35 @@ function DashboardHome() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#09090b] rounded-[2rem] p-6 shadow-xl border border-slate-200 dark:border-slate-800">
+          <div className="card-premium">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xs font-black dark:text-white uppercase tracking-widest italic flex items-center gap-2">
                 <Eye size={14} className="text-[#f59e0b]" /> Smart Money
               </h3>
-              <Badge variant="outline" className="text-[9px] border-slate-200 dark:border-slate-800">LIVE</Badge>
+              <Badge variant="outline" className="text-[9px] h-4 border-[#f59e0b]/30 text-[#f59e0b] bg-[#f59e0b]/5 font-black">STREAM</Badge>
             </div>
-            <div className="space-y-1">
-              {whaleActivity.length > 0 ? (
-                whaleActivity.slice(0, 5).map(activity => (
-                  <WhaleAlertItem
-                    key={activity.id}
-                    activity={activity}
-                    buyLabel="ACCUMULATING"
-                    sellLabel="DISTRIBUTING"
-                  />
-                ))
-              ) : (
-                <div className="text-center py-10 opacity-20"><Eye size={32} className="mx-auto" /></div>
-              )}
+            <div className="space-y-1 h-[220px] overflow-hidden relative fade-bottom">
+              <div className="space-y-1 animate-fadeIn">
+                {whaleActivity.length > 0 ? (
+                  whaleActivity.slice(0, 5).map(activity => (
+                    <WhaleAlertItem
+                      key={activity.id}
+                      activity={activity}
+                      buyLabel="ACCUMULATING"
+                      sellLabel="DISTRIBUTING"
+                    />
+                  ))
+                ) : (
+                  <div className="text-center py-10 opacity-20 h-full flex flex-col items-center justify-center">
+                    <Eye size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Scanning Whale Flows...</p>
+                  </div>
+                )}
+              </div>
+              <div className="absolute bottom-0 left-0 w-full h-10 bg-gradient-to-t from-white dark:from-[#09090b] to-transparent pointer-events-none" />
             </div>
-            <Button variant="ghost" className="w-full mt-4 text-[9px] font-black uppercase tracking-widest text-[#f59e0b] hover:bg-[#f59e0b]/10" onClick={() => window.location.href = '/whalevault'}>
-              Access Whale Vault <ChevronRight size={12} className="ml-1" />
+            <Button variant="ghost" className="w-full mt-4 h-10 text-[10px] font-black uppercase tracking-[0.2em] text-[#f59e0b] hover:bg-[#f59e0b]/10 group" onClick={() => window.location.href = '/whalevault'}>
+              Access Whale Vault <ChevronRight size={14} className="ml-1 group-hover:translate-x-1 transition-transform" />
             </Button>
           </div>
         </div>

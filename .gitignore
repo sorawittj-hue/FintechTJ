@@ -50,6 +50,9 @@ Thumbs.db
 *.temp
 null
 
+# TypeScript build info
+*.tsbuildinfo
+
 # Agents/skills (personal tools, not project files)
 .agents/
 

@@ -18,6 +18,7 @@ import type { NewsArticle } from '@/api/newsapi';
 import type { PortfolioSummary } from '@/types';
 import type { AllIndicators } from './indicators';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { GoogleGenAI } from '@google/genai';
 
 // ============================================================================
 // Type Definitions
@@ -233,9 +234,9 @@ const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
 const DEFAULT_CONFIG: AIServiceConfig = {
   provider: 'gemini',
-  model: 'gemini-2.0-flash-lite',
-  maxTokens: 800,
-  temperature: 0.7,
+  model: 'gemini-3-flash-preview',
+  maxTokens: 1200,
+  temperature: 0.6,
   enabled: !!GEMINI_KEY || !!API_KEY || !!ANTHROPIC_KEY,
 };
 
@@ -260,38 +261,28 @@ function truncatePrompt(prompt: string, maxChars = 6000): string {
 // Gemini API (FREE - 1500 req/day, no credit card needed)
 // ============================================================================
 
-async function callGemini(prompt: string, apiKey: string, model = 'gemini-2.0-flash-lite'): Promise<string> {
+async function callGemini(prompt: string, apiKey: string, model = 'gemini-3-flash-preview'): Promise<string> {
   // Check rate limit
   if (!geminiLimiter.canRequest()) {
     const wait = geminiLimiter.waitTime();
     throw new Error(`Gemini rate limit: wait ${Math.ceil(wait / 1000)}s`);
   }
 
-  const safePrompt = truncatePrompt(prompt, 8000);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const safePrompt = truncatePrompt(prompt, 12000);
+  const ai = new GoogleGenAI({ apiKey });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: safePrompt }] }],
-      generationConfig: {
-        maxOutputTokens: 800,
-        temperature: 0.7,
-      },
-    }),
-    signal: AbortSignal.timeout(15000),
+  const response = await ai.models.generateContent({
+    model: model,
+    contents: safePrompt,
+    config: {
+      maxOutputTokens: 800,
+      temperature: 0.7,
+    }
   });
 
   geminiLimiter.record();
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini API error ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return response.text || '';
 }
 
 // ============================================================================
@@ -373,7 +364,7 @@ async function callAI(prompt: string, config: AIServiceConfig): Promise<string> 
   // Try Gemini first (free)
   if (GEMINI_KEY) {
     try {
-      result = await callGemini(prompt, GEMINI_KEY, 'gemini-2.0-flash-lite');
+      result = await callGemini(prompt, GEMINI_KEY, 'gemini-3-flash-preview');
       if (result) {
         await setCachedResponseAsync(cacheKey, result);
         return result;
@@ -583,25 +574,27 @@ export class AIAnalysisService {
 
         const newsSummary = news.slice(0, 5).map(n => `- ${n.title.slice(0, 100)}`).join('\n');
 
-        const prompt = `Analyze this cryptocurrency market data and respond with ONLY valid JSON:
+        const prompt = `You are an institutional-grade financial analyst at a top-tier hedge fund. 
+Analyze the provided market data and news with high precision and provide a strategic outlook.
 
-PRICE DATA: ${priceSummary}
-NEWS SENTIMENT SCORE: ${newsSentiment.toFixed(2)} (range -1 to 1)
-TOP NEWS:
+DATA SNAPSHOT:
+- Price Action & Metrics: ${priceSummary}
+- Sentiment Matrix Score: ${newsSentiment.toFixed(2)} (-1 to 1) 
+- Intelligence Feeds:
 ${newsSummary}
 
-Respond with this exact JSON format:
+Respond OBSESSIVELY as a JSON object with this exact structure:
 {
-  "trend": "bullish",
-  "confidence": 65,
-  "summary": "Brief 1-2 sentence market summary based on provided data",
-  "keyFactors": ["factor 1", "factor 2", "factor 3"],
-  "riskLevel": "medium",
-  "outlook": "Short outlook statement",
-  "timeHorizon": "Short term (1-2 weeks)"
+  "trend": "bullish" | "bearish" | "sideways",
+  "confidence": 0-100,
+  "summary": "Professional 2-3 sentence executive summary",
+  "keyFactors": ["Strategic factor 1", "Strategic factor 2", "Strategic factor 3"],
+  "riskLevel": "low" | "medium" | "high" | "critical",
+  "outlook": "Hedge fund style strategic outlook",
+  "timeHorizon": "Tactical time horizon"
 }
 
-DISCLAIMER: Educational analysis only, not financial advice.`;
+Ensure the analysis is sophisticated and avoids retail clichés. Respond ONLY with valid JSON.`;
 
         const response = await callAI(prompt, this.config);
         const jsonMatch = response.match(/\{[\s\S]*\}/);

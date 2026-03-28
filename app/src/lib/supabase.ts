@@ -37,6 +37,7 @@ export async function checkSupabaseHealth(): Promise<boolean> {
  * Real-time subscription helper
  */
 export function subscribeToTable(table: string, callback: (payload: any) => void) {
+  if (!supabase) return null;
   return supabase
     .channel(`${table}-changes`)
     .on('postgres_changes', { event: '*', schema: 'public', table }, callback)

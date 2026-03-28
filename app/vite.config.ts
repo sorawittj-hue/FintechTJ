@@ -105,7 +105,7 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-ui': ['framer-motion', '@radix-ui/react-slot'],
-          'vendor-data': ['pocketbase', 'zod'],
+          'vendor-data': ['zod'],
           'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
         },
       },

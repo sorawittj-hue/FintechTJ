@@ -8,7 +8,7 @@ import { usePriceStore } from '@/store/usePriceStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useAuth } from '@/context/AuthContext';
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 
 // Re-export useData from its dedicated file
 export { useData } from '@/hooks/useData';
@@ -31,6 +31,13 @@ export function useSettings() {
 export function usePortfolio() {
   const { user } = useAuth();
   const portfolio = usePortfolioStore();
+  const [isDepositOpen, setIsDepositOpenRaw] = useState(false);
+  const [isWithdrawOpen, setIsWithdrawOpenRaw] = useState(false);
+  const [isAlertOpen, setIsAlertOpenRaw] = useState(false);
+
+  const setIsDepositOpen = useCallback((open: boolean) => setIsDepositOpenRaw(open), []);
+  const setIsWithdrawOpen = useCallback((open: boolean) => setIsWithdrawOpenRaw(open), []);
+  const setIsAlertOpen = useCallback((open: boolean) => setIsAlertOpenRaw(open), []);
 
   return useMemo(() => ({
     portfolio: portfolio.summary,
@@ -44,14 +51,13 @@ export function usePortfolio() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addTransaction: (t: any) => portfolio.addTransaction(t, user?.id),
     refresh: () => user ? portfolio.fetchAssets(user.id) : Promise.resolve(),
-    // UI state that was previously in PortfolioContext (might need a UI store if missing)
-    isDepositOpen: false,
-    setIsDepositOpen: (open: boolean) => { void open; },
-    isWithdrawOpen: false,
-    setIsWithdrawOpen: (open: boolean) => { void open; },
-    isAlertOpen: false,
-    setIsAlertOpen: (open: boolean) => { void open; },
-  }), [portfolio, user]);
+    isDepositOpen,
+    setIsDepositOpen,
+    isWithdrawOpen,
+    setIsWithdrawOpen,
+    isAlertOpen,
+    setIsAlertOpen,
+  }), [portfolio, user, isDepositOpen, setIsDepositOpen, isWithdrawOpen, setIsWithdrawOpen, isAlertOpen, setIsAlertOpen]);
 }
 
 export function usePrice() {

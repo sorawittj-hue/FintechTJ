@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 // FRED API Configuration
-const FRED_API_KEY = '0f31a22c86f32ed8b1b83d44d0c4c6f1'; // Free API key
+const FRED_API_KEY = import.meta.env.VITE_FRED_API_KEY || '';
 const FRED_BASE_URL = 'https://api.stlouisfed.org/fred';
 
 interface MacroIndicator {

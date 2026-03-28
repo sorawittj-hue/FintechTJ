@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { Lock, Mail, AlertTriangle, ArrowRight, UserCircle2, Wifi, WifiOff } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -9,7 +10,7 @@ export default function Login() {
     const { t } = useTranslation();
     const { login, register, loginAsGuest, isLoading, error } = useAuth();
     const navigate = useNavigate();
-    const [isSupabaseEnabled] = useState(true); 
+    const isSupabaseEnabled = isSupabaseConfigured;
 
     const location = useLocation();
 
@@ -116,6 +117,7 @@ export default function Login() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.99 }}
                         onClick={handleGuest}
+                        aria-label={t('auth.continueAsGuest')}
                         className="w-full flex items-center justify-center gap-3 py-4 px-4 border-2 border-[#ee7d54] rounded-xl shadow-sm text-sm font-semibold text-[#ee7d54] bg-[#ee7d54]/5 hover:bg-[#ee7d54]/10 transition-all mb-6"
                     >
                         <UserCircle2 size={20} />
@@ -145,8 +147,10 @@ export default function Login() {
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3"
+                                        role="alert"
+                                        aria-live="assertive"
                                     >
-                                        <AlertTriangle className="text-red-500 mt-0.5" size={18} />
+                                        <AlertTriangle className="text-red-500 mt-0.5" size={18} aria-hidden="true" />
                                         <p className="text-sm text-red-600 dark:text-red-400">{validationError || error}</p>
                                     </motion.div>
                                 )}

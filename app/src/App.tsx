@@ -6,7 +6,8 @@ import { Sidebar } from '@/components/ui/custom/Sidebar';
 import { Header } from '@/components/ui/custom/Header';
 import { AppProvider } from '@/context/AppProvider';
 import { usePortfolio, useAuth } from '@/context/hooks';
-import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { usePortfolioStore, initPortfolioStore } from '@/store/usePortfolioStore';
+import { initPriceStore } from '@/store/usePriceStore';
 import { DepositDialog, WithdrawDialog, AlertDialog } from '@/components/dialogs';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SectionSkeleton } from '@/components/SectionSkeleton';
@@ -82,7 +83,16 @@ function AppContent() {
   const { user } = useAuth();
   const { setupRealtimeSync } = usePortfolioStore();
 
-  // Setup real-time sync
+  // Setup real-time sync and initialize stores
+  useEffect(() => {
+    const cleanupPrice = initPriceStore();
+    const cleanupPortfolio = initPortfolioStore();
+    return () => {
+      cleanupPrice();
+      cleanupPortfolio();
+    };
+  }, []);
+
   useEffect(() => {
     if (user && !user.isGuest && user.id) {
       const cleanup = setupRealtimeSync(user.id);

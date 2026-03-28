@@ -131,6 +131,8 @@ const REST_API_URLS: Record<WebSocketSource, (symbols: string[]) => string> = {
 export class WebSocketManager {
   private static instance: WebSocketManager | null = null;
   private static isWebSocketBlocked = false; // Persistent session flag
+  private static blockedAt: number | null = null;
+  private static readonly BLOCKED_RETRY_INTERVAL = 60000; // Retry WebSocket every 60s after block
 
   private ws: WebSocket | null = null;
   private config: WebSocketConfig;
@@ -158,6 +160,9 @@ export class WebSocketManager {
   private source: WebSocketSource = 'binance';
   private readonly handleOnline = () => {
     this.log('Network is online, attempting to reconnect');
+    // Reset blocked flag when network comes back online
+    WebSocketManager.isWebSocketBlocked = false;
+    WebSocketManager.blockedAt = null;
     if (this.status.state === 'error' || this.status.state === 'disconnected') {
       this.status.reconnectAttempts = 0;
       this.reconnect();
@@ -264,9 +269,16 @@ export class WebSocketManager {
     }
 
     if (WebSocketManager.isWebSocketBlocked) {
-      this.log('WebSocket is known to be blocked, skipping and using polling');
-      this.startPollingFallback();
-      return;
+      // Allow retry after BLOCKED_RETRY_INTERVAL to recover from transient network issues
+      if (WebSocketManager.blockedAt && (Date.now() - WebSocketManager.blockedAt) > WebSocketManager.BLOCKED_RETRY_INTERVAL) {
+        this.log('WebSocket blocked flag expired, resetting and retrying');
+        WebSocketManager.isWebSocketBlocked = false;
+        WebSocketManager.blockedAt = null;
+      } else {
+        this.log('WebSocket is known to be blocked, skipping and using polling');
+        this.startPollingFallback();
+        return;
+      }
     }
 
     if (this.ws?.readyState === WebSocket.OPEN) {
@@ -309,6 +321,7 @@ export class WebSocketManager {
         if (this.status.reconnectAttempts >= this.config.reconnectAttempts - 1) {
           this.log('WebSocket connection failed multiple times, flagging as blocked');
           WebSocketManager.isWebSocketBlocked = true;
+          WebSocketManager.blockedAt = Date.now();
         }
         this.handleError(error);
       };

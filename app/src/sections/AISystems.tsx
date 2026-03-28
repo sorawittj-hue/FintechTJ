@@ -77,7 +77,7 @@ export const AISystems = React.memo(function AISystems() {
   // Average reported confidence across visible insights
   const avgReportedConfidence = useMemo(() => {
     if (insights.length === 0) return 0;
-    const avg = insights.reduce((sum, i) => sum + i.confidence, 0) / insights.length;
+    const avg = insights.reduce((sum: number, i: any) => sum + i.confidence, 0) / insights.length;
     return Math.round(avg * 10) / 10;
   }, [insights]);
 
@@ -97,7 +97,7 @@ export const AISystems = React.memo(function AISystems() {
 
   // Trend data from narratives
   const trendData = useMemo(() =>
-    narratives.map(n => ({
+    narratives.map((n: any) => ({
       narrative: n.name.length > 20 ? n.name.substring(0, 20) + '...' : n.name,
       strength: n.strength,
       momentum: n.momentum,
@@ -187,7 +187,7 @@ export const AISystems = React.memo(function AISystems() {
             <span className="text-sm text-gray-500">Narratives Tracked</span>
           </div>
           <p className="text-3xl font-bold">{narratives.length}</p>
-          <p className="text-xs text-gray-400 mt-1">Across {new Set(narratives.map(n => n.sector)).size} sectors</p>
+          <p className="text-xs text-gray-400 mt-1">Across {new Set(narratives.map((n: any) => n.sector)).size} sectors</p>
         </motion.div>
 
         <motion.div
@@ -244,7 +244,7 @@ export const AISystems = React.memo(function AISystems() {
               </div>
             )}
 
-            {insights.map((insight, index) => (
+            {insights.map((insight: any, index: number) => (
               <motion.button
                 key={insight.id}
                 initial={{ x: -20, opacity: 0 }}
@@ -285,7 +285,7 @@ export const AISystems = React.memo(function AISystems() {
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
                         {insight.source === 'ai' ? 'AI' : insight.source === 'sentiment' ? 'Sentiment Rules' : 'Local Rules'}
                       </span>
-                      {insight.relatedAssets.map(asset => (
+                      {insight.relatedAssets.map((asset: string) => (
                         <span key={asset} className="text-xs text-purple-600">{asset}</span>
                       ))}
                       {insight.action && (
@@ -353,7 +353,7 @@ export const AISystems = React.memo(function AISystems() {
               <div className="p-4 rounded-xl bg-white/10">
                 <p className="text-xs text-gray-400 mb-1">Related Assets</p>
                 <div className="flex gap-2">
-                  {selectedInsight.relatedAssets.map(asset => (
+                  {selectedInsight.relatedAssets.map((asset: string) => (
                     <span key={asset} className="px-2 py-1 bg-white/20 rounded text-sm">
                       {asset}
                     </span>
@@ -420,7 +420,7 @@ export const AISystems = React.memo(function AISystems() {
                 />
                 <Tooltip
                   contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                  formatter={(value: number, name: string) => [
+                  formatter={(value: any, name: string) => [
                     `${value}%`,
                     name === 'strength' ? 'Narrative Strength' : 'Momentum'
                   ]}
