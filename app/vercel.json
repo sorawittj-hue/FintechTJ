@@ -7,6 +7,24 @@
   ],
   "headers": [
     {
+      "source": "/(.*\\.html)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(index\\.js|main\\.js|app\\.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/api/(.*)",
       "headers": [
         {
@@ -15,7 +33,7 @@
         },
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://quantai.pro"
+          "value": "*"
         },
         {
           "key": "Access-Control-Allow-Methods",
