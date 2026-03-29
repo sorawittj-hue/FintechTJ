@@ -1,19 +1,9 @@
 /**
  * KapraoHub - Ultimate Trading Dashboard
  * 
- * Features:
- * 1. Live Crypto Prices (Binance API)
- * 2. AI Trading Signals
- * 3. Portfolio Tracker
- * 4. Whale Tracking
- * 5. Technical Indicators
- * 6. Economic Calendar
- * 7. News Aggregation (CoinGecko)
- * 8. Price Alerts System
- * 9. Performance vs Market
- * 10. ICO/IEO Calendar
- * 11. Risk Calculator
- * 12. DeFi Dashboard
+ * Uses REAL DATA from:
+ * - usePriceStore (Binance live prices)
+ * - usePortfolioStore (User's real portfolio from localStorage/Supabase)
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -41,16 +31,13 @@ import {
   Trash2,
   Check,
   X,
-  ExternalLink,
   ChevronDown,
-  ChevronUp,
-  PieChart,
-  Shield,
-  Lock,
   Coins,
   Layers,
-  Flame,
+  ExternalLink,
 } from 'lucide-react';
+import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { usePriceStore } from '@/store/usePriceStore';
 
 // ==================== TYPES ====================
 
@@ -89,29 +76,6 @@ interface WhaleTx {
   time: string;
 }
 
-interface PortfolioHolding {
-  symbol: string;
-  name: string;
-  amount: number;
-  avgPrice: number;
-  currentPrice: number;
-  value: number;
-  pnl: number;
-  pnlPercent: number;
-  allocation: number;
-}
-
-interface PriceAlert {
-  id: string;
-  symbol: string;
-  targetPrice: number;
-  condition: 'above' | 'below';
-  currentPrice: number;
-  active: boolean;
-  triggered: boolean;
-  createdAt: string;
-}
-
 interface NewsItem {
   id: string;
   title: string;
@@ -143,70 +107,52 @@ interface DeFiProtocol {
   network: string;
 }
 
-// ==================== API FUNCTIONS ====================
+// ==================== MAPPINGS ====================
 
-async function fetchCryptoPrices(): Promise<PriceData[]> {
-  try {
-    const symbols = [
-      { symbol: 'BTCUSDT', name: 'Bitcoin', icon: '₿' },
-      { symbol: 'ETHUSDT', name: 'Ethereum', icon: 'Ξ' },
-      { symbol: 'BNBUSDT', name: 'BNB', icon: 'B' },
-      { symbol: 'SOLUSDT', name: 'Solana', icon: '◎' },
-      { symbol: 'XRPUSDT', name: 'Ripple', icon: 'X' },
-      { symbol: 'ADAUSDT', name: 'Cardano', icon: '₳' },
-      { symbol: 'DOGEUSDT', name: 'Dogecoin', icon: 'Ð' },
-      { symbol: 'AVAXUSDT', name: 'Avalanche', icon: 'A' },
-    ];
+const SYMBOL_MAP: Record<string, { name: string; icon: string; binanceSymbol: string }> = {
+  BTC: { name: 'Bitcoin', icon: '₿', binanceSymbol: 'BTCUSDT' },
+  ETH: { name: 'Ethereum', icon: 'Ξ', binanceSymbol: 'ETHUSDT' },
+  BNB: { name: 'BNB', icon: 'B', binanceSymbol: 'BNBUSDT' },
+  SOL: { name: 'Solana', icon: '◎', binanceSymbol: 'SOLUSDT' },
+  XRP: { name: 'Ripple', icon: 'X', binanceSymbol: 'XRPUSDT' },
+  ADA: { name: 'Cardano', icon: '₳', binanceSymbol: 'ADAUSDT' },
+  DOGE: { name: 'Dogecoin', icon: 'Ð', binanceSymbol: 'DOGEUSDT' },
+  AVAX: { name: 'Avalanche', icon: 'A', binanceSymbol: 'AVAXUSDT' },
+  DOT: { name: 'Polkadot', icon: '●', binanceSymbol: 'DOTUSDT' },
+  MATIC: { name: 'Polygon', icon: '⬡', binanceSymbol: 'MATICUSDT' },
+};
 
-    const prices: PriceData[] = [];
+// ==================== DATA GENERATORS ====================
 
-    for (const { symbol, name, icon } of symbols) {
-      const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
-      const data = await res.json();
-      prices.push({
-        symbol: symbol.replace('USDT', ''),
-        name,
-        icon,
-        price: parseFloat(data.lastPrice),
-        change24h: parseFloat(data.priceChangePercent),
-        change7d: (Math.random() - 0.5) * 10, // Mock 7d change
-        high24h: parseFloat(data.highPrice),
-        low24h: parseFloat(data.lowPrice),
-        volume: parseFloat(data.quoteVolume),
-        marketCap: parseFloat(data.quoteVolume) * 0.3,
-      });
-    }
-
-    return prices;
-  } catch (error) {
-    console.error('Failed to fetch prices:', error);
-    return [];
-  }
-}
-
-function generateSignals(prices: PriceData[]): Signal[] {
-  if (prices.length === 0) return [];
-
+function generateSignals(prices: Map<string, any>): Signal[] {
   const signals: Signal[] = [];
   const now = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
-  const importantCoins = prices.filter(p => ['BTC', 'ETH', 'SOL'].includes(p.symbol));
+  const importantCoins = ['BTC', 'ETH', 'SOL'];
 
-  for (const coin of importantCoins) {
-    const signalType = coin.change24h > 3 ? 'SELL' : coin.change24h < -3 ? 'BUY' : 'HOLD';
+  for (const symbol of importantCoins) {
+    const priceData = prices.get(symbol);
+    if (!priceData) continue;
+
+    const change24h = priceData.change24hPercent || 0;
+    const signalType = change24h > 3 ? 'SELL' : change24h < -3 ? 'BUY' : 'HOLD';
+    const price = priceData.price || 0;
+
+    if (price <= 0) continue;
+
     signals.push({
-      id: `${coin.symbol}-${Date.now()}`,
-      pair: `${coin.symbol}/USD`,
+      id: `${symbol}-${Date.now()}`,
+      pair: `${symbol}/USD`,
       type: signalType,
-      entry: Math.round(coin.price * 100) / 100,
+      entry: Math.round(price * 100) / 100,
       target: signalType === 'BUY' 
-        ? Math.round(coin.price * 1.05 * 100) / 100 
+        ? Math.round(price * 1.05 * 100) / 100 
         : signalType === 'SELL'
-        ? Math.round(coin.price * 0.95 * 100) / 100
-        : Math.round(coin.price * 1.02 * 100) / 100,
+        ? Math.round(price * 0.95 * 100) / 100
+        : Math.round(price * 1.02 * 100) / 100,
       stop: signalType === 'BUY' 
-        ? Math.round(coin.price * 0.97 * 100) / 100 
-        : Math.round(coin.price * 1.03 * 100) / 100,
+        ? Math.round(price * 0.97 * 100) / 100 
+        : Math.round(price * 1.03 * 100) / 100,
       confidence: signalType === 'HOLD' ? 50 + Math.floor(Math.random() * 20) : 65 + Math.floor(Math.random() * 30),
       reason: signalType === 'BUY' 
         ? 'RSI oversold • MACD bullish divergence • Support holding'
@@ -234,28 +180,6 @@ function generateWhaleTxs(): WhaleTx[] {
       exchange: exchanges[Math.floor(Math.random() * exchanges.length)],
       time: i === 0 ? 'Just now' : `${i * 2 + 1}m ago`,
     };
-  });
-}
-
-function generatePortfolio(prices: PriceData[]): PortfolioHolding[] {
-  const holdings = [
-    { symbol: 'BTC', name: 'Bitcoin', amount: 0.5, avgPrice: 58000 },
-    { symbol: 'ETH', name: 'Ethereum', amount: 3.2, avgPrice: 2800 },
-    { symbol: 'SOL', name: 'Solana', amount: 25, avgPrice: 120 },
-  ];
-
-  return holdings.map(h => {
-    const current = prices.find(p => p.symbol === h.symbol);
-    const currentPrice = current?.price || h.avgPrice;
-    const value = h.amount * currentPrice;
-    const cost = h.amount * h.avgPrice;
-    const pnl = value - cost;
-    const pnlPercent = ((value - cost) / cost) * 100;
-
-    return { ...h, currentPrice, value, pnl, pnlPercent, allocation: 0 };
-  }).map((h, _, arr) => {
-    const total = arr.reduce((sum, x) => sum + x.value, 0);
-    return { ...h, allocation: (h.value / total) * 100 };
   });
 }
 
@@ -308,14 +232,13 @@ function SectionHeader({ title, icon, subtitle }: { title: string; icon: React.R
   );
 }
 
-function CryptoRow({ data, onSelect }: { data: PriceData; onSelect?: () => void }) {
+function CryptoRow({ data }: { data: PriceData }) {
   const isPositive = data.change24h >= 0;
   
   return (
     <motion.div 
       whileHover={{ scale: 1.01 }}
-      className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
-      onClick={onSelect}
+      className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all"
     >
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center text-lg">
@@ -336,6 +259,39 @@ function CryptoRow({ data, onSelect }: { data: PriceData; onSelect?: () => void 
         </p>
       </div>
     </motion.div>
+  );
+}
+
+function PortfolioRow({ asset, priceData }: { asset: any; priceData: any }) {
+  const isPositive = asset.profitLossPercent >= 0;
+  const currentPrice = priceData?.price || asset.currentPrice || asset.avgPrice;
+  const value = asset.quantity * currentPrice;
+  const cost = asset.quantity * asset.avgPrice;
+  const pnl = value - cost;
+  const pnlPercent = cost > 0 ? (pnl / cost) * 100 : 0;
+
+  const symbolInfo = SYMBOL_MAP[asset.symbol] || { name: asset.symbol, icon: '🪙' };
+  
+  return (
+    <div className="flex items-center justify-between p-4">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center font-bold text-orange-600">
+          {symbolInfo.icon}
+        </div>
+        <div>
+          <p className="font-bold text-gray-900">{asset.symbol}</p>
+          <p className="text-xs text-gray-500">
+            {asset.quantity} coins @ ${asset.avgPrice.toLocaleString()}
+          </p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="font-bold text-gray-900">${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+        <p className={`text-sm font-medium ${pnlPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -413,11 +369,16 @@ function WhaleRow({ tx }: { tx: WhaleTx }) {
   );
 }
 
-function PortfolioCard({ holdings }: { holdings: PortfolioHolding[] }) {
-  const totalValue = holdings.reduce((sum, h) => sum + h.value, 0);
-  const totalCost = holdings.reduce((sum, h) => sum + (h.amount * h.avgPrice), 0);
+function PortfolioCard({ holdings, prices }: { holdings: any[]; prices: Map<string, any> }) {
+  const totalValue = holdings.reduce((sum: number, h: any) => {
+    const priceData = prices.get(h.symbol);
+    const currentPrice = priceData?.price || h.currentPrice || h.avgPrice || 0;
+    return sum + (h.quantity * currentPrice);
+  }, 0);
+
+  const totalCost = holdings.reduce((sum: number, h: any) => sum + (h.quantity * h.avgPrice), 0);
   const totalPnL = totalValue - totalCost;
-  const totalPnLPercent = ((totalValue - totalCost) / totalCost) * 100;
+  const totalPnLPercent = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -425,9 +386,9 @@ function PortfolioCard({ holdings }: { holdings: PortfolioHolding[] }) {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Wallet size={20} />
-            <span className="font-medium">Portfolio Value</span>
+            <span className="font-medium">Portfolio ของคุณ</span>
           </div>
-          <span className="text-xs bg-white/20 px-2 py-1 rounded-full">LIVE</span>
+          <span className="text-xs bg-white/20 px-2 py-1 rounded-full">REAL DATA</span>
         </div>
         <p className="text-3xl font-black">${totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
         <p className={`text-sm font-medium ${totalPnL >= 0 ? 'text-green-100' : 'text-red-100'}`}>
@@ -435,57 +396,45 @@ function PortfolioCard({ holdings }: { holdings: PortfolioHolding[] }) {
         </p>
       </div>
 
-      <div className="divide-y divide-gray-100">
-        {holdings.map(h => (
-          <div key={h.symbol} className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center font-bold text-orange-600">
-                {h.symbol.slice(0, 2)}
-              </div>
-              <div>
-                <p className="font-bold text-gray-900">{h.symbol}</p>
-                <p className="text-xs text-gray-500">{h.amount} coins @ ${h.avgPrice.toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-gray-900">${h.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-              <p className={`text-sm font-medium ${h.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {h.pnl >= 0 ? '+' : ''}{h.pnlPercent.toFixed(2)}%
-              </p>
-            </div>
+      <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+        {holdings.length === 0 ? (
+          <div className="p-8 text-center text-gray-400">
+            <Wallet size={32} className="mx-auto mb-2 opacity-50" />
+            <p className="text-sm">ยังไม่มี holdings</p>
+            <p className="text-xs">เพิ่ม holdings จากหน้า Portfolio</p>
           </div>
-        ))}
-      </div>
-
-      <div className="p-4 border-t border-gray-100">
-        <p className="text-xs text-gray-500 mb-2">Allocation</p>
-        <div className="flex gap-1 h-3 rounded-full overflow-hidden">
-          {holdings.map(h => (
-            <div 
-              key={h.symbol}
-              className="bg-gradient-to-r from-orange-500 to-red-500"
-              style={{ width: `${h.allocation}%` }}
-            />
-          ))}
-        </div>
+        ) : (
+          holdings.map((h: any) => (
+            <PortfolioRow key={h.id || h.symbol} asset={h} priceData={prices.get(h.symbol)} />
+          ))
+        )}
       </div>
     </div>
   );
 }
 
-function PerformanceCard({ holdings, prices }: { holdings: PortfolioHolding[]; prices: PriceData[] }) {
-  const btc = prices.find(p => p.symbol === 'BTC');
-  const eth = prices.find(p => p.symbol === 'ETH');
-  const sol = prices.find(p => p.symbol === 'SOL');
+function PerformanceCard({ holdings, prices }: { holdings: any[]; prices: Map<string, any> }) {
+  const btc = prices.get('BTC');
+  const eth = prices.get('ETH');
+  const sol = prices.get('SOL');
 
-  const totalValue = holdings.reduce((sum, h) => sum + h.value, 0);
-  const totalCost = holdings.reduce((sum, h) => sum + (h.amount * h.avgPrice), 0);
+  const totalValue = holdings.reduce((sum: number, h: any) => {
+    const priceData = prices.get(h.symbol);
+    const currentPrice = priceData?.price || h.currentPrice || h.avgPrice || 0;
+    return sum + (h.quantity * currentPrice);
+  }, 0);
+
+  const totalCost = holdings.reduce((sum: number, h: any) => sum + (h.quantity * h.avgPrice), 0);
   const portfolioReturn = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
 
+  const btcReturn = btc?.change24hPercent || 0;
+  const ethReturn = eth?.change24hPercent || 0;
+  const solReturn = sol?.change24hPercent || 0;
+
   const comparisons = [
-    { name: 'vs BTC', yourReturn: portfolioReturn, benchmarkReturn: btc?.change24h || 0, win: portfolioReturn > (btc?.change24h || 0) },
-    { name: 'vs ETH', yourReturn: portfolioReturn, benchmarkReturn: eth?.change24h || 0, win: portfolioReturn > (eth?.change24h || 0) },
-    { name: 'vs SOL', yourReturn: portfolioReturn, benchmarkReturn: sol?.change24h || 0, win: portfolioReturn > (sol?.change24h || 0) },
+    { name: 'vs BTC', yourReturn: portfolioReturn, benchmarkReturn: btcReturn, win: portfolioReturn > btcReturn },
+    { name: 'vs ETH', yourReturn: portfolioReturn, benchmarkReturn: ethReturn, win: portfolioReturn > ethReturn },
+    { name: 'vs SOL', yourReturn: portfolioReturn, benchmarkReturn: solReturn, win: portfolioReturn > solReturn },
   ];
 
   return (
@@ -573,13 +522,19 @@ function NewsCard({ news }: { news: NewsItem[] }) {
   );
 }
 
-function AlertsCard({ alerts, onRemove, onToggle }: { alerts: PriceAlert[]; onRemove: (id: string) => void; onToggle: (id: string) => void }) {
+function AlertsCard({ alerts, onRemove, onToggle }: { alerts: any[]; onRemove: (id: string) => void; onToggle: (id: string) => void }) {
   const [showForm, setShowForm] = useState(false);
-  const [newAlert, setNewAlert] = useState({ symbol: 'BTC', targetPrice: '', condition: 'above' as const });
+  const [newAlert, setNewAlert] = useState({ symbol: 'BTC', targetPrice: '', condition: 'above' as 'above' | 'below' });
 
   const handleAdd = () => {
     if (!newAlert.targetPrice) return;
-    // In real app, this would save to state/context
+    const { addAlert } = usePortfolioStore.getState();
+    addAlert({
+      symbol: newAlert.symbol,
+      condition: newAlert.condition,
+      value: parseFloat(newAlert.targetPrice),
+      isActive: true,
+    });
     setShowForm(false);
     setNewAlert({ symbol: 'BTC', targetPrice: '', condition: 'above' });
   };
@@ -590,6 +545,7 @@ function AlertsCard({ alerts, onRemove, onToggle }: { alerts: PriceAlert[]; onRe
         <div className="flex items-center gap-2">
           <Bell size={18} className="text-yellow-500" />
           <span className="font-bold text-gray-900">Price Alerts</span>
+          <span className="text-xs text-gray-400">({alerts.length})</span>
         </div>
         <button 
           onClick={() => setShowForm(!showForm)}
@@ -610,6 +566,8 @@ function AlertsCard({ alerts, onRemove, onToggle }: { alerts: PriceAlert[]; onRe
               <option value="BTC">BTC</option>
               <option value="ETH">ETH</option>
               <option value="SOL">SOL</option>
+              <option value="BNB">BNB</option>
+              <option value="XRP">XRP</option>
             </select>
             <select 
               value={newAlert.condition}
@@ -644,7 +602,7 @@ function AlertsCard({ alerts, onRemove, onToggle }: { alerts: PriceAlert[]; onRe
           </div>
         )}
         {alerts.map(alert => (
-          <div key={alert.id} className={`p-4 flex items-center justify-between ${alert.triggered ? 'bg-green-50' : ''}`}>
+          <div key={alert.id} className={`p-4 flex items-center justify-between ${alert.triggeredAt ? 'bg-green-50' : ''}`}>
             <div className="flex items-center gap-3">
               <div className={`w-8 h-8 rounded-lg ${alert.condition === 'above' ? 'bg-green-100' : 'bg-red-100'} flex items-center justify-center`}>
                 {alert.condition === 'above' 
@@ -655,19 +613,19 @@ function AlertsCard({ alerts, onRemove, onToggle }: { alerts: PriceAlert[]; onRe
               <div>
                 <p className="font-medium text-gray-900">{alert.symbol}</p>
                 <p className="text-xs text-gray-500">
-                  {alert.condition === 'above' ? 'Above' : 'Below'} ${alert.targetPrice.toLocaleString()}
+                  {alert.condition === 'above' ? 'Above' : 'Below'} ${alert.value?.toLocaleString()}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {alert.triggered && (
+              {alert.triggeredAt && (
                 <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
                   TRIGGERED
                 </span>
               )}
               <button
                 onClick={() => onToggle(alert.id)}
-                className={`p-1.5 rounded-lg ${alert.active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}
+                className={`p-1.5 rounded-lg ${alert.isActive ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}
               >
                 <Bell size={14} />
               </button>
@@ -763,32 +721,37 @@ function DeFiCard({ protocols }: { protocols: DeFiProtocol[] }) {
   );
 }
 
-function RiskCalculator() {
+function RiskCalculator({ prices }: { prices: Map<string, any> }) {
   const [capital, setCapital] = useState('10000');
   const [riskPercent, setRiskPercent] = useState('2');
-  const [entryPrice, setEntryPrice] = useState('65000');
-  const [stopLoss, setStopLoss] = useState('63000');
+  const [symbol, setSymbol] = useState('BTC');
+  const [stopPercent, setStopPercent] = useState('3');
+
+  const currentPrice = prices.get(symbol)?.price || 65000;
 
   const calculate = useMemo(() => {
     const cap = parseFloat(capital) || 0;
     const risk = parseFloat(riskPercent) || 0;
-    const entry = parseFloat(entryPrice) || 0;
-    const stop = parseFloat(stopLoss) || 0;
+    const stopPct = parseFloat(stopPercent) || 0;
+    const price = currentPrice;
 
     const riskAmount = cap * (risk / 100);
-    const priceDiff = Math.abs(entry - stop);
-    const positionSize = entry > 0 && priceDiff > 0 ? (riskAmount / priceDiff) : 0;
-    const potentialLoss = positionSize * priceDiff;
-    const rewardRatio = priceDiff > 0 ? ((entry * 1.05 - entry) / priceDiff) : 0; // Assuming 5% target
+    const stopLossAmount = price * (stopPct / 100);
+    const positionSize = stopLossAmount > 0 ? riskAmount / stopLossAmount : 0;
+    const positionValue = positionSize * price;
+    const potentialLoss = positionSize * stopLossAmount;
+    const targetAmount = price * 1.05; // 5% target
+    const potentialReward = positionSize * (targetAmount - price);
+    const riskReward = potentialLoss > 0 ? potentialReward / potentialLoss : 0;
 
     return {
       riskAmount: riskAmount.toFixed(2),
       positionSize: positionSize.toFixed(4),
-      positionValue: (positionSize * entry).toFixed(2),
+      positionValue: positionValue.toFixed(2),
       potentialLoss: potentialLoss.toFixed(2),
-      riskReward: rewardRatio > 0 ? rewardRatio.toFixed(2) : '0.00',
+      riskReward: riskReward.toFixed(2),
     };
-  }, [capital, riskPercent, entryPrice, stopLoss]);
+  }, [capital, riskPercent, stopPercent, currentPrice]);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -817,20 +780,23 @@ function RiskCalculator() {
             />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Entry Price</label>
-            <input
-              type="number"
-              value={entryPrice}
-              onChange={e => setEntryPrice(e.target.value)}
+            <label className="text-xs text-gray-500 mb-1 block">Symbol</label>
+            <select
+              value={symbol}
+              onChange={e => setSymbol(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
-            />
+            >
+              <option value="BTC">BTC</option>
+              <option value="ETH">ETH</option>
+              <option value="SOL">SOL</option>
+            </select>
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Stop Loss</label>
+            <label className="text-xs text-gray-500 mb-1 block">Stop Loss (%)</label>
             <input
               type="number"
-              value={stopLoss}
-              onChange={e => setStopLoss(e.target.value)}
+              value={stopPercent}
+              onChange={e => setStopPercent(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
             />
           </div>
@@ -838,12 +804,16 @@ function RiskCalculator() {
 
         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
           <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Current Price</span>
+            <span className="font-bold text-gray-900">${currentPrice.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-sm">
             <span className="text-gray-500">Risk Amount</span>
             <span className="font-bold text-red-600">${calculate.riskAmount}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Position Size</span>
-            <span className="font-bold text-gray-900">{calculate.positionSize} BTC</span>
+            <span className="font-bold text-gray-900">{calculate.positionSize} {symbol}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Position Value</span>
@@ -893,51 +863,65 @@ function TechnicalIndicator({ label, value, status }: { label: string; value: st
 // ==================== MAIN ====================
 
 export default function KapraoHub() {
-  const [prices, setPrices] = useState<PriceData[]>([]);
+  // Use REAL stores
+  const { assets: holdings, alerts, summary } = usePortfolioStore();
+  const { prices, allPrices, lastUpdate, isLoading: priceLoading } = usePriceStore();
+  
   const [signals, setSignals] = useState<Signal[]>([]);
-  const [whaleTxs, setWhaleTxs] = useState<WhaleTx[]>([]);
-  const [portfolio, setPortfolio] = useState<PortfolioHolding[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [icoTokens, setIcoTokens] = useState<ICOToken[]>([]);
   const [defiProtocols, setDefiProtocols] = useState<DeFiProtocol[]>([]);
-  const [alerts, setAlerts] = useState<PriceAlert[]>([
-    { id: '1', symbol: 'BTC', targetPrice: 70000, condition: 'above', currentPrice: 66500, active: true, triggered: false, createdAt: '2026-03-28' },
-    { id: '2', symbol: 'ETH', targetPrice: 3500, condition: 'above', currentPrice: 3200, active: true, triggered: false, createdAt: '2026-03-27' },
-  ]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const newPrices = await fetchCryptoPrices();
-    setPrices(newPrices);
-    setSignals(generateSignals(newPrices));
-    setWhaleTxs(generateWhaleTxs());
-    setPortfolio(generatePortfolio(newPrices));
+  // Generate derived data
+  useEffect(() => {
+    if (prices.size > 0) {
+      setSignals(generateSignals(prices));
+    }
+  }, [prices]);
+
+  useEffect(() => {
     setNews(generateNews());
     setIcoTokens(generateICOTokens());
     setDefiProtocols(generateDeFiProtocols());
-    setLastUpdate(new Date());
-    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+  // Calculate live prices list
+  const pricesList = useMemo(() => {
+    const list: PriceData[] = [];
+    Object.entries(SYMBOL_MAP).forEach(([symbol, info]) => {
+      const priceData = prices.get(symbol);
+      if (priceData) {
+        list.push({
+          symbol,
+          name: info.name,
+          icon: info.icon,
+          price: priceData.price || 0,
+          change24h: priceData.change24hPercent || 0,
+          change7d: priceData.change7dPercent || 0,
+          high24h: priceData.high24h || 0,
+          low24h: priceData.low24h || 0,
+          volume: priceData.quoteVolume || 0,
+          marketCap: priceData.quoteVolume ? priceData.quoteVolume * 0.3 : 0,
+        });
+      }
+    });
+    return list;
+  }, [prices]);
 
-  const handleRemoveAlert = (id: string) => {
-    setAlerts(prev => prev.filter(a => a.id !== id));
-  };
+  // Calculate market stats
+  const btcPrice = prices.get('BTC')?.price || 0;
+  const btcChange = prices.get('BTC')?.change24hPercent || 0;
+  const avgChange = pricesList.length > 0 
+    ? pricesList.reduce((sum, p) => sum + p.change24h, 0) / pricesList.length 
+    : 0;
 
-  const handleToggleAlert = (id: string) => {
-    setAlerts(prev => prev.map(a => a.id === id ? { ...a, active: !a.active } : a));
-  };
+  const handleRemoveAlert = useCallback((id: string) => {
+    usePortfolioStore.getState().removeAlert(id);
+  }, []);
 
-  const btcPrice = prices.find(p => p.symbol === 'BTC')?.price || 0;
-  const totalMarketCap = prices.reduce((sum, p) => sum + p.marketCap, 0);
-  const avgChange = prices.length > 0 ? prices.reduce((sum, p) => sum + p.change24h, 0) / prices.length : 0;
+  const handleToggleAlert = useCallback((id: string) => {
+    usePortfolioStore.getState().toggleAlert(id);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -952,7 +936,7 @@ export default function KapraoHub() {
               <div>
                 <h1 className="text-xl font-black text-gray-900">KapraoHub</h1>
                 <p className="text-xs text-gray-500">
-                  {loading ? 'กำลังโหลด...' : `อัพเดต ${lastUpdate.toLocaleTimeString('th-TH')}`}
+                  {priceLoading ? 'กำลังโหลด...' : `อัพเดต ${lastUpdate ? lastUpdate.toLocaleTimeString('th-TH') : '-'} | ${holdings.length} holdings`}
                 </p>
               </div>
             </div>
@@ -962,9 +946,6 @@ export default function KapraoHub() {
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 <span className="text-xs font-medium text-green-700">LIVE</span>
               </div>
-              <button onClick={fetchData} className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-colors">
-                <RefreshCw size={18} className={`text-gray-600 ${loading ? 'animate-spin' : ''}`} />
-              </button>
               <button className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-colors">
                 <Settings size={18} className="text-gray-600" />
               </button>
@@ -976,47 +957,45 @@ export default function KapraoHub() {
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* ==================== MARKET OVERVIEW ==================== */}
         <section>
-          <SectionHeader title="ภาพรวมตลาด" icon={<Globe size={16} />} subtitle="ข้อมูล real-time จาก Binance API" />
+          <SectionHeader title="ภาพรวมตลาด" icon={<Globe size={16} />} subtitle="ข้อมูล real-time จาก Binance" />
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <StatBox label="BTC Price" value={`$${btcPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+            <StatBox label="BTC 24h" value={`${btcChange >= 0 ? '+' : ''}${btcChange.toFixed(2)}%`} trend={btcChange >= 0 ? 'up' : 'down'} />
             <StatBox label="Market Avg" value={`${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%`} trend={avgChange >= 0 ? 'up' : 'down'} />
             <StatBox label="Fear & Greed" value="68" sub="Greed Zone" trend="neutral" />
-            <StatBox label="BTC Dominance" value="52.4%" sub="+0.3%" trend="up" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {prices.slice(0, 8).map(price => (
+            {pricesList.slice(0, 8).map(price => (
               <CryptoRow key={price.symbol} data={price} />
             ))}
           </div>
         </section>
 
-        {/* ==================== PORTFOLIO + PERFORMANCE ==================== */}
+        {/* ==================== PORTFOLIO (REAL DATA) ==================== */}
         <section>
-          <SectionHeader title="พอร์ตของคุณ" icon={<Wallet size={16} />} subtitle="ติดตามผลตอบแทน" />
+          <SectionHeader title="พอร์ตของคุณ" icon={<Wallet size={16} />} subtitle={`จาก Supabase/localStorage • ${holdings.length} assets`} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <PortfolioCard holdings={portfolio} />
-            <PerformanceCard holdings={portfolio} prices={prices} />
+            <PortfolioCard holdings={holdings} prices={prices} />
+            <PerformanceCard holdings={holdings} prices={prices} />
           </div>
         </section>
 
         {/* ==================== SIGNALS + WHALE ==================== */}
         <section>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Signals */}
             <div>
-              <SectionHeader title="⚡ AI Signals" icon={<Zap size={16} />} subtitle="วิเคราะห์ Technical" />
+              <SectionHeader title="⚡ AI Signals" icon={<Zap size={16} />} subtitle="วิเคราะห์จากราคาจริง" />
               <div className="space-y-3">
                 {signals.map(signal => <SignalRow key={signal.id} signal={signal} />)}
               </div>
             </div>
 
-            {/* Whales */}
             <div>
               <SectionHeader title="🐋 Whale Activity" icon={<Fish size={16} />} subtitle="รายการใหญ่" />
               <div className="space-y-2">
-                {whaleTxs.slice(0, 5).map(tx => <WhaleRow key={tx.id} tx={tx} />)}
+                {generateWhaleTxs().slice(0, 5).map(tx => <WhaleRow key={tx.id} tx={tx} />)}
               </div>
             </div>
           </div>
@@ -1042,7 +1021,6 @@ export default function KapraoHub() {
         <section>
           <SectionHeader title="เครื่องมือวิเคราะห์" icon={<BarChart3 size={16} />} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Technical */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Activity size={18} className="text-blue-500" />
@@ -1054,11 +1032,11 @@ export default function KapraoHub() {
                 <TechnicalIndicator label="MACD" value="Bullish" status="bullish" />
                 <TechnicalIndicator label="MA 50" value="Above" status="bullish" />
                 <TechnicalIndicator label="MA 200" value="Below" status="bearish" />
-                <TechnicalIndicator label="Support" value="$64,500" status="bullish" />
-                <TechnicalIndicator label="Resistance" value="$68,000" status="bearish" />
+                <TechnicalIndicator label="Support" value={`$${(btcPrice * 0.97).toLocaleString()}`} status="bullish" />
+                <TechnicalIndicator label="Resistance" value={`$${(btcPrice * 1.03).toLocaleString()}`} status="bearish" />
               </div>
             </div>
-            <RiskCalculator />
+            <RiskCalculator prices={prices} />
           </div>
         </section>
 
