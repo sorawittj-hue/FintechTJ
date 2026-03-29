@@ -237,8 +237,8 @@ const PRICE_UPDATE_INTERVAL = 5000; // 5 seconds for simulated real-time
 
 const CORS_PROXIES = [
     'https://api.codetabs.com/v1/proxy?quest=',
-    'https://thingproxy.freeboard.io/fetch/',
     'https://api.allorigins.win/get?url=',
+    'https://corsproxy.io/?',
 ];
 
 // ═══════════════════ STORAGE UTILITIES ═══════════════════

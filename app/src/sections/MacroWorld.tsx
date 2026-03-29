@@ -96,8 +96,8 @@ async function fetchFREDData(seriesId: string): Promise<{ value: number; date: s
   try {
     const proxies = [
       { url: 'https://api.codetabs.com/v1/proxy?quest=', encode: true },
-      { url: 'https://thingproxy.freeboard.io/fetch/', encode: false },
       { url: 'https://api.allorigins.win/get?url=', encode: true },
+      { url: 'https://corsproxy.io/?', encode: true },
     ];
 
     const apiUrl = `${FRED_BASE_URL}/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=2&sort_order=desc`;
@@ -129,8 +129,8 @@ async function fetchM2History(): Promise<LiquidityData[]> {
   try {
     const proxies = [
       { url: 'https://api.codetabs.com/v1/proxy?quest=', encode: true },
-      { url: 'https://thingproxy.freeboard.io/fetch/', encode: false },
       { url: 'https://api.allorigins.win/get?url=', encode: true },
+      { url: 'https://corsproxy.io/?', encode: true },
     ];
 
     const apiUrl = `${FRED_BASE_URL}/series/observations?series_id=M2SL&api_key=${FRED_API_KEY}&file_type=json&limit=12&sort_order=desc`;

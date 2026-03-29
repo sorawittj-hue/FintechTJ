@@ -27,8 +27,8 @@ import { binanceAPI } from './binance';
 
 const CORS_PROXIES = [
     'https://api.codetabs.com/v1/proxy?quest=',
-    'https://thingproxy.freeboard.io/fetch/',
     'https://api.allorigins.win/get?url=',
+    'https://corsproxy.io/?',
 ];
 
 const FREE_APIS = {

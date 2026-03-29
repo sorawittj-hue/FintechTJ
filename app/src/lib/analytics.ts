@@ -186,15 +186,27 @@ function flushQueue(): void {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ events }),
       keepalive: true,
+    }).then(async (response) => {
+      // Check for HTTP error status codes
+      if (!response.ok) {
+        // Disable backend for 5 minutes on 403/404 errors
+        if (response.status === 403 || response.status === 404) {
+          backendDisabled = true;
+          backendDisabledUntil = Date.now() + 5 * 60 * 1000;
+          console.warn('[Analytics] Backend disabled due to', response.status);
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
     }).catch((err) => {
+      const statusCode = (err as { status?: number }).status;
       // Disable backend for 5 minutes on 403/404 errors
-      if (err?.status === 403 || err?.status === 404) {
+      if (statusCode === 403 || statusCode === 404) {
         backendDisabled = true;
         backendDisabledUntil = Date.now() + 5 * 60 * 1000;
-        console.warn('[Analytics] Backend disabled due to', err.status);
+        console.warn('[Analytics] Backend disabled due to', statusCode);
       }
-      // Re-queue failed events (only if not auth error)
-      if (err?.status !== 403) {
+      // Don't re-queue auth errors
+      if (statusCode !== 403) {
         eventQueue.unshift(...events.slice(0, 10)); // Only keep last 10
       }
     });
