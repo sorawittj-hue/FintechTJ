@@ -1,8 +1,9 @@
 {
   "private": true,
   "scripts": {
+    "postinstall": "cd app && npm install",
     "dev": "npm run dev --prefix app --",
-    "build": "npm run build --prefix app --",
+    "build": "cd app && npm run build",
     "preview": "npm run preview --prefix app --",
     "lint": "npm run lint --prefix app --"
   },
