@@ -32,6 +32,7 @@ import {
   Shield,
   Flame,
   Sparkles,
+  Bot,
 } from 'lucide-react';
 
 // Types
@@ -72,6 +73,9 @@ const SUITE_GROUPS: NavGroup[] = [
       { id: 'aisystems', labelKey: 'nav.aiSystems', icon: Cpu, path: '/aisystems', descKey: 'nav.aiSystemsDesc' },
       { id: 'alphasniper', labelKey: 'nav.alphaSniper', icon: Target, path: '/alphasniper', descKey: 'nav.alphaSniperDesc' },
       { id: 'reversalradar', labelKey: 'nav.reversalRadar', icon: Radar, path: '/reversalradar', descKey: 'nav.reversalRadarDesc' },
+      { id: 'news-ai', labelKey: 'AI News', icon: Newspaper, path: '/news-ai', descKey: 'วิเคราะห์ข่าวด้วย AI' },
+      { id: 'ai-chat', labelKey: 'AI Chat', icon: Bot, path: '/ai-chat', descKey: 'สอบถามเรื่องตลาด' },
+      { id: 'alerts-smart', labelKey: 'Smart Alerts', icon: Bell, path: '/alerts-smart', descKey: 'แจ้งเตือนอัจฉริยะ' },
     ],
   },
   {
