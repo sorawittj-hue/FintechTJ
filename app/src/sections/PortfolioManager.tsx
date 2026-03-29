@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AssetDetailModal } from '@/components/dialogs/AssetDetailModal';
 import { usePortfolio, useSettings, usePrice } from '@/context/hooks';
 import { AddAssetDialog, WithdrawAssetDialog } from '@/components/dialogs';
 import { formatCurrency } from '@/lib/utils';
@@ -114,6 +115,8 @@ export function PortfolioManager() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [withdrawAssetId, setWithdrawAssetId] = useState<string | null>(null);
   const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
+  // State for asset detail modal
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
 
   const assetMetrics = useMemo(() => {
     return assets.map((asset: Asset) => {
@@ -369,7 +372,11 @@ export function PortfolioManager() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                     {filteredAssets.map((asset: Asset & { pnl: number; pnlPercent: number; portfolioWeight: number }) => (
-                      <tr key={asset.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors duration-200">
+                      <tr 
+                      key={asset.id} 
+                      onClick={() => setSelectedSymbol(asset.symbol)}
+                      className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors duration-200 cursor-pointer"
+                    >
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
@@ -613,6 +620,10 @@ export function PortfolioManager() {
         isOpen={!!withdrawAssetId}
         onClose={() => setWithdrawAssetId(null)}
         assetId={withdrawAssetId}
+      />
+      <AssetDetailModal 
+        symbol={selectedSymbol} 
+        onClose={() => setSelectedSymbol(null)} 
       />
     </div>
   );

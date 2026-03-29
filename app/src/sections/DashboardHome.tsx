@@ -34,6 +34,8 @@ import {
   type CommodityPrice,
 } from '@/services/realDataService';
 import { type CryptoPrice } from '@/services/binance';
+import { MarketHeatmap } from '@/components/sections/MarketHeatmap';
+import { AssetDetailModal } from '@/components/dialogs/AssetDetailModal';
 import { MacroDefconRadar } from '@/components/sections/MacroDefconRadar';
 import {
   LivePriceWidget,
@@ -123,6 +125,8 @@ function DashboardHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [dashboardHealth, setDashboardHealth] = useState<DashboardDataHealth>(EMPTY_DASHBOARD_HEALTH);
   const [priceFlash, setPriceFlash] = useState<Record<string, boolean>>({});
+  // State for asset detail modal
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
 
   // Refs for logic
   const prevPricesRef = useRef<Record<string, number>>({});
@@ -396,6 +400,11 @@ function DashboardHome() {
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
+        {/* Market Heatmap */}
+        <div className="xl:col-span-12">
+          <MarketHeatmap onAssetClick={setSelectedSymbol} />
+        </div>
+
         {/* ─── LEFT: INTELLIGENCE (3/12) ─── */}
         <div className="xl:col-span-3 space-y-6">
           <SentimentWidget
@@ -582,6 +591,10 @@ function DashboardHome() {
         </div>
 
       </div>
+      <AssetDetailModal 
+        symbol={selectedSymbol} 
+        onClose={() => setSelectedSymbol(null)} 
+      />
     </div>
   );
 }

@@ -39,6 +39,8 @@ import {
   type ForexRate,
   type StockQuote
 } from '@/services/realDataService';
+import { MarketHeatmap } from '@/components/sections/MarketHeatmap';
+import { AssetDetailModal } from '@/components/dialogs/AssetDetailModal';
 import { usePrice, useSettings } from '@/context/hooks';
 import { formatCurrency } from '@/lib/utils';
 import { 
@@ -108,6 +110,7 @@ function Market() {
     return saved ? JSON.parse(saved) : ['BTC', 'ETH', 'SOL', 'NVDA', 'XAU'];
   });
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('market-watchlist', JSON.stringify(watchlist));
@@ -415,6 +418,7 @@ function Market() {
                       convert={convert}
                       isWatched={watchlist.includes(asset.symbol)}
                       onToggleWatch={() => toggleWatchlist(asset.symbol)}
+                      onClick={() => setSelectedSymbol(asset.symbol)}
                     />
                   ))}
                 </motion.div>
@@ -459,6 +463,7 @@ function Market() {
                           convert={convert}
                           isWatched={watchlist.includes(asset.symbol)}
                           onToggleWatch={() => toggleWatchlist(asset.symbol)}
+                          onClick={() => setSelectedSymbol(asset.symbol)}
                         />
                       ))}
                     </tbody>
@@ -493,9 +498,19 @@ function Market() {
               </Button>
             </div>
           )}
+
+          {/* Market Heatmap */}
+          <div className="mt-8">
+            <MarketHeatmap onAssetClick={setSelectedSymbol} />
+          </div>
         </div>
 
       </div>
+
+      <AssetDetailModal 
+        symbol={selectedSymbol} 
+        onClose={() => setSelectedSymbol(null)} 
+      />
     </div>
   );
 }
@@ -509,9 +524,10 @@ interface MarketItemProps {
   convert: (val: number, cur: string) => number;
   isWatched: boolean;
   onToggleWatch: () => void;
+  onClick?: () => void;
 }
 
-function MarketCard({ asset, idx, userCurrency, convert, isWatched, onToggleWatch }: MarketItemProps) {
+function MarketCard({ asset, idx, userCurrency, convert, isWatched, onToggleWatch, onClick }: MarketItemProps) {
   const isUp = asset.change24hPercent >= 0;
   const convertedPrice = convert(asset.priceUSD, userCurrency);
   
@@ -520,7 +536,8 @@ function MarketCard({ asset, idx, userCurrency, convert, isWatched, onToggleWatc
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: idx * 0.02 }}
-      className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-lg hover:shadow-2xl transition-all group relative"
+      onClick={onClick}
+      className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-lg hover:shadow-2xl transition-all group relative cursor-pointer"
     >
       <button 
         onClick={onToggleWatch}
@@ -571,7 +588,7 @@ function MarketCard({ asset, idx, userCurrency, convert, isWatched, onToggleWatc
   );
 }
 
-function MarketRow({ asset, idx, userCurrency, convert, isWatched, onToggleWatch }: MarketItemProps) {
+function MarketRow({ asset, idx, userCurrency, convert, isWatched, onToggleWatch, onClick }: MarketItemProps) {
   const isUp = asset.change24hPercent >= 0;
   const convertedPrice = convert(asset.priceUSD, userCurrency);
   
@@ -580,7 +597,8 @@ function MarketRow({ asset, idx, userCurrency, convert, isWatched, onToggleWatch
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: idx * 0.01 }}
-      className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+      onClick={onClick}
+      className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
     >
       <td className="py-5 px-8">
         <div className="flex items-center gap-5">

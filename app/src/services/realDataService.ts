@@ -200,14 +200,13 @@ async function fetchWithProxy(url: string, options?: RequestInit, proxyIndex = 0
     }
 }
 
-function generateMockPrice(symbol: string): RealTimePrice {
-    const bases: Record<string, number> = { 'BTC': 68000, 'ETH': 3500, 'SOL': 145, 'BNB': 580 };
-    const base = bases[symbol.toUpperCase()] || 100;
-    return {
-        symbol: symbol.toUpperCase(), name: symbol, price: base * (1 + (Math.random() * 0.02 - 0.01)),
-        change24h: 0, change24hPercent: Math.random() * 4 - 2, volume24h: 1e9, marketCap: 0,
-        high24h: base * 1.02, low24h: base * 0.98, lastUpdated: new Date(), source: 'System Estimation',
-    };
+/**
+ * Returns empty array when all price APIs fail.
+ * Components should handle empty state appropriately.
+ */
+function noPricesAvailable(symbols: string[]): RealTimePrice[] {
+    console.warn('[RealData] All price APIs failed for symbols:', symbols);
+    return [];
 }
 
 // ═══════════════════ REAL DATA FETCHERS ═══════════════════
@@ -278,10 +277,10 @@ export async function fetchCryptoPrices(symbols: string[]): Promise<RealTimePric
                 }
             } catch { /* silence */ }
 
-            return cached || symbols.map(s => generateMockPrice(s));
+            return cached || noPricesAvailable(symbols);
         });
     } catch {
-        return cached || symbols.map(s => generateMockPrice(s));
+        return cached || noPricesAvailable(symbols);
     }
 }
 

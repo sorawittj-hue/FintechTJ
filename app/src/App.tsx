@@ -1,6 +1,8 @@
 import { Suspense, lazy, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/hooks/useAssetQueries';
 import './App.css';
 import { Sidebar } from '@/components/ui/custom/Sidebar';
 import { Header } from '@/components/ui/custom/Header';
@@ -220,12 +222,14 @@ function AppContent() {
 
 function App() {
   return (
-    <AppProvider>
-      <div className="min-h-screen bg-[#f4f6f9] dark:bg-gray-950 transition-colors duration-300">
-        <AppContent />
-        <AppMonitor />
-      </div>
-    </AppProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppProvider>
+        <div className="min-h-screen bg-[#f4f6f9] dark:bg-gray-950 transition-colors duration-300">
+          <AppContent />
+          <AppMonitor />
+        </div>
+      </AppProvider>
+    </QueryClientProvider>
   );
 }
 

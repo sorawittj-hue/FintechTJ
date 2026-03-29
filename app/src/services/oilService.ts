@@ -690,98 +690,27 @@ function findSupportResistance(history: OilHistoricalData[]): { supports: number
 
 // ═══════════════════ FUNDAMENTAL DATA ═══════════════════
 
-function getLatestEIA(): EIAInventoryReport {
-    // Simulated API data with slight randomization for realism
-    const baseBuild = 1.4;
-    const randomFactor = (Math.random() - 0.5) * 0.4;
-    
-    return {
-        reportDate: new Date().toISOString().split('T')[0],
-        crudeInventoryChange: +(baseBuild + randomFactor).toFixed(1),
-        crudeInventoryTotal: 432.5,
-        cushingInventoryChange: -0.3,
-        cushingInventoryTotal: 23.8,
-        gasolineInventoryChange: -2.7,
-        distillateInventoryChange: -1.6,
-        spr: 395.2,
-        refiningUtilization: 85.7,
-        crudeImports: 6.1,
-        crudeProduction: 13.5,
-        seasonalAverageDiff: -3.2,
-        marketImpact: 'mixed',
-        consensusExpectation: 2.1,
-        surprise: +(baseBuild + randomFactor - 2.1).toFixed(1),
-        isFallback: true,
-    };
+/**
+ * Returns empty/null EIA data when API is unavailable.
+ * Set VITE_EIA_API_KEY in .env to enable real EIA data.
+ */
+function getLatestEIA(): EIAInventoryReport | null {
+    // EIA API requires a key - return null if not configured
+    return null;
 }
 
-function getOPECData(): OPECData {
-    return {
-        totalProduction: 26.9,
-        quota: 27.5,
-        compliance: 120,
-        nextMeetingDate: '2026-04-01',
-        cutsRemaining: 2.2,
-        keyDecisions: [
-            'OPEC+ maintained production cuts of 2.2M bbl/day through Q2 2026',
-            'Saudi Arabia extended voluntary 1M bbl/day extra cut',
-            'Gradual unwind planned starting May 2026',
-            'Russia compliance remains questionable at ~85%',
-        ],
-        saudiExtracut: 1.0,
-        russiaCompliance: 85,
-        spareCapacity: 4.5,
-    };
+/**
+ * Returns null OPEC data (no free real-time OPEC API available).
+ */
+function getOPECData(): OPECData | null {
+    return null;
 }
 
-function getGeopoliticalRisks(): GeopoliticalRisk {
-    const now = new Date().toISOString();
-    return {
-        overallScore: 62,
-        level: 'elevated',
-        factors: [
-            {
-                region: 'Middle East',
-                risk: 'Red Sea / Houthi disruptions continue affecting shipping routes',
-                impactOnOil: 'bullish',
-                severity: 75,
-                description: 'Freight costs elevated +40%. Suez alternative routes add 10-14 days transit.',
-                lastUpdated: now,
-            },
-            {
-                region: 'Russia-Ukraine',
-                risk: 'Ongoing sanctions enforcement & shadow fleet monitoring',
-                impactOnOil: 'bullish',
-                severity: 55,
-                description: 'Russian crude discounts narrowing as price cap enforcement tightens.',
-                lastUpdated: now,
-            },
-            {
-                region: 'US-Iran',
-                risk: 'Nuclear talks stalled, sanctions remain strict',
-                impactOnOil: 'neutral',
-                severity: 40,
-                description: 'Iranian exports stable at ~1.5M bbl/day via China route.',
-                lastUpdated: now,
-            },
-            {
-                region: 'Venezuela',
-                risk: 'Sanctions partially lifted but production recovery slow',
-                impactOnOil: 'bearish',
-                severity: 25,
-                description: 'Production at ~800K bbl/day, below pre-sanctions 2.3M.',
-                lastUpdated: now,
-            },
-            {
-                region: 'US Shale',
-                risk: 'Production at record 13.5M bbl/day with efficiency gains',
-                impactOnOil: 'bearish',
-                severity: 60,
-                description: 'Permian Basin breakeven at $42-48. DUC well inventory declining.',
-                lastUpdated: now,
-            },
-        ]
-    };
+/**
+ * Returns null geopolitical risk data (no real-time API available).
+ */
+function getGeopoliticalRisks(): GeopoliticalRisk | null {
+    return null;
 }
 
 function getSeasonalPattern(month: number): SeasonalPattern {
@@ -802,49 +731,25 @@ function getSeasonalPattern(month: number): SeasonalPattern {
     return patterns[month] || patterns[3];
 }
 
-function getCOTData(): COTData {
-    return {
-        reportDate: new Date(Date.now() - (Date.now() % (7 * 24 * 60 * 60 * 1000))).toISOString().split('T')[0],
-        managedMoneyLong: 286542,
-        managedMoneyShort: 142318,
-        managedMoneyNet: 144224,
-        commercialLong: 412890,
-        commercialShort: 498120,
-        commercialNet: -85230,
-        openInterest: 1842650,
-        weeklyChange: -8420,
-        positioning: 'long',
-        sentiment: 'bullish',
-    };
+/**
+ * Returns null COT data (requires CFTC API key).
+ */
+function getCOTData(): COTData | null {
+    return null;
 }
 
+/**
+ * Returns empty correlations array (requires real-time market data feeds).
+ */
 function getCorrelations(): CorrelationData[] {
-    return [
-        { asset: 'DXY (US Dollar Index)', symbol: 'DXY', correlation: -0.82, currentValue: 106.4, change: 0.3, impact: 'Inverse - Very High', explanation: 'Strong USD makes oil more expensive for non-USD buyers, reducing global demand.' },
-        { asset: 'USD/CAD', symbol: 'USDCAD', correlation: -0.75, currentValue: 1.438, change: 0.12, impact: 'Inverse - High', explanation: 'Canada is the largest US oil importer. CAD weakens with oil prices.' },
-        { asset: 'XLE Energy ETF', symbol: 'XLE', correlation: 0.91, currentValue: 87.42, change: -1.2, impact: 'Direct - Very High', explanation: 'Energy stocks track oil prices closely. XLE is a leading indicator.' },
-        { asset: 'Gold', symbol: 'XAUUSD', correlation: 0.35, currentValue: 2945, change: 12, impact: 'Direct - Low', explanation: 'Both are inflation hedges but gold has its own dynamics.' },
-        { asset: 'US 10Y Yield', symbol: 'TNX', correlation: 0.42, currentValue: 4.28, change: -0.03, impact: 'Direct - Moderate', explanation: 'Higher yields reflect inflation expectations which can be driven by energy costs.' },
-        { asset: 'Brent-WTI Spread', symbol: 'BZ-CL', correlation: 1.0, currentValue: 4.20, change: 0.15, impact: 'Spread Indicator', explanation: 'Widening spread signals global tightness vs US oversupply.' },
-    ];
+    return [];
 }
 
-function getSupplyDemandBalance(): SupplyDemandBalance {
-    return {
-        globalDemand: 103.2,
-        globalSupply: 102.8,
-        balance: -0.4,
-        forecastQ1: -0.3,
-        forecastQ2: -0.6,
-        forecastQ3: -0.2,
-        forecastQ4: 0.1,
-        nonOPECGrowth: 1.8,
-        chinaImports: 11.2,
-        indiaImports: 5.1,
-        usProduction: 13.5,
-        oecdInventory: 2800,
-        daysOfSupply: 27.5,
-    };
+/**
+ * Returns null supply/demand data (no real-time API available).
+ */
+function getSupplyDemandBalance(): SupplyDemandBalance | null {
+    return null;
 }
 
 // ═══════════════════ SIGNAL GENERATOR ═══════════════════
@@ -1116,7 +1021,7 @@ export class OilService {
         return fetchWTIHistory(range);
     }
 
-    public async getLatestEIA(): Promise<EIAInventoryReport> {
+    public async getLatestEIA(): Promise<EIAInventoryReport | null> {
         const apiKey = import.meta.env.VITE_EIA_API_KEY;
         if (apiKey) {
             try {
@@ -1128,31 +1033,31 @@ export class OilService {
                 console.warn("EIA API fetch failed, using fallback", e);
             }
         }
-        return new Promise(resolve => setTimeout(() => resolve(getLatestEIA()), 800));
+        return Promise.resolve(getLatestEIA());
     }
 
     public async getCorrelations(): Promise<CorrelationData[]> {
-        return new Promise(resolve => setTimeout(() => resolve(getCorrelations()), 300));
+        return Promise.resolve(getCorrelations());
     }
 
-    public async getOPEC(): Promise<OPECData> {
-        return new Promise(resolve => setTimeout(() => resolve(getOPECData()), 400));
+    public async getOPEC(): Promise<OPECData | null> {
+        return Promise.resolve(getOPECData());
     }
 
-    public async getGeopoliticalRisks(): Promise<GeopoliticalRisk> {
-        return new Promise(resolve => setTimeout(() => resolve(getGeopoliticalRisks()), 500));
+    public async getGeopoliticalRisks(): Promise<GeopoliticalRisk | null> {
+        return Promise.resolve(getGeopoliticalRisks());
     }
 
     public async getSeasonalPattern(): Promise<SeasonalPattern> {
-        return new Promise(resolve => setTimeout(() => resolve(getSeasonalPattern(new Date().getMonth() + 1)), 200));
+        return Promise.resolve(getSeasonalPattern(new Date().getMonth() + 1));
     }
 
-    public async getCOT(): Promise<COTData> {
-        return new Promise(resolve => setTimeout(() => resolve(getCOTData()), 600));
+    public async getCOT(): Promise<COTData | null> {
+        return Promise.resolve(getCOTData());
     }
 
-    public async getSupplyDemand(): Promise<SupplyDemandBalance> {
-        return new Promise(resolve => setTimeout(() => resolve(getSupplyDemandBalance()), 700));
+    public async getSupplyDemand(): Promise<SupplyDemandBalance | null> {
+        return Promise.resolve(getSupplyDemandBalance());
     }
 
     public computeTechnicals(history: OilHistoricalData[], currentPrice: number): TechnicalIndicators {
@@ -1292,20 +1197,21 @@ export function useOilIntelligence() {
                 ]);
                 
                 const hasFallbackHistory = history.some(bar => bar.isFallback);
-                const hasFallbackEIA = eia.isFallback === true;
+                const hasFallbackEIA = eia?.isFallback === true;
                 const hasStablePrice = price && !price.isFallback;
                 
-                const canGenerateSignal = hasStablePrice && !hasFallbackHistory;
+                const canGenerateSignal = hasStablePrice && !hasFallbackHistory && !!eia && !!opec && !!geo && !!cot && !!supplyDemand;
                 
                 const technicals = service.computeTechnicals(history, price.price);
                 const signal = canGenerateSignal
-                    ? service.generateSignal(price, technicals, eia, opec, geo, seasonal, cot, supplyDemand)
+                    ? service.generateSignal(price, technicals, eia!, opec!, geo!, seasonal, cot!, supplyDemand!)
                     : null;
                 const alerts = OilStorage.getAlerts();
                 const eiaCalendar = getEIACalendar();
 
                 if (!cancelled) {
-                    setState({
+                    setState((prev: OilIntelligenceState) => ({
+                        ...prev,
                         price, history, technicals, eia, correlations,
                         opec, geo, seasonal, cot, supplyDemand, signal,
                         loading: false, lastUpdate: new Date(), error: null,
@@ -1315,12 +1221,12 @@ export function useOilIntelligence() {
                             : 'WTI alpha setup unavailable: Waiting for stable real-time data feeds.',
                         alerts,
                         eiaCalendar
-                    });
+                    }));
                 }
             } catch (err) {
                 console.error('[OilEngine] Error loading data:', err);
                 if (!cancelled) {
-                    setState(prev => ({ ...prev, loading: false, error: 'Failed to load oil data' }));
+                    setState((prev: OilIntelligenceState) => ({ ...prev, loading: false, error: 'Failed to load oil data' }));
                 }
             }
         };
@@ -1363,17 +1269,17 @@ export function useOilIntelligence() {
         };
     }, []);
 
-    const refresh = useCallback(() => setRefreshTick(t => t + 1), []);
+    const refresh = useCallback(() => setRefreshTick((t: number) => t + 1), []);
     
     const createAlert = useCallback((type: 'above' | 'below', targetPrice: number, message?: string) => {
         const alert = createPriceAlert(type, targetPrice, message);
-        setState(prev => ({ ...prev, alerts: OilStorage.getAlerts() }));
+        setState((prev: OilIntelligenceState) => ({ ...prev, alerts: OilStorage.getAlerts() }));
         return alert;
     }, []);
 
     const deleteAlert = useCallback((id: string) => {
         deletePriceAlert(id);
-        setState(prev => ({ ...prev, alerts: OilStorage.getAlerts() }));
+        setState((prev: OilIntelligenceState) => ({ ...prev, alerts: OilStorage.getAlerts() }));
     }, []);
 
     const getBacktestResults = useCallback(() => {
