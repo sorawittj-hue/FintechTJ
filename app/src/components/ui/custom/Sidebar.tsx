@@ -31,6 +31,7 @@ import {
   Cpu,
   Shield,
   Flame,
+  Sparkles,
 } from 'lucide-react';
 
 // Types
@@ -53,6 +54,7 @@ interface NavGroup {
 // Core Navigation - always visible (keys for i18n)
 const CORE_NAV: NavItem[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, path: '/' },
+  { id: 'kapraohub', labelKey: 'nav.kapraoHub', icon: Sparkles, path: '/kapraohub' },
   { id: 'portfolio', labelKey: 'nav.portfolio', icon: Briefcase, path: '/portfolio' },
   { id: 'market', labelKey: 'nav.market', icon: BarChart3, path: '/market' },
   { id: 'news', labelKey: 'nav.news', icon: Newspaper, path: '/news' },

@@ -46,6 +46,7 @@ const en = {
   // Navigation
   nav: {
     dashboard: 'Dashboard',
+    kapraoHub: 'KapraoHub',
     portfolio: 'Portfolio',
     market: 'Market',
     news: 'News',

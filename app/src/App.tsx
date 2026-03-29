@@ -52,6 +52,9 @@ const InstitutionalTrading = lazy(() => import('@/sections/InstitutionalTrading'
 const FuturesSignal = lazy(() => import('@/sections/FuturesSignal'));
 const USStockFramework = lazy(() => import('@/sections/USStockFramework'));
 
+// KapraoHub - 40 OpenClaw Features
+const KapraoHub = lazy(() => import('@/sections/KapraoHub'));
+
 function getSkeletonType(path: string): 'dashboard' | 'overview' | 'list' | 'grid' | 'chart' | 'settings' | 'default' {
   const section = path.substring(1) || 'dashboard';
   switch (section) {
@@ -144,6 +147,7 @@ function AppContent() {
                       {/* Core Pages */}
                       <Route path="/" element={<DashboardHome />} />
                       <Route path="/dashboard" element={<DashboardHome />} />
+                      <Route path="/kapraohub" element={<KapraoHub />} />
                       <Route path="/portfolio" element={<PortfolioManager />} />
                       <Route path="/myportfolio" element={<PortfolioManager />} />
                       <Route path="/portfoliooverview" element={<PortfolioOverview />} />

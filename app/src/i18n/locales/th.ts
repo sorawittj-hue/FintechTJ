@@ -46,6 +46,7 @@ const th = {
   // Navigation
   nav: {
     dashboard: 'แดชบอร์ด',
+    kapraoHub: 'KapraoHub',
     portfolio: 'พอร์ตโฟลิโอ',
     market: 'ตลาด',
     news: 'ข่าวสาร',
