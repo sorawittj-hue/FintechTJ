@@ -40,6 +40,7 @@ import {
   X,
   Maximize2,
   Minimize2,
+  Calculator,
 } from 'lucide-react';
 
 // Animation variants
