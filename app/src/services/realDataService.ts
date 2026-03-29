@@ -38,7 +38,6 @@ function isServiceAvailable(service: keyof typeof serviceHealth): boolean {
 
 const CORS_PROXIES = [
     'https://api.codetabs.com/v1/proxy?quest=',
-    'https://thingproxy.freeboard.io/fetch/',
     'https://api.allorigins.win/get?url=',
 ];
 

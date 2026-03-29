@@ -155,8 +155,18 @@ function queueEvent(event: AnalyticsEvent): void {
   }
 }
 
+let backendDisabled = false;
+let backendDisabledUntil = 0;
+
 function flushQueue(): void {
   if (eventQueue.length === 0) return;
+  
+  // Skip if backend is temporarily disabled due to errors
+  if (backendDisabled && Date.now() < backendDisabledUntil) {
+    eventQueue.length = 0; // Clear queue silently
+    return;
+  }
+  backendDisabled = false;
   
   const events = [...eventQueue];
   eventQueue.length = 0;
@@ -170,15 +180,23 @@ function flushQueue(): void {
   }
   
   // Send to custom backend (always, for data ownership)
-  if (config.apiUrl) {
+  if (config.apiUrl && !backendDisabled) {
     fetch(config.apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ events }),
       keepalive: true,
-    }).catch(() => {
-      // Re-queue failed events
-      eventQueue.unshift(...events.slice(0, 10)); // Only keep last 10
+    }).catch((err) => {
+      // Disable backend for 5 minutes on 403/404 errors
+      if (err?.status === 403 || err?.status === 404) {
+        backendDisabled = true;
+        backendDisabledUntil = Date.now() + 5 * 60 * 1000;
+        console.warn('[Analytics] Backend disabled due to', err.status);
+      }
+      // Re-queue failed events (only if not auth error)
+      if (err?.status !== 403) {
+        eventQueue.unshift(...events.slice(0, 10)); // Only keep last 10
+      }
     });
   }
 }
