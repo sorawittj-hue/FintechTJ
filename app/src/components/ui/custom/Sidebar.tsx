@@ -244,7 +244,7 @@ const SidebarContent = memo(function SidebarContent({
           </div>
           <div className="min-w-0">
             <h1 className="font-black text-lg text-slate-900 dark:text-white leading-none tracking-tighter uppercase italic">
-              TJ APEX <span className="text-[#f59e0b]">3.0</span>
+              QuantAI <span className="text-[#f59e0b]">Pro</span>
             </h1>
             <p className="text-[9px] text-slate-500 dark:text-slate-500 font-bold tracking-[0.2em] mt-1.5 uppercase truncate">Neural FinTech Engine</p>
           </div>

@@ -1,9 +1,226 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Search, Bell, TrendingUp, TrendingDown, RefreshCw, Moon, Sun } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Search,
+  Bell,
+  TrendingUp,
+  TrendingDown,
+  RefreshCw,
+  Moon,
+  Sun,
+  LayoutDashboard,
+  Briefcase,
+  BarChart3,
+  Newspaper,
+  Settings,
+  Activity,
+  Cpu,
+  ShieldAlert,
+  Flame,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { usePortfolio, usePrice, useSettings } from '@/context/hooks';
+import { useNavigate } from 'react-router-dom';
 import type { CryptoPrice } from '@/services/binance';
+import type { AuthUser } from '@/context/AuthContext';
+import { usePortfolio, usePrice, useSettings, useAuth } from '@/context/hooks';
+
+/**
+ * Get user initials from email or name
+ */
+function getUserInitials(user: AuthUser | null): string {
+  if (!user) return '?';
+  if (user.name) return user.name.charAt(0).toUpperCase();
+  if (user.email) return user.email.charAt(0).toUpperCase();
+  return 'U';
+}
+
+/**
+ * Searchable items for global search
+ */
+const SEARCHABLE_ITEMS = [
+  { label: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { label: 'Portfolio', path: '/portfolio', icon: Briefcase },
+  { label: 'Market', path: '/market', icon: BarChart3 },
+  { label: 'News', path: '/news', icon: Newspaper },
+  { label: 'Settings', path: '/settings', icon: Settings },
+  { label: 'Quant Lab', path: '/quantlab', icon: Activity },
+  { label: 'AI Systems', path: '/aisystems', icon: Cpu },
+  { label: 'Risk Panel', path: '/riskpanel', icon: ShieldAlert },
+  { label: 'Futures Signal', path: '/futures', icon: Flame },
+];
+
+/**
+ * Header Search Component
+ */
+function HeaderSearch() {
+  const [query, setQuery] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filteredItems = useMemo(() => {
+    if (!query.trim()) return [];
+    const lower = query.toLowerCase();
+    return SEARCHABLE_ITEMS.filter(item => 
+      item.label.toLowerCase().includes(lower)
+    ).slice(0, 6);
+  }, [query]);
+
+  const handleSelect = (path: string) => {
+    navigate(path);
+    setQuery('');
+    setIsOpen(false);
+    inputRef.current?.blur();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+      inputRef.current?.blur();
+    }
+  };
+
+  return (
+    <div className="relative">
+      <div className={`relative transition-all duration-300 ${isOpen ? 'w-64' : 'w-44'}`}>
+        <Search
+          size={15}
+          className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${isOpen ? 'text-[#ee7d54]' : 'text-gray-400'}`}
+        />
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+          onKeyDown={handleKeyDown}
+          placeholder={t('common.search')}
+          className={`w-full pl-9 pr-4 py-2 rounded-xl border text-sm transition-all duration-300 outline-none bg-gray-50 ${isOpen
+              ? 'border-[#ee7d54] shadow-sm shadow-[#ee7d54]/20 bg-white'
+              : 'border-gray-200 hover:border-gray-300'
+            }`}
+        />
+      </div>
+      
+      {/* Search Results Dropdown */}
+      <AnimatePresence>
+        {isOpen && filteredItems.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden z-50"
+          >
+            {filteredItems.map((item) => (
+              <button
+                key={item.path}
+                onClick={() => handleSelect(item.path)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+              >
+                <item.icon size={16} className="text-gray-400" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * Notification Dropdown Component
+ */
+function NotificationDropdown() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [notifications] = useState([
+    { id: 1, title: 'BTC Price Alert', message: 'Bitcoin reached $67,000', time: '5m ago', read: false },
+    { id: 2, title: 'Portfolio Update', message: 'Your portfolio is up 2.5%', time: '1h ago', read: false },
+    { id: 3, title: 'Market News', message: 'Fed announces interest rate decision', time: '3h ago', read: true },
+  ]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  return (
+    <div className="relative">
+      <motion.button
+        onClick={() => setIsOpen(!isOpen)}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className="w-9 h-9 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-gray-900 relative"
+        aria-label="Notifications"
+      >
+        <Bell size={16} className="text-gray-500 dark:text-gray-400" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+            {unreadCount}
+          </span>
+        )}
+      </motion.button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40"
+              onClick={() => setIsOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden z-50"
+            >
+              <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <span className="text-sm font-semibold dark:text-white">Notifications</span>
+                <button className="text-xs text-[#ee7d54] hover:underline">Mark all read</button>
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">
+                    <Bell size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No notifications</p>
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0 ${!n.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!n.read ? 'bg-blue-500' : 'bg-transparent'}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium dark:text-white truncate">{n.title}</p>
+                          <p className="text-xs text-gray-500 truncate">{n.message}</p>
+                          <p className="text-[10px] text-gray-400 mt-1">{n.time}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="p-2 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+                <button className="w-full py-2 text-xs font-medium text-[#ee7d54] hover:bg-white dark:hover:bg-gray-800 rounded-lg transition-colors">
+                  View all notifications
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 // Key tickers to show in header
 const HEADER_TICKERS = ['BTC', 'ETH', 'SOL'];
@@ -13,6 +230,9 @@ const TICKER_LABELS: Record<string, string> = {
   SOL: 'SOL',
 };
 
+/**
+ * Format feed age for display
+ */
 function formatFeedAge(ageSeconds: number | null): string {
   if (ageSeconds === null) return '—';
   if (ageSeconds < 5) return 'just now';
@@ -26,8 +246,8 @@ function formatFeedAge(ageSeconds: number | null): string {
 
 export function Header() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [searchFocused, setSearchFocused] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [priceFlash, setPriceFlash] = useState<Record<string, 'up' | 'down' | null>>({});
   const { settings, updateSettings } = useSettings();
@@ -211,34 +431,13 @@ export function Header() {
             </span>
           </div>
 
-          {/* Search */}
-          <div className={`hidden lg:block relative transition-all duration-300 ${searchFocused ? 'w-64' : 'w-44'}`}>
-            <Search
-              size={15}
-              className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchFocused ? 'text-[#ee7d54]' : 'text-gray-400'
-                }`}
-            />
-            <input
-              type="text"
-              placeholder={t('common.search')}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              className={`w-full pl-9 pr-4 py-2 rounded-xl border text-sm transition-all duration-300 outline-none bg-gray-50 ${searchFocused
-                  ? 'border-[#ee7d54] shadow-sm shadow-[#ee7d54]/20 bg-white'
-                  : 'border-gray-200 hover:border-gray-300'
-                }`}
-            />
+          {/* Search - Now with functionality */}
+          <div className="hidden lg:block">
+            <HeaderSearch />
           </div>
 
-          {/* Notification Bell */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="w-9 h-9 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-gray-900 relative"
-            aria-label="Notifications"
-          >
-            <Bell size={16} className="text-gray-500 dark:text-gray-400" />
-          </motion.button>
+          {/* Notification Bell - Now with dropdown */}
+          <NotificationDropdown />
 
           {/* Dark Mode Toggle */}
           <motion.button
@@ -255,12 +454,13 @@ export function Header() {
             )}
           </motion.button>
 
-          {/* User Avatar */}
+          {/* User Avatar - Now with actual user initials */}
           <motion.div
             whileHover={{ scale: 1.05 }}
             className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#ee7d54] to-[#f59e0b] flex items-center justify-center cursor-pointer shadow-md shadow-[#ee7d54]/30"
+            title={user?.email || 'User'}
           >
-            <span className="text-white font-bold text-sm">K</span>
+            <span className="text-white font-bold text-sm">{getUserInitials(user)}</span>
           </motion.div>
         </div>
       </div>

@@ -12,11 +12,11 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'QuantAI Pro',
-        short_name: 'QuantAI',
-        description: 'Professional portfolio management with real-time data and intelligent analytics',
-        theme_color: '#ee7d54',
-        background_color: '#ffffff',
+        name: 'APEX TERMINAL',
+        short_name: 'APEX',
+        description: 'Institutional-grade portfolio management with real-time data and intelligent risk intelligence',
+        theme_color: '#1a1a1a',
+        background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait-primary',
         scope: '/',
@@ -93,8 +93,6 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    // Don't fail on missing optional dependencies
-    conditions: ['development'],
   },
   // Optimize deps - treat @sentry/browser as external
   ssr: {
@@ -110,8 +108,7 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['framer-motion', '@radix-ui/react-slot'],
-          'vendor-data': ['zod'],
+          'vendor-ui': ['framer-motion', '@radix-ui/react-slot', 'recharts'],
           'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
         },
       },

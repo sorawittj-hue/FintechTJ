@@ -231,7 +231,7 @@ function DashboardHome() {
       setRefreshing(false);
       isFetchingRef.current = false;
     }
-  }, []);
+  }, [updatePricesBatch]);
 
   useEffect(() => {
     void fetchAllData();

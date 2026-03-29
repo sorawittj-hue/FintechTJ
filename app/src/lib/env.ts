@@ -14,7 +14,7 @@
 
 export const clientConfig = {
   // App settings
-  appName: import.meta.env.VITE_APP_NAME || 'FintechTJ',
+  appName: import.meta.env.VITE_APP_NAME || 'APEX TERMINAL',
   appVersion: import.meta.env.VITE_APP_VERSION || '2.0.0',
   
   // Public API endpoints (no sensitive data)
