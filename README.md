@@ -1,93 +1,170 @@
-# FintechTJ: Professional AI Financial Intelligence
+# FintechTJ - AI-Powered Trading Platform
 
 ![Version](https://img.shields.io/badge/Version-2.0.0--Beta-blue?style=for-the-badge)
-![Tech](https://img.shields.io/badge/Stack-React%20%7C%20TS%20%7C%20Vite-61DAFB?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Healthy%20%26%20Production--Ready-emerald?style=for-the-badge)
+![Tech](https://img.shields.io/badge/Stack-React%2019%20%7C%20TypeScript%20%7C%20Vite-61DAFB?style=for-the-badge)
+![Deploy](https://img.shields.io/badge/Deploy-Vercel-000000?style=for-the-badge)
 
-**FintechTJ** is a high-performance financial intelligence platform designed for institutional-grade market analysis, capital preservation, and AI-driven alpha detection. It transforms raw market data into actionable tactical playbooks.
-
----
-
-## 🚀 Core Intelligence Pillars
-
-### 1. Crisis Master Playbook & Strategy Simulator
-The crown jewel of FintechTJ. A comprehensive tactical library covering 15+ global systemic risk scenarios.
-*   **Tactical Execution Checklist:** Step-by-step phases (Emergency, Tactical, Recovery) for capital protection.
-*   **Interactive Strategy Simulator:** Real-time Portfolio Impact Calculator using sector-specific risk matrices.
-*   **One-Click Rebalance:** Simulated asset reallocation to optimize safety during "Black Swan" events.
-*   **Watchlist Indicators:** Monitoring critical triggers like DXY Spikes, CPI Surges, and Bond Yield Spreads.
-
-### 2. Market Intelligence Terminal
-A unified terminal for cross-asset analysis with deep sector rotation tracking.
-*   **Cross-Asset Coverage:** Real-time data for Crypto, US Stocks, Commodities, and Forex.
-*   **Sector Intelligence:** Dynamic performance tracking of industry groups (Tech, Finance, DeFi, L1s, etc.).
-*   **Live Neural Feeds:** Aggregated global news and geopolitical intelligence.
-
-### 3. AI Alpha Engine & Brio Terminal
-Neural network-driven signals for identifies high-asymmetry trading opportunities.
-*   **Alpha Detection:** Automatic identification of momentum, mean reversion, and breakout setups.
-*   **Institutional Order Flow:** Simulation of whale movements and dark pool liquidity skews.
-*   **Risk/Reward Analytics:** Automated calculation of stop-loss, take-profit, and conviction scores.
+**FintechTJ** เป็นแพลตฟอร์ม AI-powered trading ที่รวมเครื่องมือวิเคราะห์ตลาด พอร์ตโฟลิโอ และ AI signals ไว้ในที่เดียว
 
 ---
 
-## 🛠️ Technology Stack
+## 🌟 ฟีเจอร์หลัก
 
-*   **Frontend:** React 19 (TypeScript), Vite
-*   **Styling:** TailwindCSS, Shadcn/UI (Custom Tactical Theme)
-*   **Animation:** Framer Motion (High-performance micro-interactions)
-*   **Data Viz:** Recharts (Advanced Radar & Gauge Charts)
-*   **Icons:** Lucide React
-*   **State Management:** Zustand, Context API
-*   **Backend Support:** Supabase & Pocketbase ready
+### 📊 KapraoHub - Dashboard หลัก
+Dashboard แบบ All-in-One สำหรับ traders:
+
+| ฟีเจอร์ | รายละเอียด |
+|---------|-----------|
+| **Live Prices** | ราคา real-time จาก Binance API |
+| **Portfolio Tracker** | ติดตามพอร์ต + P&L ส่วนตัว |
+| **Performance vs Market** | เปรียบเทียบผลตอบแทนกับ BTC, ETH, SOL |
+| **AI Trading Signals** | BUY/SELL/HOLD signals อัตโนมัติ |
+| **Whale Activity** | ติดตามรายการใหญ่ |
+| **News Aggregation** | ข่าว crypto + sentiment |
+| **Price Alerts** | แจ้งเตือนราคาตามเป้าหมาย |
+| **ICO/IEO Calendar** | ดู token ที่กำลังจะ list |
+| **DeFi Dashboard** | TVL + APR ของ DeFi protocols |
+| **Risk Calculator** | คำนวณ position size, risk/reward |
+| **Technical Indicators** | RSI, MACD, MA, Support/Resistance |
+| **Economic Calendar** | ข่าวเศรษฐกิจสำคัญ |
+
+### 🚨 Crisis Guide - คู่มือวิกฤติ
+ระบบจำลองสถานการณ์วิกฤติทางการเงิน:
+
+- **15+ สถานการณ์วิกฤติ** พร้อม playbook
+- **Interactive Simulator** ปรับสมดุลพอร์ต
+- **Sector Impact Map** แสดงผลกระทบต่อแต่ละภาค
+- **One-Click Rebalance** ปรับพอร์ตอัตโนมัติ
+- **Stress Gauge** วัดระดับความเสี่ยงตลาด
+
+### 🤖 AI Systems
+ระบบ AI สำหรับวิเคราะห์ตลาด:
+
+- **KapraoChat** - AI Chat ภาษาไทย
+- **SignalTracker** - ติดตาม signals
+- **DeepResearch** - สร้าง research reports
+- **Sentiment Analysis** - วิเคราะห์ sentiment ตลาด
+
+### 📈 Trading Tools
+เครื่องมือสำหรับ traders:
+
+| เครื่องมือ | คำอธิบาย |
+|-----------|---------|
+| Technical Analysis | RSI, MACD, EMA, Fibonacci, Support/Resistance |
+| Portfolio Tracker | ติดตามพอร์ต, P&L, Allocation |
+| Whale Tracker | ดู whale transactions |
+| Market Heatmap | แสดงภาพรวมตลาด |
+| Correlation Matrix | ความสัมพันธ์ระหว่างสินทรัพย์ |
+| Risk Panel | Sharpe Ratio, VaR, Drawdown |
+| Backtest Engine | ทดสอบกลยุทธ์ |
+| Trade Simulator | จำลองการเทรด |
 
 ---
 
-## 📂 Project Structure
+## 🛠️ เทคโนโลยี
 
-```text
-app/
-├── src/
-│   ├── components/       # Reusable Tactical UI Components
-│   │   └── CrisisGuide/  # Master Playbook & Simulator Logic
-│   ├── sections/         # Main Functional Screens (Market, AI, Dashboard)
-│   ├── services/         # Data Aggregators & Neural Analyzers
-│   ├── store/            # Global State Management (Zustand)
-│   ├── data/             # Static Intelligence & Scenarios
-│   └── lib/              # Utils, Validations, and Hooks
+### Frontend
+- **React 19** + **TypeScript**
+- **Vite** - Build tool
+- **TailwindCSS** + **Shadcn/UI** - Styling
+- **Framer Motion** - Animations
+- **Recharts** - Charts & Visualization
+- **Lucide React** - Icons
+- **Zustand** - State Management
+- **React Router** - Navigation
+
+### Backend (Ready)
+- **Supabase** - Database & Auth
+- **OpenClaw** - AI Integration
+
+### APIs
+- **Binance API** - Live crypto prices
+- **CoinGecko API** - Crypto data
+- **CryptoCompare API** - Market data
+
+---
+
+## 📁 โครงสร้างโปรเจค
+
+```
+FintechTJ/
+├── app/
+│   └── src/
+│       ├── components/       # UI Components
+│       │   ├── CrisisGuide.tsx
+│       │   └── ...
+│       ├── sections/         # Page Sections (40+ features)
+│       │   ├── KapraoHub.tsx
+│       │   ├── KapraoChat.tsx
+│       │   ├── CrisisGuide.tsx
+│       │   └── ...
+│       ├── services/         # API Services
+│       │   ├── binance.ts
+│       │   ├── openclawService.ts
+│       │   └── ...
+│       ├── store/            # Zustand Stores
+│       │   ├── usePriceStore.ts
+│       │   ├── usePortfolioStore.ts
+│       │   └── ...
+│       ├── hooks/            # Custom Hooks
+│       ├── lib/              # Utils
+│       └── types/            # TypeScript Types
+├── package.json
+└── README.md
 ```
 
 ---
 
-## ⚡ Getting Started
+## 🚀 วิธีติดตั้ง
 
-### Prerequisites
-*   Node.js (v18+)
-*   npm or yarn
+```bash
+# Clone repository
+git clone https://github.com/sorawittj-hue/FintechTJ.git
+cd FintechTJ
 
-### Installation
-1. Clone the repository
-2. Navigate to the app directory:
-   ```bash
-   cd app
-   ```
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
-4. Run development server:
-   ```bash
-   npm run dev
-   ```
+# ไปที่โฟลเดอร์ app
+cd app
 
-### Quality Assurance
-The project maintains a 100% healthy codebase with strict linting and build protocols:
-*   **Lint Check:** `npm run lint`
-*   **Production Build:** `npm run build`
+# ติดตั้ง dependencies
+npm install
+
+# Run development server
+npm run dev
+```
+
+### Scripts ที่มี
+```bash
+npm run dev          # Development server
+npm run build        # Production build
+npm run lint         # Lint check
+npm run preview      # Preview production build
+```
 
 ---
 
-## ⚠️ Strategic Warning
-This platform is an intelligence visualization tool. All simulations and AI-generated signals are based on historical correlation models and statistical heuristics. Financial markets are inherently unpredictable. Maintain independent verification.
+## 🔗 Links
 
-**Developed by SorawitTJ-Hue**
+- **Live App:** https://fintech-t.vercel.app
+- **GitHub:** https://github.com/sorawittj-hue/FintechTJ
+
+---
+
+## ⚠️ คำเตือน
+
+ข้อมูลในแพลตฟอร์มนี้มีไว้เพื่อ **การศึกษาเท่านั้น** ไม่ใช่คำแนะนำในการลงทุน
+
+ผลตอบแทนในอดีตไม่รับประกันผลตอบแทนในอนาคต ลงทุนด้วยความระมัดระวัง
+
+---
+
+## 👨‍💻 Developer
+
+**SorawitTJ-Hue (คุณเจ)**
+
+- ขายแล็ปท็อป B2B ที่ Addin Business
+- สนใจ: Crypto, Copy Trading, AI Trading
+- Tech Stack: React, Supabase, Vercel
+
+---
+
+![FintechTJ Banner](https://img.shields.io/badge/Made%20with%20❤️%20by-SorawitTJ--Hue-red?style=for-the-badge)
