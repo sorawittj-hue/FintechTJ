@@ -241,7 +241,7 @@ function Legend() {
     <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-xs">
       <div className="flex items-center gap-1.5">
         <div className="w-4 h-4 rounded bg-gradient-to-br from-green-500 to-emerald-600" />
-        <span className="text-gray-600 font-medium">>= +5%</span>
+        <span className="text-gray-600 font-medium">&gt;= +5%</span>
       </div>
       <div className="flex items-center gap-1.5">
         <div className="w-4 h-4 rounded bg-gradient-to-br from-green-400 to-green-500" />
@@ -261,7 +261,7 @@ function Legend() {
       </div>
       <div className="flex items-center gap-1.5">
         <div className="w-4 h-4 rounded bg-gradient-to-br from-red-600 to-red-700" />
-        <span className="text-gray-600 font-medium"><= -5%</span>
+        <span className="text-gray-600 font-medium">&lt;= -5%</span>
       </div>
     </div>
   );
