@@ -670,7 +670,7 @@ export function Settings() {
 
                     <SettingRow icon={Shield} label="Risk ต่อ Order" description="เปอร์เซ็นต์ของพอร์ตที่ยอมรับความเสี่ยง">
                       <div className="flex items-center gap-2">
-                        <input
+                        <Input
                           type="number"
                           value={tradingPrefs.riskPerTrade}
                           onChange={(e) => setTradingPrefs({ ...tradingPrefs, riskPerTrade: Number(e.target.value) })}
@@ -684,7 +684,7 @@ export function Settings() {
                     </SettingRow>
 
                     <SettingRow icon={BarChart3} label="Max Open Trades" description="จำนวน position สูงสุดที่เปิดได้พร้อมกัน">
-                      <input
+                      <Input
                         type="number"
                         value={tradingPrefs.maxOpenTrades}
                         onChange={(e) => setTradingPrefs({ ...tradingPrefs, maxOpenTrades: Number(e.target.value) })}
