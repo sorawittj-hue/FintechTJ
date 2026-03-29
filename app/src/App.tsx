@@ -47,11 +47,6 @@ const SectorRotation = lazy(() => import('@/sections/SectorRotation'));
 const NarrativeCycle = lazy(() => import('@/sections/NarrativeCycle'));
 const PortfolioOverview = lazy(() => import('@/sections/PortfolioOverview'));
 const AdvancedCrypto = lazy(() => import('@/sections/AdvancedCrypto'));
-
-// AI Features
-const AINewsIntelligence = lazy(() => import('@/sections/AINewsIntelligence'));
-const AITradingAssistant = lazy(() => import('@/sections/AITradingAssistant'));
-const SmartAlerts = lazy(() => import('@/sections/SmartAlerts'));
 const CrisisGuide = lazy(() => import('@/components/CrisisGuide'));
 const InstitutionalTrading = lazy(() => import('@/sections/InstitutionalTrading'));
 const FuturesSignal = lazy(() => import('@/sections/FuturesSignal'));
@@ -186,11 +181,6 @@ function AppContent() {
                       <Route path="/sentinel" element={<Sentinel />} />
                       <Route path="/audio" element={<AudioBrief />} />
                       <Route path="/audiobrief" element={<AudioBrief />} />
-
-                      {/* MiniMax AI Features */}
-                      <Route path="/news-ai" element={<AINewsIntelligence />} />
-                      <Route path="/ai-chat" element={<AITradingAssistant />} />
-                      <Route path="/alerts-smart" element={<SmartAlerts />} />
 
                       {/* Market Analysis */}
                       <Route path="/us-framework" element={<USStockFramework />} />
