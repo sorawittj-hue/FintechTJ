@@ -37,9 +37,9 @@ function isServiceAvailable(service: keyof typeof serviceHealth): boolean {
 // ═══════════════════ CONFIGURATION ═══════════════════
 
 const CORS_PROXIES = [
-    'https://corsproxy.io/?url=',
     'https://api.codetabs.com/v1/proxy?quest=',
     'https://thingproxy.freeboard.io/fetch/',
+    'https://api.allorigins.win/get?url=',
 ];
 
 const ENDPOINTS = {
@@ -169,7 +169,7 @@ async function fetchWithProxy(url: string, options?: RequestInit, proxyIndex = 0
     const proxy = CORS_PROXIES[proxyIndex % CORS_PROXIES.length];
     try {
         let proxyUrl = url;
-        if (proxy.includes('corsproxy.io') || proxy.includes('allorigins.win')) {
+        if (proxy.includes('allorigins.win')) {
             proxyUrl = `${proxy}${encodeURIComponent(url)}`;
         } else {
             proxyUrl = `${proxy}${url}`;

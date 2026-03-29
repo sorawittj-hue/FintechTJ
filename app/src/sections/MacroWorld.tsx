@@ -95,9 +95,9 @@ function saveMacroCache(payload: MacroCachePayload) {
 async function fetchFREDData(seriesId: string): Promise<{ value: number; date: string } | null> {
   try {
     const proxies = [
-      { url: 'https://corsproxy.io/?url=', encode: true },
-      { url: 'https://api.allorigins.win/get?url=', encode: true },
       { url: 'https://api.codetabs.com/v1/proxy?quest=', encode: true },
+      { url: 'https://thingproxy.freeboard.io/fetch/', encode: false },
+      { url: 'https://api.allorigins.win/get?url=', encode: true },
     ];
 
     const apiUrl = `${FRED_BASE_URL}/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=2&sort_order=desc`;
@@ -128,7 +128,8 @@ async function fetchFREDData(seriesId: string): Promise<{ value: number; date: s
 async function fetchM2History(): Promise<LiquidityData[]> {
   try {
     const proxies = [
-      { url: 'https://corsproxy.io/?url=', encode: true },
+      { url: 'https://api.codetabs.com/v1/proxy?quest=', encode: true },
+      { url: 'https://thingproxy.freeboard.io/fetch/', encode: false },
       { url: 'https://api.allorigins.win/get?url=', encode: true },
     ];
 

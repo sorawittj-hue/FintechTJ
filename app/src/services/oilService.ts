@@ -236,9 +236,9 @@ const WS_RECONNECT_DELAY = 3000;
 const PRICE_UPDATE_INTERVAL = 5000; // 5 seconds for simulated real-time
 
 const CORS_PROXIES = [
-    'https://corsproxy.io/?',
-    'https://api.allorigins.win/get?url=',
     'https://api.codetabs.com/v1/proxy?quest=',
+    'https://thingproxy.freeboard.io/fetch/',
+    'https://api.allorigins.win/get?url=',
 ];
 
 // ═══════════════════ STORAGE UTILITIES ═══════════════════
