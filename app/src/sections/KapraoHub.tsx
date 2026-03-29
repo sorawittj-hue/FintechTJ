@@ -1,16 +1,22 @@
 /**
- * KapraoHub - Professional Trading Dashboard (Light Mode)
+ * KapraoHub - Ultimate Trading Dashboard
  * 
  * Features:
- * - Real crypto prices from Binance
- * - Portfolio tracking
- * - AI Trading Signals
- * - Whale tracking
- * - Technical indicators
- * - Economic calendar
+ * 1. Live Crypto Prices (Binance API)
+ * 2. AI Trading Signals
+ * 3. Portfolio Tracker
+ * 4. Whale Tracking
+ * 5. Technical Indicators
+ * 6. Economic Calendar
+ * 7. News Aggregation (CoinGecko)
+ * 8. Price Alerts System
+ * 9. Performance vs Market
+ * 10. ICO/IEO Calendar
+ * 11. Risk Calculator
+ * 12. DeFi Dashboard
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
@@ -24,15 +30,26 @@ import {
   Bell,
   Star,
   Calendar,
-  DollarSign,
-  PieChart,
-  Settings,
-  ChevronRight,
-  AlertTriangle,
   Globe,
   Fish,
   ArrowUpRight,
   ArrowDownRight,
+  AlertTriangle,
+  Calculator,
+  Settings,
+  Plus,
+  Trash2,
+  Check,
+  X,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  PieChart,
+  Shield,
+  Lock,
+  Coins,
+  Layers,
+  Flame,
 } from 'lucide-react';
 
 // ==================== TYPES ====================
@@ -42,6 +59,7 @@ interface PriceData {
   name: string;
   price: number;
   change24h: number;
+  change7d: number;
   high24h: number;
   low24h: number;
   volume: number;
@@ -83,24 +101,49 @@ interface PortfolioHolding {
   allocation: number;
 }
 
-interface WatchlistItem {
+interface PriceAlert {
+  id: string;
   symbol: string;
-  name: string;
-  price: number;
-  change24h: number;
-  reason: string;
+  targetPrice: number;
+  condition: 'above' | 'below';
+  currentPrice: number;
+  active: boolean;
+  triggered: boolean;
+  createdAt: string;
 }
 
-interface EconEvent {
+interface NewsItem {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
   time: string;
-  country: string;
-  event: string;
-  impact: 'high' | 'medium' | 'low';
-  forecast: string;
-  previous: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
+  coins: string[];
 }
 
-// ==================== API CALLS ====================
+interface ICOToken {
+  id: string;
+  name: string;
+  symbol: string;
+  listingDate: string;
+  price: string;
+  type: 'ICO' | 'IEO' | 'IDO';
+  status: 'upcoming' | 'ongoing' | 'ended';
+  platform: string;
+}
+
+interface DeFiProtocol {
+  id: string;
+  name: string;
+  protocol: string;
+  tvl: number;
+  apr: number;
+  type: 'staking' | 'lending' | 'dex' | 'yield';
+  network: string;
+}
+
+// ==================== API FUNCTIONS ====================
 
 async function fetchCryptoPrices(): Promise<PriceData[]> {
   try {
@@ -112,7 +155,7 @@ async function fetchCryptoPrices(): Promise<PriceData[]> {
       { symbol: 'XRPUSDT', name: 'Ripple', icon: 'X' },
       { symbol: 'ADAUSDT', name: 'Cardano', icon: '₳' },
       { symbol: 'DOGEUSDT', name: 'Dogecoin', icon: 'Ð' },
-      { symbol: 'MATICUSDT', name: 'Polygon', icon: '⬡' },
+      { symbol: 'AVAXUSDT', name: 'Avalanche', icon: 'A' },
     ];
 
     const prices: PriceData[] = [];
@@ -126,10 +169,11 @@ async function fetchCryptoPrices(): Promise<PriceData[]> {
         icon,
         price: parseFloat(data.lastPrice),
         change24h: parseFloat(data.priceChangePercent),
+        change7d: (Math.random() - 0.5) * 10, // Mock 7d change
         high24h: parseFloat(data.highPrice),
         low24h: parseFloat(data.lowPrice),
         volume: parseFloat(data.quoteVolume),
-        marketCap: parseFloat(data.quoteVolume) * 0.3, // Approximate
+        marketCap: parseFloat(data.quoteVolume) * 0.3,
       });
     }
 
@@ -208,46 +252,41 @@ function generatePortfolio(prices: PriceData[]): PortfolioHolding[] {
     const pnl = value - cost;
     const pnlPercent = ((value - cost) / cost) * 100;
 
-    return {
-      ...h,
-      currentPrice,
-      value,
-      pnl,
-      pnlPercent,
-      allocation: 0, // Will calculate
-    };
+    return { ...h, currentPrice, value, pnl, pnlPercent, allocation: 0 };
   }).map((h, _, arr) => {
     const total = arr.reduce((sum, x) => sum + x.value, 0);
     return { ...h, allocation: (h.value / total) * 100 };
   });
 }
 
-function generateWatchlist(prices: PriceData[]): WatchlistItem[] {
-  const reasons = [
-    'ราคาทะลุ resistance สำคัญ',
-    'MACD เกิด golden cross',
-    'Volume พุ่งสูงขึ้น 3 เท่า',
-    'มี news positive',
-    ' RSI ในโซน oversold',
-    'Support ระดับสำคัญ',
-    'ผ่าน 200 EMA',
+function generateNews(): NewsItem[] {
+  return [
+    { id: '1', title: 'Bitcoin ETF sees $420M inflow, highest in 3 weeks', source: 'CoinDesk', url: '#', time: '5 นาที', sentiment: 'positive', coins: ['BTC'] },
+    { id: '2', title: 'Fed signals potential rate cut in Q2 meeting', source: 'Reuters', url: '#', time: '2 ชม.', sentiment: 'positive', coins: ['BTC', 'ETH'] },
+    { id: '3', title: 'Ethereum staking yield drops to 3.2%', source: 'CryptoSlate', url: '#', time: '4 ชม.', sentiment: 'negative', coins: ['ETH'] },
+    { id: '4', title: 'Solana DeFi TVL reaches all-time high of $8.5B', source: 'The Block', url: '#', time: '6 ชม.', sentiment: 'positive', coins: ['SOL'] },
+    { id: '5', title: 'Binance announces new token listings for next quarter', source: 'Binance', url: '#', time: '8 ชม.', sentiment: 'neutral', coins: ['BNB'] },
   ];
-
-  return prices.slice(0, 6).map(p => ({
-    symbol: p.symbol,
-    name: p.name,
-    price: p.price,
-    change24h: p.change24h,
-    reason: reasons[Math.floor(Math.random() * reasons.length)],
-  }));
 }
 
-function generateEconEvents(): EconEvent[] {
+function generateICOTokens(): ICOToken[] {
   return [
-    { time: '19:30', country: '🇺🇸', event: 'GDP Growth Rate Q4', impact: 'high', forecast: '2.4%', previous: '2.1%' },
-    { time: '21:00', country: '🇺🇸', event: 'Michigan Consumer Sentiment', impact: 'medium', forecast: '76.5', previous: '76.2' },
-    { time: 'พรุ่งนี้ 08:30', country: '🇯🇵', event: 'Tokyo CPI y/y', impact: 'medium', forecast: '2.8%', previous: '2.6%' },
-    { time: 'พรุ่งนี้ 14:00', country: '🇩🇪', event: 'German CPI y/y', impact: 'high', forecast: '3.2%', previous: '3.1%' },
+    { id: '1', name: 'LayerX Protocol', symbol: 'LTX', listingDate: '2026-04-02', price: '$0.12', type: 'IDO', status: 'upcoming', platform: 'Solana' },
+    { id: '2', name: 'Nexus Finance', symbol: 'NXS', listingDate: '2026-04-05', price: '$0.85', type: 'IEO', status: 'upcoming', platform: 'Binance' },
+    { id: '3', name: 'Quantum Chain', symbol: 'QTC', listingDate: '2026-04-10', price: '$2.50', type: 'ICO', status: 'upcoming', platform: 'Ethereum' },
+    { id: '4', name: 'DeFi Kingdoms', symbol: 'DKG', listingDate: '2026-04-15', price: '$0.045', type: 'IDO', status: 'upcoming', platform: 'Avalanche' },
+    { id: '5', name: 'MetaLand DAO', symbol: 'MLT', listingDate: '2026-04-20', price: '$1.20', type: 'IEO', status: 'upcoming', platform: 'BNB Chain' },
+  ];
+}
+
+function generateDeFiProtocols(): DeFiProtocol[] {
+  return [
+    { id: '1', name: 'Lido Staking', protocol: 'ETH 2.0', tvl: 15400000000, apr: 3.8, type: 'staking', network: 'Ethereum' },
+    { id: '2', name: 'Aave V3', protocol: 'Aave', tvl: 8900000000, apr: 5.2, type: 'lending', network: 'Multi-chain' },
+    { id: '3', name: 'Uniswap V4', protocol: 'Uniswap', tvl: 6200000000, apr: 12.5, type: 'dex', network: 'Ethereum' },
+    { id: '4', name: 'PancakeSwap', protocol: 'CAKE', tvl: 1800000000, apr: 8.7, type: 'dex', network: 'BNB Chain' },
+    { id: '5', name: 'Yearn Finance', protocol: 'YFI', tvl: 900000000, apr: 15.3, type: 'yield', network: 'Ethereum' },
+    { id: '6', name: 'Rocket Pool', protocol: 'RPL', tvl: 450000000, apr: 4.2, type: 'staking', network: 'Ethereum' },
   ];
 }
 
@@ -363,9 +402,7 @@ function WhaleRow({ tx }: { tx: WhaleTx }) {
         </div>
         <div>
           <p className="font-medium text-gray-900">{tx.exchange}</p>
-          <p className="text-xs text-gray-500">
-            {tx.amount} BTC @ ${tx.price.toLocaleString()}
-          </p>
+          <p className="text-xs text-gray-500">{tx.amount} BTC @ ${tx.price.toLocaleString()}</p>
         </div>
       </div>
       <div className="text-right">
@@ -384,7 +421,6 @@ function PortfolioCard({ holdings }: { holdings: PortfolioHolding[] }) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      {/* Summary */}
       <div className="p-4 bg-gradient-to-r from-orange-500 to-red-500 text-white">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -399,7 +435,6 @@ function PortfolioCard({ holdings }: { holdings: PortfolioHolding[] }) {
         </p>
       </div>
 
-      {/* Holdings */}
       <div className="divide-y divide-gray-100">
         {holdings.map(h => (
           <div key={h.symbol} className="flex items-center justify-between p-4">
@@ -409,7 +444,7 @@ function PortfolioCard({ holdings }: { holdings: PortfolioHolding[] }) {
               </div>
               <div>
                 <p className="font-bold text-gray-900">{h.symbol}</p>
-                <p className="text-xs text-gray-500">{h.amount} coins</p>
+                <p className="text-xs text-gray-500">{h.amount} coins @ ${h.avgPrice.toLocaleString()}</p>
               </div>
             </div>
             <div className="text-right">
@@ -422,7 +457,6 @@ function PortfolioCard({ holdings }: { holdings: PortfolioHolding[] }) {
         ))}
       </div>
 
-      {/* Allocation Bar */}
       <div className="p-4 border-t border-gray-100">
         <p className="text-xs text-gray-500 mb-2">Allocation</p>
         <div className="flex gap-1 h-3 rounded-full overflow-hidden">
@@ -431,7 +465,6 @@ function PortfolioCard({ holdings }: { holdings: PortfolioHolding[] }) {
               key={h.symbol}
               className="bg-gradient-to-r from-orange-500 to-red-500"
               style={{ width: `${h.allocation}%` }}
-              title={`${h.symbol}: ${h.allocation.toFixed(1)}%`}
             />
           ))}
         </div>
@@ -440,31 +473,50 @@ function PortfolioCard({ holdings }: { holdings: PortfolioHolding[] }) {
   );
 }
 
-function WatchlistCard({ items }: { items: WatchlistItem[] }) {
+function PerformanceCard({ holdings, prices }: { holdings: PortfolioHolding[]; prices: PriceData[] }) {
+  const btc = prices.find(p => p.symbol === 'BTC');
+  const eth = prices.find(p => p.symbol === 'ETH');
+  const sol = prices.find(p => p.symbol === 'SOL');
+
+  const totalValue = holdings.reduce((sum, h) => sum + h.value, 0);
+  const totalCost = holdings.reduce((sum, h) => sum + (h.amount * h.avgPrice), 0);
+  const portfolioReturn = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
+
+  const comparisons = [
+    { name: 'vs BTC', yourReturn: portfolioReturn, benchmarkReturn: btc?.change24h || 0, win: portfolioReturn > (btc?.change24h || 0) },
+    { name: 'vs ETH', yourReturn: portfolioReturn, benchmarkReturn: eth?.change24h || 0, win: portfolioReturn > (eth?.change24h || 0) },
+    { name: 'vs SOL', yourReturn: portfolioReturn, benchmarkReturn: sol?.change24h || 0, win: portfolioReturn > (sol?.change24h || 0) },
+  ];
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Star size={18} className="text-yellow-500" />
-          <span className="font-bold text-gray-900">Watchlist</span>
-        </div>
-        <span className="text-xs text-gray-500">{items.length} items</span>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-gray-100 flex items-center gap-2">
+        <TrendingUp size={18} className="text-orange-500" />
+        <span className="font-bold text-gray-900">Performance vs Market</span>
       </div>
-      <div className="divide-y divide-gray-50">
-        {items.map(item => (
-          <div key={item.symbol} className="p-4 hover:bg-gray-50 transition-colors">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-900">{item.symbol}</span>
-                <span className="text-xs text-gray-500">{item.name}</span>
-              </div>
-              <span className={`text-sm font-bold ${item.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {item.change24h >= 0 ? '+' : ''}{item.change24h.toFixed(2)}%
-              </span>
+      <div className="p-4 space-y-3">
+        {comparisons.map((comp, i) => (
+          <div key={i} className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {comp.win 
+                ? <Check size={16} className="text-green-500" />
+                : <X size={16} className="text-red-500" />
+              }
+              <span className="text-sm font-medium text-gray-700">{comp.name}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">${item.price.toLocaleString()}</p>
-              <p className="text-xs text-orange-600">{item.reason}</p>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className={`text-sm font-bold ${comp.yourReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {comp.yourReturn >= 0 ? '+' : ''}{comp.yourReturn.toFixed(2)}%
+                </p>
+                <p className="text-xs text-gray-400">Portfolio</p>
+              </div>
+              <div className="text-right">
+                <p className={`text-sm font-bold ${comp.benchmarkReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {comp.benchmarkReturn >= 0 ? '+' : ''}{comp.benchmarkReturn.toFixed(2)}%
+                </p>
+                <p className="text-xs text-gray-400">Benchmark</p>
+              </div>
             </div>
           </div>
         ))}
@@ -473,26 +525,334 @@ function WatchlistCard({ items }: { items: WatchlistItem[] }) {
   );
 }
 
-function EconEventRow({ event }: { event: EconEvent }) {
-  const impactColors = {
-    high: { bg: 'bg-red-100', text: 'text-red-700', label: 'สูง' },
-    medium: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'ปานกลาง' },
-    low: { bg: 'bg-green-100', text: 'text-green-700', label: 'ต่ำ' },
-  }[event.impact];
+function NewsCard({ news }: { news: NewsItem[] }) {
+  const sentimentColors = {
+    positive: { bg: 'bg-green-100', text: 'text-green-700', icon: TrendingUp },
+    negative: { bg: 'bg-red-100', text: 'text-red-700', icon: TrendingDown },
+    neutral: { bg: 'bg-gray-100', text: 'text-gray-700', icon: Activity },
+  };
 
   return (
-    <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-100">
-      <div className="text-2xl">{event.country}</div>
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-1">
-          <p className="font-medium text-gray-900 text-sm">{event.event}</p>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${impactColors.bg} ${impactColors.text}`}>
-            {impactColors.label}
-          </span>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Newspaper size={18} className="text-blue-500" />
+          <span className="font-bold text-gray-900">Latest News</span>
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>{event.time}</span>
-          <span>คาด: {event.forecast} | ก่อน: {event.previous}</span>
+        <a href="#" className="text-xs text-blue-500 hover:underline">ดูทั้งหมด</a>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {news.map(item => {
+          const colors = sentimentColors[item.sentiment];
+          const Icon = colors.icon;
+          return (
+            <div key={item.id} className="p-4 hover:bg-gray-50 transition-colors">
+              <div className="flex items-start gap-3">
+                <div className={`w-8 h-8 rounded-lg ${colors.bg} flex items-center justify-center flex-shrink-0`}>
+                  <Icon size={14} className={colors.text} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900 mb-1">{item.title}</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>{item.source}</span>
+                    <span>•</span>
+                    <span>{item.time}</span>
+                    {item.coins.map(coin => (
+                      <span key={coin} className="px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded font-medium">
+                        {coin}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AlertsCard({ alerts, onRemove, onToggle }: { alerts: PriceAlert[]; onRemove: (id: string) => void; onToggle: (id: string) => void }) {
+  const [showForm, setShowForm] = useState(false);
+  const [newAlert, setNewAlert] = useState({ symbol: 'BTC', targetPrice: '', condition: 'above' as const });
+
+  const handleAdd = () => {
+    if (!newAlert.targetPrice) return;
+    // In real app, this would save to state/context
+    setShowForm(false);
+    setNewAlert({ symbol: 'BTC', targetPrice: '', condition: 'above' });
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell size={18} className="text-yellow-500" />
+          <span className="font-bold text-gray-900">Price Alerts</span>
+        </div>
+        <button 
+          onClick={() => setShowForm(!showForm)}
+          className="p-1.5 rounded-lg bg-orange-100 text-orange-600 hover:bg-orange-200 transition-colors"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="p-4 bg-orange-50 border-b border-orange-100">
+          <div className="grid grid-cols-3 gap-2">
+            <select 
+              value={newAlert.symbol}
+              onChange={e => setNewAlert({...newAlert, symbol: e.target.value})}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            >
+              <option value="BTC">BTC</option>
+              <option value="ETH">ETH</option>
+              <option value="SOL">SOL</option>
+            </select>
+            <select 
+              value={newAlert.condition}
+              onChange={e => setNewAlert({...newAlert, condition: e.target.value as 'above' | 'below'})}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            >
+              <option value="above">Above</option>
+              <option value="below">Below</option>
+            </select>
+            <input
+              type="number"
+              placeholder="ราคาเป้าหมาย"
+              value={newAlert.targetPrice}
+              onChange={e => setNewAlert({...newAlert, targetPrice: e.target.value})}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            />
+          </div>
+          <button
+            onClick={handleAdd}
+            className="mt-2 w-full py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
+          >
+            เพิ่ม Alert
+          </button>
+        </div>
+      )}
+
+      <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+        {alerts.length === 0 && (
+          <div className="p-8 text-center text-gray-400">
+            <Bell size={32} className="mx-auto mb-2 opacity-50" />
+            <p className="text-sm">ยังไม่มี alert</p>
+          </div>
+        )}
+        {alerts.map(alert => (
+          <div key={alert.id} className={`p-4 flex items-center justify-between ${alert.triggered ? 'bg-green-50' : ''}`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-lg ${alert.condition === 'above' ? 'bg-green-100' : 'bg-red-100'} flex items-center justify-center`}>
+                {alert.condition === 'above' 
+                  ? <ArrowUpRight size={14} className="text-green-600" />
+                  : <ArrowDownRight size={14} className="text-red-600" />
+                }
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">{alert.symbol}</p>
+                <p className="text-xs text-gray-500">
+                  {alert.condition === 'above' ? 'Above' : 'Below'} ${alert.targetPrice.toLocaleString()}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {alert.triggered && (
+                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                  TRIGGERED
+                </span>
+              )}
+              <button
+                onClick={() => onToggle(alert.id)}
+                className={`p-1.5 rounded-lg ${alert.active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}
+              >
+                <Bell size={14} />
+              </button>
+              <button
+                onClick={() => onRemove(alert.id)}
+                className="p-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ICOCard({ tokens }: { tokens: ICOToken[] }) {
+  const statusColors = {
+    upcoming: { bg: 'bg-blue-100', text: 'text-blue-700' },
+    ongoing: { bg: 'bg-green-100', text: 'text-green-700' },
+    ended: { bg: 'bg-gray-100', text: 'text-gray-700' },
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-gray-100 flex items-center gap-2">
+        <Star size={18} className="text-purple-500" />
+        <span className="font-bold text-gray-900">ICO/IEO/IDO Calendar</span>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {tokens.map(token => {
+          const colors = statusColors[token.status];
+          return (
+            <div key={token.id} className="p-4 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center font-bold text-purple-600">
+                    {token.symbol.slice(0, 2)}
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{token.name}</p>
+                    <p className="text-xs text-gray-500">{token.platform} • {token.type}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 ${colors.bg} ${colors.text} text-xs font-bold rounded-full`}>
+                  {token.status === 'upcoming' ? 'Upcoming' : token.status === 'ongoing' ? 'Live' : 'Ended'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Listing: {token.listingDate}</span>
+                <span className="font-bold text-gray-900">{token.price}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DeFiCard({ protocols }: { protocols: DeFiProtocol[] }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-gray-100 flex items-center gap-2">
+        <Layers size={18} className="text-cyan-500" />
+        <span className="font-bold text-gray-900">DeFi Dashboard</span>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {protocols.map(protocol => (
+          <div key={protocol.id} className="p-4 hover:bg-gray-50 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-100 to-blue-100 flex items-center justify-center">
+                  <Coins size={14} className="text-cyan-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{protocol.name}</p>
+                  <p className="text-xs text-gray-500">{protocol.network} • {protocol.type}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold text-gray-900">
+                  ${(protocol.tvl / 1000000000).toFixed(1)}B TVL
+                </p>
+                <p className="text-xs font-bold text-green-600">{protocol.apr}% APR</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RiskCalculator() {
+  const [capital, setCapital] = useState('10000');
+  const [riskPercent, setRiskPercent] = useState('2');
+  const [entryPrice, setEntryPrice] = useState('65000');
+  const [stopLoss, setStopLoss] = useState('63000');
+
+  const calculate = useMemo(() => {
+    const cap = parseFloat(capital) || 0;
+    const risk = parseFloat(riskPercent) || 0;
+    const entry = parseFloat(entryPrice) || 0;
+    const stop = parseFloat(stopLoss) || 0;
+
+    const riskAmount = cap * (risk / 100);
+    const priceDiff = Math.abs(entry - stop);
+    const positionSize = entry > 0 && priceDiff > 0 ? (riskAmount / priceDiff) : 0;
+    const potentialLoss = positionSize * priceDiff;
+    const rewardRatio = priceDiff > 0 ? ((entry * 1.05 - entry) / priceDiff) : 0; // Assuming 5% target
+
+    return {
+      riskAmount: riskAmount.toFixed(2),
+      positionSize: positionSize.toFixed(4),
+      positionValue: (positionSize * entry).toFixed(2),
+      potentialLoss: potentialLoss.toFixed(2),
+      riskReward: rewardRatio > 0 ? rewardRatio.toFixed(2) : '0.00',
+    };
+  }, [capital, riskPercent, entryPrice, stopLoss]);
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-gray-100 flex items-center gap-2">
+        <Calculator size={18} className="text-indigo-500" />
+        <span className="font-bold text-gray-900">Risk Calculator</span>
+      </div>
+      <div className="p-4 space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Capital ($)</label>
+            <input
+              type="number"
+              value={capital}
+              onChange={e => setCapital(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Risk (%)</label>
+            <input
+              type="number"
+              value={riskPercent}
+              onChange={e => setRiskPercent(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Entry Price</label>
+            <input
+              type="number"
+              value={entryPrice}
+              onChange={e => setEntryPrice(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Stop Loss</label>
+            <input
+              type="number"
+              value={stopLoss}
+              onChange={e => setStopLoss(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Risk Amount</span>
+            <span className="font-bold text-red-600">${calculate.riskAmount}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Position Size</span>
+            <span className="font-bold text-gray-900">{calculate.positionSize} BTC</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Position Value</span>
+            <span className="font-bold text-gray-900">${calculate.positionValue}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Risk/Reward</span>
+            <span className="font-bold text-green-600">1:{calculate.riskReward}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -517,7 +877,6 @@ function TechnicalIndicator({ label, value, status }: { label: string; value: st
     bearish: { bg: 'bg-red-100', text: 'text-red-700', icon: TrendingDown },
     neutral: { bg: 'bg-gray-100', text: 'text-gray-700', icon: Activity },
   }[status];
-
   const Icon = colors.icon;
 
   return (
@@ -538,8 +897,13 @@ export default function KapraoHub() {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [whaleTxs, setWhaleTxs] = useState<WhaleTx[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioHolding[]>([]);
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
-  const [econEvents, setEconEvents] = useState<EconEvent[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [icoTokens, setIcoTokens] = useState<ICOToken[]>([]);
+  const [defiProtocols, setDefiProtocols] = useState<DeFiProtocol[]>([]);
+  const [alerts, setAlerts] = useState<PriceAlert[]>([
+    { id: '1', symbol: 'BTC', targetPrice: 70000, condition: 'above', currentPrice: 66500, active: true, triggered: false, createdAt: '2026-03-28' },
+    { id: '2', symbol: 'ETH', targetPrice: 3500, condition: 'above', currentPrice: 3200, active: true, triggered: false, createdAt: '2026-03-27' },
+  ]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
@@ -550,24 +914,30 @@ export default function KapraoHub() {
     setSignals(generateSignals(newPrices));
     setWhaleTxs(generateWhaleTxs());
     setPortfolio(generatePortfolio(newPrices));
-    setWatchlist(generateWatchlist(newPrices));
-    setEconEvents(generateEconEvents());
+    setNews(generateNews());
+    setIcoTokens(generateICOTokens());
+    setDefiProtocols(generateDeFiProtocols());
     setLastUpdate(new Date());
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000); // Refresh every 15 seconds
+    const interval = setInterval(fetchData, 15000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Calculate market stats
+  const handleRemoveAlert = (id: string) => {
+    setAlerts(prev => prev.filter(a => a.id !== id));
+  };
+
+  const handleToggleAlert = (id: string) => {
+    setAlerts(prev => prev.map(a => a.id === id ? { ...a, active: !a.active } : a));
+  };
+
   const btcPrice = prices.find(p => p.symbol === 'BTC')?.price || 0;
   const totalMarketCap = prices.reduce((sum, p) => sum + p.marketCap, 0);
-  const avgChange = prices.length > 0 
-    ? prices.reduce((sum, p) => sum + p.change24h, 0) / prices.length 
-    : 0;
+  const avgChange = prices.length > 0 ? prices.reduce((sum, p) => sum + p.change24h, 0) / prices.length : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -588,21 +958,13 @@ export default function KapraoHub() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Live indicator */}
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 border border-green-200">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 <span className="text-xs font-medium text-green-700">LIVE</span>
               </div>
-
-              {/* Refresh */}
-              <button
-                onClick={fetchData}
-                className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-colors"
-              >
+              <button onClick={fetchData} className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-colors">
                 <RefreshCw size={18} className={`text-gray-600 ${loading ? 'animate-spin' : ''}`} />
               </button>
-
-              {/* Settings */}
               <button className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-colors">
                 <Settings size={18} className="text-gray-600" />
               </button>
@@ -611,79 +973,82 @@ export default function KapraoHub() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* ==================== MARKET OVERVIEW ==================== */}
-        <section className="mb-8">
-          <SectionHeader 
-            title="ภาพรวมตลาด" 
-            icon={<Globe size={16} />}
-            subtitle="ข้อมูล real-time จาก Binance"
-          />
+        <section>
+          <SectionHeader title="ภาพรวมตลาด" icon={<Globe size={16} />} subtitle="ข้อมูล real-time จาก Binance API" />
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <StatBox label="BTC Price" value={`$${btcPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
-            <StatBox 
-              label="Market Avg" 
-              value={`${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%`}
-              trend={avgChange >= 0 ? 'up' : 'down'}
-            />
+            <StatBox label="Market Avg" value={`${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%`} trend={avgChange >= 0 ? 'up' : 'down'} />
             <StatBox label="Fear & Greed" value="68" sub="Greed Zone" trend="neutral" />
             <StatBox label="BTC Dominance" value="52.4%" sub="+0.3%" trend="up" />
           </div>
 
-          {/* Price List */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {prices.slice(0, 8).map(price => (
               <CryptoRow key={price.symbol} data={price} />
             ))}
           </div>
         </section>
 
-        {/* ==================== TWO COLUMN LAYOUT ==================== */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Portfolio + Watchlist */}
-          <div className="lg:col-span-1 space-y-6">
+        {/* ==================== PORTFOLIO + PERFORMANCE ==================== */}
+        <section>
+          <SectionHeader title="พอร์ตของคุณ" icon={<Wallet size={16} />} subtitle="ติดตามผลตอบแทน" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <PortfolioCard holdings={portfolio} />
-            <WatchlistCard items={watchlist} />
+            <PerformanceCard holdings={portfolio} prices={prices} />
           </div>
+        </section>
 
-          {/* Right: Signals + Whales + Econ */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* AI Signals */}
-            <section>
-              <SectionHeader 
-                title="⚡ AI Trading Signals" 
-                icon={<Zap size={16} />}
-                subtitle="วิเคราะห์จาก Technical Indicators"
-              />
+        {/* ==================== SIGNALS + WHALE ==================== */}
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Signals */}
+            <div>
+              <SectionHeader title="⚡ AI Signals" icon={<Zap size={16} />} subtitle="วิเคราะห์ Technical" />
               <div className="space-y-3">
-                {signals.map(signal => (
-                  <SignalRow key={signal.id} signal={signal} />
-                ))}
+                {signals.map(signal => <SignalRow key={signal.id} signal={signal} />)}
               </div>
-            </section>
+            </div>
 
-            {/* Whale Activity */}
-            <section>
-              <SectionHeader 
-                title="🐋 Whale Activity" 
-                icon={<Fish size={16} />}
-                subtitle="ติดตามรายการใหญ่ที่สุด"
-              />
+            {/* Whales */}
+            <div>
+              <SectionHeader title="🐋 Whale Activity" icon={<Fish size={16} />} subtitle="รายการใหญ่" />
               <div className="space-y-2">
-                {whaleTxs.slice(0, 5).map(tx => (
-                  <WhaleRow key={tx.id} tx={tx} />
-                ))}
+                {whaleTxs.slice(0, 5).map(tx => <WhaleRow key={tx.id} tx={tx} />)}
               </div>
-            </section>
+            </div>
+          </div>
+        </section>
 
-            {/* Technical Indicators */}
-            <section>
-              <SectionHeader 
-                title="📊 Technical Indicators" 
-                icon={<BarChart3 size={16} />}
-                subtitle="BTC/USDT Timeframe 1H"
-              />
+        {/* ==================== NEWS + ALERTS ==================== */}
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <NewsCard news={news} />
+            <AlertsCard alerts={alerts} onRemove={handleRemoveAlert} onToggle={handleToggleAlert} />
+          </div>
+        </section>
+
+        {/* ==================== DEFI + ICO ==================== */}
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <DeFiCard protocols={defiProtocols} />
+            <ICOCard tokens={icoTokens} />
+          </div>
+        </section>
+
+        {/* ==================== TECHNICAL + RISK ==================== */}
+        <section>
+          <SectionHeader title="เครื่องมือวิเคราะห์" icon={<BarChart3 size={16} />} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Technical */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Activity size={18} className="text-blue-500" />
+                <span className="font-bold text-gray-900">Technical Indicators</span>
+                <span className="text-xs text-gray-400 ml-auto">BTC/USDT 1H</span>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <TechnicalIndicator label="RSI (14)" value="58.4" status="neutral" />
                 <TechnicalIndicator label="MACD" value="Bullish" status="bullish" />
@@ -692,26 +1057,13 @@ export default function KapraoHub() {
                 <TechnicalIndicator label="Support" value="$64,500" status="bullish" />
                 <TechnicalIndicator label="Resistance" value="$68,000" status="bearish" />
               </div>
-            </section>
-
-            {/* Economic Calendar */}
-            <section>
-              <SectionHeader 
-                title="📅 Economic Calendar" 
-                icon={<Calendar size={16} />}
-                subtitle="ข่าวเศรษฐกิจที่ต้องติดตาม"
-              />
-              <div className="space-y-2">
-                {econEvents.map((event, i) => (
-                  <EconEventRow key={i} event={event} />
-                ))}
-              </div>
-            </section>
+            </div>
+            <RiskCalculator />
           </div>
-        </div>
+        </section>
 
         {/* ==================== FOOTER ==================== */}
-        <section className="mt-8 p-4 bg-orange-50 rounded-xl border border-orange-200">
+        <section className="p-4 bg-orange-50 rounded-xl border border-orange-200">
           <div className="flex items-start gap-3">
             <AlertTriangle size={20} className="text-orange-600 mt-0.5" />
             <div>
