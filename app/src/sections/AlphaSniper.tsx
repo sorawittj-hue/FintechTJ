@@ -22,6 +22,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+// Helper to safely format numbers
+const formatScore = (score: number | undefined | null): string => {
+  if (score === undefined || score === null || isNaN(score)) return '0';
+  return score.toFixed(1);
+};
+
 // Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -248,19 +254,19 @@ export function AlphaSniper() {
               <div className="grid grid-cols-4 gap-2 mb-4">
                 <div className="text-center p-2 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500">Alpha</p>
-                  <p className="font-bold text-lg">{opp.alphaScore}</p>
+                  <p className="font-bold text-lg">{formatScore(opp.alphaScore)}</p>
                 </div>
                 <div className="text-center p-2 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500">Asymmetry</p>
-                  <p className="font-bold text-lg">{opp.asymmetryScore}</p>
+                  <p className="font-bold text-lg">{formatScore(opp.asymmetryScore)}</p>
                 </div>
                 <div className="text-center p-2 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500">Conviction</p>
-                  <p className="font-bold text-lg">{opp.convictionScore}</p>
+                  <p className="font-bold text-lg">{formatScore(opp.convictionScore)}</p>
                 </div>
                 <div className="text-center p-2 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500">Timing</p>
-                  <p className="font-bold text-lg">{opp.timingScore}</p>
+                  <p className="font-bold text-lg">{formatScore(opp.timingScore)}</p>
                 </div>
               </div>
 

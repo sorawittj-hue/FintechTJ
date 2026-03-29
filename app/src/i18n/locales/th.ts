@@ -53,6 +53,7 @@ const th = {
     help: 'ศูนย์ช่วยเหลือ',
     crisisGuide: 'คู่มือวิกฤต',
     professionalSuite: 'Professional Suite',
+    
     // AI & Analytics
     aiAnalytics: 'AI & Analytics',
     quantLab: 'Quant Lab',
@@ -73,8 +74,10 @@ const th = {
     defconDesc: 'ระดับความตึงเครียดตลาด',
     whaleVault: 'Whale Vault',
     whaleVaultDesc: 'ติดตามวาฬ',
+    
     // Pro Tools
     proTools: 'Pro Tools',
+    proToolsDesc: 'เครื่องมือระดับโปร',
     futuresSignal: 'Futures Signal',
     futuresSignalDesc: 'สัญญาณทอง · น้ำมัน · คริปโต',
     institutional: 'Institutional Trading',
@@ -87,8 +90,10 @@ const th = {
     sentinelDesc: 'เฝ้าระวังพอร์ต',
     audioBrief: 'Audio Brief',
     audioBriefDesc: 'สรุปข่าว + เสียงอ่าน',
+    
     // Market Analysis
     marketAnalysis: 'Market Analysis',
+    marketAnalysisDesc: 'วิเคราะห์ตลาด',
     usStockFramework: 'US Stock Framework',
     usStockFrameworkDesc: 'วิเคราะห์หุ้นพื้นฐาน',
     advancedCrypto: 'Advanced Crypto',

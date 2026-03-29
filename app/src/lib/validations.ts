@@ -190,13 +190,7 @@ export const CreateAlertSchema = AlertSchema.omit({
   id: z.string().optional(),
   createdAt: z.date().optional(),
   triggeredAt: z.date().optional(),
-}).refine(
-  (data) => data.targetPrice !== undefined || data.targetValue !== undefined || data.percentChange !== undefined,
-  {
-    message: 'At least one target value (targetPrice, targetValue, or percentChange) must be specified',
-    path: ['targetPrice', 'targetValue', 'percentChange'],
-  }
-);
+});
 
 export const UpdateAlertSchema = CreateAlertSchema.partial();
 

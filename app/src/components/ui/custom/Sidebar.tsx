@@ -33,8 +33,25 @@ import {
   Flame,
 } from 'lucide-react';
 
+// Types
+interface NavItem {
+  id: string;
+  labelKey: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  path: string;
+  descKey?: string;
+}
+
+interface NavGroup {
+  id: string;
+  labelKey: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  color: string;
+  items: NavItem[];
+}
+
 // Core Navigation - always visible (keys for i18n)
-const CORE_NAV = [
+const CORE_NAV: NavItem[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, path: '/' },
   { id: 'portfolio', labelKey: 'nav.portfolio', icon: Briefcase, path: '/portfolio' },
   { id: 'market', labelKey: 'nav.market', icon: BarChart3, path: '/market' },
@@ -42,7 +59,7 @@ const CORE_NAV = [
 ];
 
 // Suite Navigation - organized groups with sub-items
-const SUITE_GROUPS = [
+const SUITE_GROUPS: NavGroup[] = [
   {
     id: 'ai-suite',
     labelKey: 'nav.aiAnalytics',
@@ -96,7 +113,7 @@ const SUITE_GROUPS = [
   },
 ];
 
-const BOTTOM_NAV = [
+const BOTTOM_NAV: { icon: NavItem['icon']; labelKey: string; path: string }[] = [
   { icon: Shield, labelKey: 'nav.crisisGuide', path: '/crisis' },
   { icon: HelpCircle, labelKey: 'nav.help', path: '/help' },
   { icon: Settings, labelKey: 'nav.settings', path: '/settings' },
@@ -112,7 +129,7 @@ const SubItemList = memo(function SubItemList({ group, onClose }: SubItemListPro
   const { t } = useTranslation();
   return (
     <div className="ml-3 mt-1 pl-3 border-l border-slate-200 dark:border-slate-800 space-y-0.5">
-        {group.items.map((subItem: any) => (
+        {group.items.map((subItem: NavItem) => (
           <NavLink
             key={subItem.id}
             to={subItem.path}
@@ -238,7 +255,7 @@ const SidebarContent = memo(function SidebarContent({
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar" role="navigation" aria-label="Main navigation">
         {/* Core Nav */}
         <div className="space-y-1 mt-2">
-          {CORE_NAV.map((item: any) => (
+          {CORE_NAV.map((item: NavItem) => (
             <NavLink
               key={item.id}
               to={item.path}
@@ -287,7 +304,7 @@ const SidebarContent = memo(function SidebarContent({
 
       {/* Bottom Navigation */}
       <div className="p-3 border-t border-gray-100 dark:border-gray-800 space-y-0.5">
-        {BOTTOM_NAV.map((item: any) => (
+        {BOTTOM_NAV.map((item: NavItem) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -300,14 +317,14 @@ const SidebarContent = memo(function SidebarContent({
                 : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
               }
             `}
-          >
-            {({ isActive }: { isActive: boolean }) => (
-              <>
-                <item.icon size={18} />
-                <span>{t(item.labelKey)}</span>
-              </>
-            )}
-          </NavLink>
+            >
+              {() => (
+                <>
+                  <item.icon size={18} />
+                  <span>{t(item.labelKey)}</span>
+                </>
+              )}
+            </NavLink>
         ))}
       </div>
     </div>

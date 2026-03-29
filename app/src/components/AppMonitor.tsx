@@ -82,34 +82,10 @@ console.debug = (...args) => {
   addLog('debug', args);
 };
 
-// Global error handlers
-window.addEventListener('error', (event) => {
-  const entry: LogEntry = {
-    id: Math.random().toString(36).substring(2, 9),
-    timestamp: new Date(),
-    type: 'error',
-    message: event.message || 'Global Error',
-    stack: event.error?.stack,
-    source: 'Window Error',
-  };
-  globalLogs.push(entry);
-  if (globalLogs.length > 200) globalLogs.shift();
-  if (onLogUpdate) onLogUpdate();
-});
-
-window.addEventListener('unhandledrejection', (event) => {
-  const entry: LogEntry = {
-    id: Math.random().toString(36).substring(2, 9),
-    timestamp: new Date(),
-    type: 'error',
-    message: `Unhandled Rejection: ${event.reason?.message || event.reason}`,
-    stack: event.reason?.stack,
-    source: 'Unhandled Rejection',
-  };
-  globalLogs.push(entry);
-  if (globalLogs.length > 200) globalLogs.shift();
-  if (onLogUpdate) onLogUpdate();
-});
+// Only log initialization in debug mode
+if (import.meta.env.VITE_DEBUG === 'true') {
+  console.log('[AppMonitor] Initialized');
+}
 
 export function AppMonitor() {
   const [isOpen, setIsOpen] = useState(false);

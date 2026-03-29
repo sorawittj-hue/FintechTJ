@@ -53,6 +53,7 @@ const en = {
     help: 'Help Center',
     crisisGuide: 'Crisis Guide',
     professionalSuite: 'Professional Suite',
+    
     // AI & Analytics
     aiAnalytics: 'AI & Analytics',
     quantLab: 'Quant Lab',
@@ -63,6 +64,7 @@ const en = {
     alphaSniperDesc: 'Alpha opportunity scanner',
     reversalRadar: 'Reversal Radar',
     reversalRadarDesc: 'Heuristic reversal watchlist',
+    
     // Risk Intelligence
     riskIntelligence: 'Risk Intelligence',
     riskPanel: 'Risk Panel',
@@ -73,8 +75,10 @@ const en = {
     defconDesc: 'Rule-based market stress',
     whaleVault: 'Whale Vault',
     whaleVaultDesc: 'Supported whale activity feeds',
+    
     // Pro Tools
     proTools: 'Pro Tools',
+    proToolsDesc: 'Advanced trading tools',
     futuresSignal: 'Futures Signal',
     futuresSignalDesc: 'Gold · Oil · Crypto signals',
     institutional: 'Institutional Trading',
@@ -87,8 +91,10 @@ const en = {
     sentinelDesc: 'Portfolio monitoring',
     audioBrief: 'Audio Brief',
     audioBriefDesc: 'Local brief + browser TTS',
+    
     // Market Analysis
     marketAnalysis: 'Market Analysis',
+    marketAnalysisDesc: 'Technical & fundamental analysis',
     usStockFramework: 'US Stock Framework',
     usStockFrameworkDesc: 'Fundamental stock analysis',
     advancedCrypto: 'Advanced Crypto',

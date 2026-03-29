@@ -234,6 +234,7 @@ export async function fetchCryptoPrices(symbols: string[]): Promise<RealTimePric
                     const response = await fetchWithProxy(url);
                     const data = await response.json();
                     if (Array.isArray(data)) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const prices = data.map((coin: any) => ({
                             symbol: String(coin.symbol).toUpperCase(), name: coin.name, price: coin.current_price || 0,
                             change24h: coin.price_change_24h || 0, change24hPercent: coin.price_change_percentage_24h || 0,
@@ -293,6 +294,7 @@ async function fetchCryptoPricesFromBinance(symbols: string[]): Promise<RealTime
         const response = await fetchWithProxy(apiUrl);
         const data = await response.json();
         const rawItems = Array.isArray(data) ? data : [data];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return rawItems.filter(t => t?.symbol).map((t: any) => ({
             symbol: String(t.symbol).replace('USDT', ''), name: String(t.symbol).replace('USDT', ''),
             price: parseFloat(t.lastPrice) || 0, change24h: parseFloat(t.priceChange) || 0,
@@ -320,7 +322,7 @@ export async function fetchGlobalMarketData(): Promise<GlobalMarketData> {
         };
         cache.global.set('global', data);
         return data;
-    } catch (e) {
+    } catch {
         return {
             totalMarketCap: 2.5e12, totalVolume24h: 1e11, btcDominance: 52, ethDominance: 17,
             fearGreedIndex: 50, fearGreedLabel: 'Neutral', marketCapChange24h: 0, activeCryptocurrencies: 10000,
@@ -338,13 +340,16 @@ export async function fetchWhaleTransactions(minValue = 1000000, limit = 20): Pr
         const data = await response.json();
         const txs = data.txs || [];
         const btcPrice = 68000;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const out: WhaleTransaction[] = txs.map((tx: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const valBTC = (tx.out || []).reduce((s: number, o: any) => s + (o.value || 0), 0) / 1e8;
             return {
                 id: tx.hash?.slice(0, 16), type: 'transfer', asset: 'BTC', amount: valBTC, valueUSD: valBTC * btcPrice,
                 price: btcPrice, timestamp: new Date(tx.time * 1000), fromAddress: 'unknown', toAddress: 'unknown',
                 txHash: tx.hash, confidence: 85,
             };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }).filter((t: any) => t.valueUSD >= minValue);
         cache.whales.set(cacheKey, out);
         return out;
@@ -426,6 +431,7 @@ export async function fetchYahooOHLCV(symbol: string, timeframe: '15m' | '1h' | 
         const quote = result.indicators?.quote?.[0] || {};
         const klines: YahooKline[] = timestamps.map((t: number, i: number) => ({
             time: t * 1000, open: quote.open[i], high: quote.high[i], low: quote.low[i], close: quote.close[i], volume: quote.volume[i] || 0,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })).filter((k: any) => k.close != null);
         const m = result.meta;
         return { klines, meta: {
@@ -454,7 +460,7 @@ export async function fetchForexRates(): Promise<ForexRate[]> {
     return results.filter((r): r is ForexRate => r !== null);
 }
 
-export async function generateAIInsights(cryptoSymbols = ['bitcoin'], stockSymbols = ['AAPL']): Promise<AIInsight[]> {
+export async function generateAIInsights(cryptoSymbols = ['bitcoin']): Promise<AIInsight[]> {
     try {
         const prices = await fetchCryptoPrices(cryptoSymbols);
         return prices.filter(p => Math.abs(p.change24hPercent) > 2).map(p => ({
@@ -465,6 +471,7 @@ export async function generateAIInsights(cryptoSymbols = ['bitcoin'], stockSymbo
     } catch { return []; }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function calculateRiskIndicators(portfolioValue: number, assets: any[]): RiskIndicator[] {
     if (assets.length === 0) return [];
     return [
@@ -478,7 +485,9 @@ export async function fetchCryptoNews(limit = 20): Promise<NewsItem[]> {
         const url = `https://min-api.cryptocompare.com/data/v2/news/?lang=EN&limit=${limit}`;
         const response = await fetchWithProxy(url);
         const data = await response.json();
-        return (data.Data || []).map((item: any) => ({
+        return (data.Data || []).map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (item: any) => ({
             id: item.id, title: item.title, description: item.body?.slice(0, 200), url: item.url,
             imageUrl: item.imageurl, publishedAt: new Date(item.published_on * 1000),
             source: item.source, sourceName: item.source_info?.name, categories: item.categories?.split('|') || [],

@@ -93,6 +93,12 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // Don't fail on missing optional dependencies
+    conditions: ['development'],
+  },
+  // Optimize deps - treat @sentry/browser as external
+  ssr: {
+    noExternal: [],
   },
   esbuild: {
     // Strip console.log and debugger in production

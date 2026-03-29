@@ -164,6 +164,7 @@ function DashboardHome() {
 
       let successSources = 0;
       const failedSources: string[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const globalPricesToUpdate: any[] = [];
 
       if (commodityData.status === 'fulfilled' && commodityData.value.length > 0) {

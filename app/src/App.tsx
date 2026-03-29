@@ -14,6 +14,9 @@ import { SectionSkeleton } from '@/components/SectionSkeleton';
 import { AuthGuard } from '@/components/AuthGuard';
 import { Onboarding } from '@/components/Onboarding';
 import { AppMonitor } from '@/components/AppMonitor';
+import { FeedbackWidget } from '@/components/Feedback/FeedbackWidget';
+import { initPerformanceMonitoring } from '@/lib/performanceMonitor';
+import { initAnalytics, trackPageView } from '@/lib/analytics';
 
 // Lazy load all sections
 const Login = lazy(() => import('@/sections/Login'));
@@ -83,6 +86,17 @@ function AppContent() {
   const { user } = useAuth();
   const { setupRealtimeSync } = usePortfolioStore();
 
+  // Initialize performance monitoring and analytics
+  useEffect(() => {
+    initPerformanceMonitoring();
+    initAnalytics();
+  }, []);
+
+  // Track page views
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
+
   // Setup real-time sync and initialize stores
   useEffect(() => {
     const cleanupPrice = initPriceStore();
@@ -105,9 +119,10 @@ function AppContent() {
 
   return (
     <div className="min-h-screen">
+      {/* Sidebar */}
       {!isLogin && <Sidebar />}
 
-      <div className={isLogin ? 'w-full' : 'lg:ml-72'}>
+      <div className={isLogin ? 'w-full' : 'lg:ml-64'}>
         {!isLogin && <Header />}
 
         <main id="main-content" className={isLogin ? '' : 'pt-20 lg:pt-24 pb-8 px-4 lg:px-8 max-w-[1600px]'}>
@@ -196,6 +211,9 @@ function AppContent() {
       <WithdrawDialog isOpen={isWithdrawOpen} onClose={() => setIsWithdrawOpen(false)} />
       <AlertDialog isOpen={isAlertOpen} onClose={() => setIsAlertOpen(false)} />
       <Onboarding />
+      
+      {/* NEW: Feedback Widget */}
+      {!isLogin && <FeedbackWidget position="bottom-right" />}
     </div>
   );
 }

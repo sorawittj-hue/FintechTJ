@@ -13,8 +13,10 @@ initializeGlobalErrorHandlers({
   enableReporting: false,
 })
 
-// Log initialization
-console.info('[App] Global error handlers initialized')
+// Log initialization only in debug mode
+if (import.meta.env.VITE_DEBUG === 'true') {
+  console.debug('[App] Global error handlers initialized')
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
