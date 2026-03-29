@@ -1,12 +1,6 @@
 /**
  * KapraoHub - Premium Dashboard for OpenClaw Features
- * 
- * Features:
- * - Real-time crypto prices
- * - Beautiful glassmorphism UI
- * - Smooth Framer Motion animations
- * - Category filtering & search
- * - Live market data
+ * All 40 features fully functional
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -38,10 +32,56 @@ import {
   Settings,
   ChevronRight,
   X,
-  Maximize2,
-  Minimize2,
   Calculator,
+  Book,
+  Rocket,
+  Play,
+  Crosshair,
+  Newspaper,
+  Radio,
 } from 'lucide-react';
+
+// Import all 40 section components
+import KapraoChat from './KapraoChat';
+import NewsAI from './NewsAI';
+import SignalTracker from './SignalTracker';
+import TechnicalAnalysis from './TechnicalAnalysis';
+import ForecastPanel from './ForecastPanel';
+import SentimentPanel from './SentimentPanel';
+import RiskPanel from './RiskPanel';
+import PortfolioTracker from './PortfolioTracker';
+import EconomicCalendar from './EconomicCalendar';
+import CorrelationMatrix from './CorrelationMatrix';
+import WhaleTracker from './WhaleTracker';
+import MarketHeatmap from './MarketHeatmap';
+import DeepResearch from './DeepResearch';
+import MarketAlert from './MarketAlert';
+import SectorAnalysis from './SectorAnalysis';
+import OrderFlow from './OrderFlow';
+import OptionsFlow from './OptionsFlow';
+import NewsTransmission from './NewsTransmission';
+import CryptoDigest from './CryptoDigest';
+import CryptoSignals from './CryptoSignals';
+import VolumeProfile from './VolumeProfile';
+import MarketMakers from './MarketMakers';
+import FundingRate from './FundingRate';
+import LongShortRatio from './LongShortRatio';
+import ExchangeFlows from './ExchangeFlows';
+import Liquidations from './Liquidations';
+import CryptoRankings from './CryptoRankings';
+import PortfolioBuilder from './PortfolioBuilder';
+import PerformanceAnalytics from './PerformanceAnalytics';
+import BacktestEngine from './BacktestEngine';
+import TradingJournal from './TradingJournal';
+import OptionsCalculator from './OptionsCalculator';
+import ForexRates from './ForexRates';
+import Commodities from './Commodities';
+import MacroDashboard from './MacroDashboard';
+import ICOTracker from './ICOTracker';
+import Watchlist from './Watchlist';
+import TradeSimulator from './TradeSimulator';
+import APEXTerminal from './APEXTerminal';
+import SettingsPanel from './SettingsPanel';
 
 // Animation variants
 const fadeInUp = {
@@ -56,12 +96,6 @@ const staggerContainer = {
       staggerChildren: 0.05,
     },
   },
-};
-
-const scaleIn = {
-  initial: { opacity: 0, scale: 0.9 },
-  animate: { opacity: 1, scale: 1 },
-  exit: { opacity: 0, scale: 0.9 },
 };
 
 // Feature card component
@@ -159,11 +193,8 @@ function LiveTicker() {
 
   const fetchPrices = useCallback(async () => {
     try {
-      // Fetch BTC
       const btcRes = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
       const btcData = await btcRes.json();
-      
-      // Fetch ETH
       const ethRes = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT');
       const ethData = await ethRes.json();
 
@@ -175,7 +206,6 @@ function LiveTicker() {
       });
       setLoading(false);
     } catch {
-      // Fallback to mock data
       setPrices({
         BTC: { price: 66400 + Math.random() * 500, change: 1.2 + Math.random() },
         ETH: { price: 1988 + Math.random() * 50, change: 2.5 + Math.random() },
@@ -188,7 +218,7 @@ function LiveTicker() {
 
   useEffect(() => {
     fetchPrices();
-    const interval = setInterval(fetchPrices, 10000); // Refresh every 10s
+    const interval = setInterval(fetchPrices, 10000);
     return () => clearInterval(interval);
   }, [fetchPrices]);
 
@@ -234,7 +264,7 @@ const categories = [
   { id: 'tools', label: 'Tools', icon: Settings },
 ];
 
-// Features data
+// Feature type with component reference
 type FeatureType = {
   id: string;
   name: string;
@@ -242,54 +272,64 @@ type FeatureType = {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   category: string;
   color: string;
+  component: React.ComponentType;
 };
 
+// All 40 features with their components
 const features: FeatureType[] = [
-  // AI
-  { id: 'kaprao-chat', name: 'Kaprao Chat', desc: 'AI Chat ภาษาไทย พูดได้ทุกเรื่องตลาด', icon: Bot, category: 'ai', color: 'from-purple-500 to-violet-600' },
-  { id: 'news-ai', name: 'AI News', desc: 'สรุปข่าวตลาดอัตโนมัติ', icon: Brain, category: 'ai', color: 'from-indigo-500 to-blue-600' },
-  { id: 'deep-research', name: 'Deep Research', desc: 'รายงานวิเคราะห์เชิงลึก', icon: LineChart, category: 'ai', color: 'from-cyan-500 to-teal-600' },
-  
+  // AI Features
+  { id: 'kaprao-chat', name: 'Kaprao Chat', desc: 'AI Chat ภาษาไทย พูดได้ทุกเรื่องตลาด', icon: Bot, category: 'ai', color: 'from-purple-500 to-violet-600', component: KapraoChat },
+  { id: 'news-ai', name: 'AI News', desc: 'สรุปข่าวตลาดอัตโนมัติ', icon: Newspaper, category: 'ai', color: 'from-indigo-500 to-blue-600', component: NewsAI },
+  { id: 'deep-research', name: 'Deep Research', desc: 'รายงานวิเคราะห์เชิงลึก', icon: LineChart, category: 'ai', color: 'from-cyan-500 to-teal-600', component: DeepResearch },
+
   // Analysis
-  { id: 'technical', name: 'Technical Analysis', desc: 'RSI, MACD, EMA, Fibonacci', icon: BarChart3, category: 'analysis', color: 'from-blue-500 to-cyan-600' },
-  { id: 'forecast', name: 'Price Forecast', desc: 'ทำนายราคา 7 วันล่วงหน้า', icon: TrendingUp, category: 'analysis', color: 'from-green-500 to-emerald-600' },
-  { id: 'sentiment', name: 'Sentiment', desc: 'Fear & Greed Index', icon: Activity, category: 'analysis', color: 'from-pink-500 to-rose-600' },
-  { id: 'correlation', name: 'Correlation Matrix', desc: 'ความสัมพันธ์ระหว่างสินทรัพย์', icon: ArrowRightLeft, category: 'analysis', color: 'from-orange-500 to-amber-600' },
-  { id: 'sector', name: 'Sector Analysis', desc: 'วิเคราะห์ Sector Rotation', icon: PieChart, category: 'analysis', color: 'from-yellow-500 to-orange-600' },
-  { id: 'macro', name: 'Macro Dashboard', desc: 'ภาพรวมเศรษฐกิจโลก', icon: Globe, category: 'analysis', color: 'from-teal-500 to-cyan-600' },
-  { id: 'volume-profile', name: 'Volume Profile', desc: 'Point of Control Analysis', icon: Activity, category: 'analysis', color: 'from-violet-500 to-purple-600' },
-  
+  { id: 'technical', name: 'Technical Analysis', desc: 'RSI, MACD, EMA, Fibonacci', icon: BarChart3, category: 'analysis', color: 'from-blue-500 to-cyan-600', component: TechnicalAnalysis },
+  { id: 'forecast', name: 'Price Forecast', desc: 'ทำนายราคา 7 วันล่วงหน้า', icon: TrendingUp, category: 'analysis', color: 'from-green-500 to-emerald-600', component: ForecastPanel },
+  { id: 'sentiment', name: 'Sentiment', desc: 'Fear & Greed Index', icon: Activity, category: 'analysis', color: 'from-pink-500 to-rose-600', component: SentimentPanel },
+  { id: 'correlation', name: 'Correlation Matrix', desc: 'ความสัมพันธ์ระหว่างสินทรัพย์', icon: ArrowRightLeft, category: 'analysis', color: 'from-orange-500 to-amber-600', component: CorrelationMatrix },
+  { id: 'sector', name: 'Sector Analysis', desc: 'วิเคราะห์ Sector Rotation', icon: PieChart, category: 'analysis', color: 'from-yellow-500 to-orange-600', component: SectorAnalysis },
+  { id: 'macro', name: 'Macro Dashboard', desc: 'ภาพรวมเศรษฐกิจโลก', icon: Globe, category: 'analysis', color: 'from-teal-500 to-cyan-600', component: MacroDashboard },
+  { id: 'volume-profile', name: 'Volume Profile', desc: 'Point of Control Analysis', icon: Activity, category: 'analysis', color: 'from-violet-500 to-purple-600', component: VolumeProfile },
+  { id: 'risk-panel', name: 'Risk Panel', desc: 'คะแนนความเสี่ยงพอร์ต', icon: Shield, category: 'analysis', color: 'from-red-500 to-rose-600', component: RiskPanel },
+  { id: 'economic-calendar', name: 'Econ Calendar', desc: 'ปฏิทินเศรษฐกิจ', icon: Clock, category: 'analysis', color: 'from-indigo-500 to-blue-600', component: EconomicCalendar },
+  { id: 'market-heatmap', name: 'Market Heatmap', desc: 'แผนที่ตลาดทั้งหมด', icon: Globe, category: 'analysis', color: 'from-purple-500 to-pink-600', component: MarketHeatmap },
+
   // Trading
-  { id: 'signal-tracker', name: 'Signal Tracker', desc: 'ติดตาม Trading Signals', icon: Target, category: 'trading', color: 'from-green-500 to-lime-600' },
-  { id: 'crypto-signals', name: 'Crypto Signals', desc: 'BUY/SELL/HOLD Signals', icon: Zap, category: 'trading', color: 'from-yellow-500 to-green-600' },
-  { id: 'order-flow', name: 'Order Flow', desc: 'Order Book & Walls Analysis', icon: BarChart3, category: 'trading', color: 'from-cyan-500 to-blue-600' },
-  { id: 'options-flow', name: 'Options Flow', desc: 'Options Chain & OI', icon: Activity, category: 'trading', color: 'from-indigo-500 to-violet-600' },
-  { id: 'whale-tracker', name: 'Whale Tracker', desc: 'ติดตาม Whale Transactions', icon: Fish, category: 'trading', color: 'from-blue-500 to-indigo-600' },
-  { id: 'market-makers', name: 'Market Makers', desc: 'Institutional Flow Tracking', icon: Shield, category: 'trading', color: 'from-slate-500 to-gray-600' },
-  { id: 'funding-rate', name: 'Funding Rate', desc: 'Perpetuals Funding Tracker', icon: Clock, category: 'trading', color: 'from-amber-500 to-orange-600' },
-  { id: 'long-short', name: 'Long/Short Ratio', desc: 'Trader Positioning Analysis', icon: ArrowRightLeft, category: 'trading', color: 'from-rose-500 to-pink-600' },
-  { id: 'exchange-flows', name: 'Exchange Flows', desc: 'Net Flows by Exchange', icon: Activity, category: 'trading', color: 'from-teal-500 to-green-600' },
-  { id: 'liquidations', name: 'Liquidations', desc: 'Liquidation Heatmap', icon: AlertTriangle, category: 'trading', color: 'from-red-500 to-orange-600' },
-  { id: 'crypto-rankings', name: 'Crypto Rankings', desc: 'Top Cryptocurrencies by MCap', icon: TrendingUp, category: 'trading', color: 'from-orange-500 to-yellow-600' },
-  
+  { id: 'signal-tracker', name: 'Signal Tracker', desc: 'ติดตาม Trading Signals', icon: Target, category: 'trading', color: 'from-green-500 to-lime-600', component: SignalTracker },
+  { id: 'crypto-signals', name: 'Crypto Signals', desc: 'BUY/SELL/HOLD Signals', icon: Zap, category: 'trading', color: 'from-yellow-500 to-green-600', component: CryptoSignals },
+  { id: 'order-flow', name: 'Order Flow', desc: 'Order Book & Walls Analysis', icon: BarChart3, category: 'trading', color: 'from-cyan-500 to-blue-600', component: OrderFlow },
+  { id: 'options-flow', name: 'Options Flow', desc: 'Options Chain & OI', icon: Activity, category: 'trading', color: 'from-indigo-500 to-violet-600', component: OptionsFlow },
+  { id: 'whale-tracker', name: 'Whale Tracker', desc: 'ติดตาม Whale Transactions', icon: Fish, category: 'trading', color: 'from-blue-500 to-indigo-600', component: WhaleTracker },
+  { id: 'market-makers', name: 'Market Makers', desc: 'Institutional Flow Tracking', icon: Shield, category: 'trading', color: 'from-slate-500 to-gray-600', component: MarketMakers },
+  { id: 'funding-rate', name: 'Funding Rate', desc: 'Perpetuals Funding Tracker', icon: Clock, category: 'trading', color: 'from-amber-500 to-orange-600', component: FundingRate },
+  { id: 'long-short', name: 'Long/Short Ratio', desc: 'Trader Positioning Analysis', icon: ArrowRightLeft, category: 'trading', color: 'from-rose-500 to-pink-600', component: LongShortRatio },
+  { id: 'exchange-flows', name: 'Exchange Flows', desc: 'Net Flows by Exchange', icon: Activity, category: 'trading', color: 'from-teal-500 to-green-600', component: ExchangeFlows },
+  { id: 'liquidations', name: 'Liquidations', desc: 'Liquidation Heatmap', icon: AlertTriangle, category: 'trading', color: 'from-red-500 to-orange-600', component: Liquidations },
+  { id: 'crypto-rankings', name: 'Crypto Rankings', desc: 'Top Cryptocurrencies by MCap', icon: TrendingUp, category: 'trading', color: 'from-orange-500 to-yellow-600', component: CryptoRankings },
+  { id: 'news-transmission', name: 'News Chain', desc: 'ห่วงโซ่ข่าว', icon: Radio, category: 'trading', color: 'from-cyan-500 to-teal-600', component: NewsTransmission },
+  { id: 'crypto-digest', name: 'Crypto Digest', desc: 'Daily Summary', icon: Newspaper, category: 'trading', color: 'from-orange-500 to-amber-600', component: CryptoDigest },
+  { id: 'portfolio-tracker', name: 'Portfolio', desc: 'ติดตามพอร์ตลงทุน', icon: Wallet, category: 'trading', color: 'from-blue-500 to-purple-600', component: PortfolioTracker },
+  { id: 'portfolio-builder', name: 'Portfolio Builder', desc: 'สร้างพอร์ต', icon: PieChart, category: 'trading', color: 'from-indigo-500 to-purple-600', component: PortfolioBuilder },
+  { id: 'performance', name: 'Performance', desc: 'วิเคราะห์ผล', icon: TrendingUp, category: 'trading', color: 'from-emerald-500 to-teal-600', component: PerformanceAnalytics },
+  { id: 'backtest', name: 'Backtest Engine', desc: 'ทดสอบ Strategy', icon: Play, category: 'trading', color: 'from-violet-500 to-purple-600', component: BacktestEngine },
+  { id: 'trading-journal', name: 'Trading Journal', desc: 'บันทึก Trades', icon: Book, category: 'trading', color: 'from-cyan-500 to-blue-600', component: TradingJournal },
+  { id: 'watchlist', name: 'Watchlist', desc: 'รายการโปรด', icon: Bell, category: 'trading', color: 'from-pink-500 to-rose-600', component: Watchlist },
+  { id: 'trade-simulator', name: 'Trade Simulator', desc: 'Paper Trading', icon: Play, category: 'trading', color: 'from-green-500 to-emerald-600', component: TradeSimulator },
+
   // Tools
-  { id: 'portfolio-tracker', name: 'Portfolio', desc: 'ติดตามพอร์ตลงทุน', icon: Wallet, category: 'tools', color: 'from-blue-500 to-purple-600' },
-  { id: 'risk-panel', name: 'Risk Panel', desc: 'คะแนนความเสี่ยงพอร์ต', icon: Shield, category: 'tools', color: 'from-red-500 to-rose-600' },
-  { id: 'economic-calendar', name: 'Econ Calendar', desc: 'ปฏิทินเศรษฐกิจ', icon: Clock, category: 'tools', color: 'from-indigo-500 to-blue-600' },
-  { id: 'market-heatmap', name: 'Market Heatmap', desc: 'แผนที่ตลาดทั้งหมด', icon: Globe, category: 'tools', color: 'from-purple-500 to-pink-600' },
-  { id: 'forex', name: 'Forex Rates', desc: 'อัตราแลกเปลี่ยน', icon: DollarSign, category: 'tools', color: 'from-green-500 to-teal-600' },
-  { id: 'commodities', name: 'Commodities', desc: 'ทอง, น้ำมัน, โลหะ', icon: Gem, category: 'tools', color: 'from-yellow-500 to-amber-600' },
-  { id: 'options-calc', name: 'Options Calculator', desc: 'Black-Scholes Calculator', icon: Calculator, category: 'tools', color: 'from-cyan-500 to-blue-600' },
-  { id: 'ico-tracker', name: 'ICO Tracker', desc: 'Launchpad & IDO Tracker', icon: TrendingUp, category: 'tools', color: 'from-lime-500 to-green-600' },
-  { id: 'watchlist', name: 'Watchlist', desc: 'รายการโปรด', icon: Bell, category: 'tools', color: 'from-pink-500 to-rose-600' },
-  { id: 'settings', name: 'Settings', desc: 'ตั้งค่าแอป', icon: Settings, category: 'tools', color: 'from-gray-500 to-slate-600' },
+  { id: 'options-calc', name: 'Options Calculator', desc: 'Black-Scholes Calculator', icon: Calculator, category: 'tools', color: 'from-cyan-500 to-blue-600', component: OptionsCalculator },
+  { id: 'forex', name: 'Forex Rates', desc: 'อัตราแลกเปลี่ยน', icon: DollarSign, category: 'tools', color: 'from-green-500 to-teal-600', component: ForexRates },
+  { id: 'commodities', name: 'Commodities', desc: 'ทอง, น้ำมัน, โลหะ', icon: Gem, category: 'tools', color: 'from-yellow-500 to-amber-600', component: Commodities },
+  { id: 'ico-tracker', name: 'ICO Tracker', desc: 'Launchpad & IDO Tracker', icon: Rocket, category: 'tools', color: 'from-lime-500 to-green-600', component: ICOTracker },
+  { id: 'market-alert', name: 'Market Alert', desc: 'Price Alerts', icon: Bell, category: 'tools', color: 'from-yellow-500 to-orange-600', component: MarketAlert },
+  { id: 'apex-terminal', name: 'APEX Terminal', desc: 'APEX Trading', icon: Crosshair, category: 'tools', color: 'from-red-500 to-orange-600', component: APEXTerminal },
+  { id: 'settings', name: 'Settings', desc: 'ตั้งค่าแอป', icon: Settings, category: 'tools', color: 'from-gray-500 to-slate-600', component: SettingsPanel },
 ];
 
 export default function KapraoHub() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFeature, setSelectedFeature] = useState<FeatureType | null>(null);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
   // Filter features
@@ -333,7 +373,7 @@ export default function KapraoHub() {
                   KapraoHub
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  40 OpenClaw Features • Powered by AI
+                  {features.length} OpenClaw Features • Powered by AI
                 </p>
               </div>
             </div>
@@ -509,48 +549,37 @@ export default function KapraoHub() {
               transition={{ type: 'spring', damping: 25 }}
               onClick={(e) => e.stopPropagation()}
               className="
-                w-full max-w-2xl max-h-[80vh] overflow-auto
-                bg-white/95 dark:bg-gray-900/95
-                backdrop-blur-xl rounded-3xl
-                border border-white/20 dark:border-gray-700/50
+                w-full max-w-4xl max-h-[85vh] overflow-auto
+                bg-[#0a0a0f] rounded-3xl
+                border border-[#1a1a2e]
                 shadow-2xl
               "
             >
               {/* Modal Header */}
-              <div className="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+              <div className="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-[#1a1a2e] bg-[#0a0a0f]/95 backdrop-blur-sm">
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${selectedFeature.color} flex items-center justify-center`}>
                     <selectedFeature.icon size={22} className="text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{selectedFeature.name}</h2>
-                    <p className="text-sm text-gray-500">{selectedFeature.desc}</p>
+                    <h2 className="text-xl font-bold text-white">{selectedFeature.name}</h2>
+                    <p className="text-sm text-gray-400">{selectedFeature.desc}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setSelectedFeature(null)}
-                  className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  className="p-2 rounded-xl hover:bg-white/10 transition-colors"
                 >
-                  <X size={20} className="text-gray-500" />
+                  <X size={20} className="text-gray-400" />
                 </button>
               </div>
 
-              {/* Modal Content */}
-              <div className="p-6">
-                {/* Placeholder for actual feature content */}
-                <div className="
-                  flex flex-col items-center justify-center py-12
-                  bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900
-                  rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700
-                ">
-                  <selectedFeature.icon size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
-                  <p className="text-lg font-medium text-gray-500 dark:text-gray-400 mb-2">
-                    {selectedFeature.name}
-                  </p>
-                  <p className="text-sm text-gray-400 text-center max-w-md">
-                    ฟีเจอร์นี้กำลังพัฒนา — สามารถเพิ่ม component ที่เหมาะสมได้
-                  </p>
-                </div>
+              {/* Modal Content - Render actual component */}
+              <div className="p-6 bg-[#0a0a0f]">
+                {(() => {
+                  const Component = selectedFeature.component;
+                  return <Component />;
+                })()}
               </div>
             </motion.div>
           </motion.div>
