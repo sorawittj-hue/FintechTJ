@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
@@ -14,6 +13,7 @@ import {
   AlertTriangle,
   Globe,
   Loader2,
+  BookOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +29,7 @@ interface RiskAlert {
   description: string;
 }
 
-export function News() {
+function News() {
   const { t } = useTranslation();
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ export function News() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [riskAlerts, setRiskAlerts] = useState<RiskAlert[]>([]);
 
-  const fetchNews = async () => {
+  const fetchNews = useCallback(async () => {
     try {
       setRefreshing(true);
       // Fetch real news from CryptoCompare
@@ -59,31 +59,31 @@ export function News() {
       setRiskAlerts(alerts);
     } catch (error) {
       console.error('Error fetching news:', error);
-      toast.error('ไม่สามารถโหลดข่าวสารได้');
+      toast.error(t('dashboard.newsLoadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     fetchNews();
-    const interval = setInterval(fetchNews, 600000); // อัปเดตทุก 10 นาที
+    const interval = setInterval(fetchNews, 600000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNews]);
 
-  const getSentimentIcon = (sentiment?: string) => {
+  const getSentimentIcon = useCallback((sentiment?: string) => {
     switch (sentiment) {
       case 'positive':
-        return <TrendingUp size={14} className="text-green-500" />;
+        return <TrendingUp size={14} className="text-green-500" aria-hidden="true" />;
       case 'negative':
-        return <TrendingDown size={14} className="text-red-500" />;
+        return <TrendingDown size={14} className="text-red-500" aria-hidden="true" />;
       default:
-        return <Minus size={14} className="text-gray-400" />;
+        return <Minus size={14} className="text-gray-400" aria-hidden="true" />;
     }
-  };
+  }, []);
 
-  const getSentimentColor = (sentiment?: string) => {
+  const getSentimentColor = useCallback((sentiment?: string) => {
     switch (sentiment) {
       case 'positive':
         return 'bg-green-100 text-green-700 border-green-200';
@@ -92,27 +92,27 @@ export function News() {
       default:
         return 'bg-gray-100 text-gray-700 border-gray-200';
     }
-  };
+  }, []);
 
-  const getCategoryLabel = (categories: string[]) => {
-    if (categories.includes('BTC') || categories.includes('ETH')) return 'คริปโต';
-    if (categories.includes('Trading')) return 'เทรด';
-    return 'ข่าวทั่วไป';
-  };
+  const getCategoryLabel = useCallback((categories: string[]) => {
+    if (categories.includes('BTC') || categories.includes('ETH')) return t('dashboard.cryptoNews');
+    if (categories.includes('Trading')) return t('dashboard.tradingNews');
+    return t('dashboard.generalNews');
+  }, [t]);
 
-  const filteredNews = news.filter(item => {
+  const filteredNews = useMemo(() => news.filter(item => {
     if (activeFilter === 'all') return true;
     if (activeFilter === 'positive') return item.sentiment === 'positive';
     if (activeFilter === 'negative') return item.sentiment === 'negative';
     return true;
-  });
+  }), [news, activeFilter]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-[400px]" role="status" aria-label={t('dashboard.loadingNews')}>
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#ee7d54]" />
-          <p className="text-gray-500">กำลังโหลดข่าวสารจาก CryptoCompare...</p>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#ee7d54]" aria-hidden="true" />
+          <p className="text-gray-500">{t('dashboard.loadingNews')}</p>
         </div>
       </div>
     );
@@ -129,24 +129,29 @@ export function News() {
       >
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Newspaper className="text-[#ee7d54]" />
-            ข่าวสารตลาด
+            <Newspaper className="text-[#ee7d54]" aria-hidden="true" />
+            {t('dashboard.marketNews')}
           </h1>
-          <p className="text-gray-500">ข่าวล่าสุดจากแหล่งข้อมูลที่เชื่อถือได้</p>
+          <p className="text-gray-500">{t('dashboard.latestNews')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+          <div
+            className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg"
+            role="group"
+            aria-label={t('dashboard.category')}
+          >
             {(['all', 'positive', 'negative'] as const).map((filter) => (
               <button
                 key={filter}
                 onClick={() => setActiveFilter(filter)}
+                aria-pressed={activeFilter === filter}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   activeFilter === filter
                     ? 'bg-white shadow-sm text-gray-900'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {filter === 'all' ? 'ทั้งหมด' : filter === 'positive' ? 'บวก' : 'ลบ'}
+                {filter === 'all' ? t('dashboard.allFilter') : filter === 'positive' ? t('dashboard.positiveFilter') : t('dashboard.negativeFilter')}
               </button>
             ))}
           </div>
@@ -155,9 +160,10 @@ export function News() {
             size="sm"
             onClick={fetchNews}
             disabled={refreshing}
+            aria-label={refreshing ? t('common.loading') : t('common.refresh')}
           >
-            <RefreshCw size={14} className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            รีเฟรช
+            <RefreshCw size={14} className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
+            {t('common.refresh')}
           </Button>
         </div>
       </motion.div>
@@ -169,10 +175,12 @@ export function News() {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.5 }}
           className="bg-red-50 border border-red-100 rounded-2xl p-4"
+          role="alert"
+          aria-label={t('dashboard.riskWarning')}
         >
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="text-red-500" size={20} />
-            <h3 className="font-semibold text-red-700">การเตือนความเสี่ยง</h3>
+            <AlertTriangle className="text-red-500" size={20} aria-hidden="true" />
+            <h3 className="font-semibold text-red-700">{t('dashboard.riskWarning')}</h3>
           </div>
           <div className="space-y-2">
             {riskAlerts.map((alert) => (
@@ -189,7 +197,7 @@ export function News() {
                       : 'bg-blue-100 text-blue-700'
                   }`}
                 >
-                  {alert.level === 'high' ? 'สูง' : alert.level === 'medium' ? 'ปานกลาง' : 'ต่ำ'}
+                  {alert.level === 'high' ? t('dashboard.high') : alert.level === 'medium' ? t('dashboard.medium') : t('dashboard.low')}
                 </Badge>
                 <div className="flex-1">
                   <p className="font-medium text-sm">{alert.title}</p>
@@ -204,11 +212,17 @@ export function News() {
       {/* News Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main News Feed */}
-        <div className="lg:col-span-2 space-y-4">
+        <section className="lg:col-span-2 space-y-4" aria-label={t('dashboard.marketNews')}>
           {filteredNews.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <Globe size={48} className="mx-auto mb-4 opacity-50" />
-              <p>ไม่พบข่าวสารในขณะนี้</p>
+            <div className="text-center py-12 text-gray-400" role="status">
+              <Globe size={48} className="mx-auto mb-4 opacity-50" aria-hidden="true" />
+              <p>{t('dashboard.noNewsFound')}</p>
+              <button
+                onClick={fetchNews}
+                className="mt-4 text-sm text-[#ee7d54] hover:underline focus:outline-none focus:ring-2 focus:ring-[#ee7d54] focus:ring-offset-2 rounded"
+              >
+                {t('common.retry')}
+              </button>
             </div>
           ) : (
             filteredNews.map((item, index) => (
@@ -231,11 +245,12 @@ export function News() {
                         )}`}
                       >
                         {getSentimentIcon(item.sentiment)}
+                        <span className="sr-only">{t('dashboard.positive') + ', ' + t('dashboard.negative') + ', ' + t('dashboard.neutral')}: </span>
                         {item.sentiment === 'positive'
-                          ? 'บวก'
+                          ? t('dashboard.positive')
                           : item.sentiment === 'negative'
-                          ? 'ลบ'
-                          : 'กลาง'}
+                          ? t('dashboard.negative')
+                          : t('dashboard.neutral')}
                       </span>
                     </div>
 
@@ -244,7 +259,8 @@ export function News() {
                         href={item.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-[#ee7d54] transition-colors"
+                        className="hover:text-[#ee7d54] transition-colors focus:outline-none focus:ring-2 focus:ring-[#ee7d54] focus:ring-offset-1 rounded"
+                        aria-label={`${item.title} — ${item.sourceName}`}
                       >
                         {item.title}
                       </a>
@@ -259,11 +275,13 @@ export function News() {
                         <span className="font-medium">{item.sourceName}</span>
                         <span>•</span>
                         <span className="flex items-center gap-1">
-                          <Clock size={12} />
-                          {new Date(item.publishedAt).toLocaleString('th-TH', {
+                          <Clock size={12} aria-hidden="true" />
+                          <time dateTime={new Date(item.publishedAt).toISOString()}>
+                          {new Date(item.publishedAt).toLocaleString(undefined, {
                             dateStyle: 'short',
                             timeStyle: 'short',
                           })}
+                          </time>
                         </span>
                       </div>
 
@@ -281,9 +299,10 @@ export function News() {
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          className="p-1 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[#ee7d54]"
+                          aria-label={`${t('common.learnMore')} — ${item.title}`}
                         >
-                          <ExternalLink size={14} className="text-gray-400" />
+                          <ExternalLink size={14} className="text-gray-400" aria-hidden="true" />
                         </a>
                       </div>
                     </div>
@@ -305,69 +324,76 @@ export function News() {
               </motion.article>
             ))
           )}
-        </div>
+        </section>
 
         {/* Sidebar */}
-        <div className="space-y-4">
+        <aside className="space-y-4" aria-label={t('dashboard.category')}>
           {/* Categories */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Filter size={16} />
-                หมวดหมู่
+                <Filter size={16} aria-hidden="true" />
+                {t('dashboard.category')}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="space-y-2">
-                {['คริปโต', 'หุ้น', 'เศรษฐกิจ', 'เทคโนโลยี', 'กฎระเบียบ'].map(
-                  (category) => (
-                    <button
-                      key={category}
-                      className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors text-left"
-                    >
-                      <span className="text-sm">{category}</span>
-                      <span className="text-xs text-gray-400">
-                        {news.filter((n) =>
-                          n.categories.some((c) =>
-                            c.toLowerCase().includes(category.toLowerCase())
-                          )
-                        ).length}
-                      </span>
-                    </button>
-                  )
-                )}
-              </div>
+              <nav aria-label={t('dashboard.category')}>
+                <div className="space-y-2">
+                  {(t('dashboard.categories', { returnObjects: true }) as string[]).map(
+                    (category) => (
+                      <button
+                        key={category}
+                        className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors text-left focus:outline-none focus:ring-2 focus:ring-[#ee7d54] focus:ring-offset-1 rounded"
+                        aria-label={`${category}: ${news.filter((n) => n.categories.some((c) => c.toLowerCase().includes(category.toLowerCase()))).length} ${t('dashboard.items')}`}
+                      >
+                        <span className="text-sm">{category}</span>
+                        <span className="text-xs text-gray-400" aria-hidden="true">
+                          {news.filter((n) =>
+                            n.categories.some((c) =>
+                              c.toLowerCase().includes(category.toLowerCase())
+                            )
+                          ).length}
+                        </span>
+                      </button>
+                    )
+                  )}
+                </div>
+              </nav>
             </CardContent>
           </Card>
 
           {/* Sources */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">แหล่งข่าว</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <BookOpen size={14} aria-hidden="true" />
+                {t('dashboard.newsSource')}
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="space-y-2">
+              <ul className="space-y-2" aria-label={t('dashboard.newsSource')}>
                 {Array.from(new Set(news.map((n) => n.sourceName)))
                   .slice(0, 5)
                   .map((source) => (
-                    <div
+                    <li
                       key={source}
                       className="flex items-center gap-2 text-sm"
                     >
-                      <div className="w-2 h-2 rounded-full bg-[#ee7d54]" />
+                      <div className="w-2 h-2 rounded-full bg-[#ee7d54]" aria-hidden="true" />
                       <span>{source}</span>
-                    </div>
+                    </li>
                   ))}
-              </div>
+              </ul>
               <p className="text-xs text-gray-400 mt-3">
-                ข่าวจาก CryptoCompare API
+                {t('dashboard.poweredBy')}
               </p>
             </CardContent>
           </Card>
-        </div>
+        </aside>
       </div>
     </div>
   );
 }
 
-export default News;
+export { News };
+export default memo(News);

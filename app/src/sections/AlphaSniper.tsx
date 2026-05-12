@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -382,4 +382,4 @@ export function AlphaSniper() {
   );
 }
 
-export default AlphaSniper;
+export default memo(AlphaSniper);

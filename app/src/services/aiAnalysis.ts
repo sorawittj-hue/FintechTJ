@@ -228,6 +228,10 @@ async function setCachedResponseAsync(key: string, data: string, ttlMs = 5 * 60 
 // Configuration
 // ============================================================================
 
+// SECURITY NOTE: VITE_ prefixed vars are bundled into the client JS and visible
+// to anyone who inspects the bundle. In production, route AI requests through a
+// server-side proxy (e.g. /api/ai) and keep the real keys in the server env only.
+// These env vars are safe for local/dev use where the key is disposable.
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;

@@ -81,16 +81,24 @@ function HeaderSearch() {
     }
   };
 
+  const dropdownId = 'header-search-results';
+
   return (
     <div className="relative">
       <div className={`relative transition-all duration-300 ${isOpen ? 'w-64' : 'w-44'}`}>
         <Search
           size={15}
+          aria-hidden="true"
           className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${isOpen ? 'text-[#ee7d54]' : 'text-gray-400'}`}
         />
         <input
           ref={inputRef}
-          type="text"
+          type="search"
+          role="combobox"
+          aria-expanded={isOpen && filteredItems.length > 0}
+          aria-haspopup="listbox"
+          aria-controls={dropdownId}
+          aria-label={t('common.search')}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -106,11 +114,14 @@ function HeaderSearch() {
             }`}
         />
       </div>
-      
+
       {/* Search Results Dropdown */}
       <AnimatePresence>
         {isOpen && filteredItems.length > 0 && (
           <motion.div
+            id={dropdownId}
+            role="listbox"
+            aria-label="Search results"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -120,10 +131,12 @@ function HeaderSearch() {
             {filteredItems.map((item) => (
               <button
                 key={item.path}
+                role="option"
+                aria-selected={false}
                 onClick={() => handleSelect(item.path)}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
               >
-                <item.icon size={16} className="text-gray-400" />
+                <item.icon size={16} className="text-gray-400" aria-hidden="true" />
                 <span>{item.label}</span>
               </button>
             ))}

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
@@ -13,65 +14,76 @@ interface StatCardProps {
   className?: string;
 }
 
-export function StatCard({ 
-  title, 
-  value, 
-  change, 
+export const StatCard = memo(function StatCard({
+  title,
+  value,
+  change,
   changeValue,
-  subtitle, 
-  icon, 
+  subtitle,
+  icon,
   delay = 0,
   className = ''
 }: StatCardProps) {
   const isPositive = (change ?? 0) >= 0;
-  
+  const changeLabel = change !== undefined
+    ? `${isPositive ? '+' : ''}${change}%`
+    : '';
+  const changeValueLabel = changeValue !== undefined
+    ? ` ($${Math.abs(changeValue).toLocaleString()})`
+    : '';
+
   return (
     <motion.div
       initial={{ y: 30, opacity: 0, rotateX: -10 }}
       animate={{ y: 0, opacity: 1, rotateX: 0 }}
-      transition={{ 
-        delay, 
-        duration: 0.7, 
-        ease: [0.16, 1, 0.3, 1] 
+      transition={{
+        delay,
+        duration: 0.7,
+        ease: [0.16, 1, 0.3, 1]
       }}
-      whileHover={{ 
-        y: -5, 
+      whileHover={{
+        y: -5,
         boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
         transition: { duration: 0.3 }
       }}
       className={`bg-white rounded-3xl p-6 card-shadow ${className}`}
+      role="region"
+      aria-label={title}
     >
       <div className="flex items-start justify-between mb-4">
         <div>
           <p className="text-sm text-gray-500 mb-1">{title}</p>
-          <h3 className="text-2xl font-bold">{value}</h3>
+          <h3 className="text-2xl font-bold" aria-live="polite">{value}</h3>
         </div>
         {icon && (
-          <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center" aria-hidden="true">
             {icon}
           </div>
         )}
       </div>
-      
+
       {(change !== undefined || changeValue !== undefined) && (
         <div className="flex items-center gap-2">
-          <span className={`flex items-center gap-1 text-sm font-medium ${
-            isPositive ? 'text-green-500' : 'text-red-500'
-          }`}>
-            {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-            {change !== undefined && `${isPositive ? '+' : ''}${change}%`}
-            {changeValue !== undefined && ` ($${Math.abs(changeValue).toLocaleString()})`}
+          <span
+            className={`flex items-center gap-1 text-sm font-medium ${
+              isPositive ? 'text-green-500' : 'text-red-500'
+            }`}
+            aria-label={`24h change: ${changeLabel}${changeValueLabel}, ${isPositive ? 'up' : 'down'}`}
+          >
+            {isPositive ? <TrendingUp size={14} aria-hidden="true" /> : <TrendingDown size={14} aria-hidden="true" />}
+            {changeLabel}
+            {changeValueLabel}
           </span>
-          <span className="text-xs text-gray-400">24h</span>
+          <span className="text-xs text-gray-400" aria-hidden="true">24h</span>
         </div>
       )}
-      
+
       {subtitle && (
         <p className="text-xs text-gray-400 mt-2">{subtitle}</p>
       )}
     </motion.div>
   );
-}
+});
 
 interface MiniChartCardProps {
   title: string;
@@ -81,7 +93,7 @@ interface MiniChartCardProps {
   delay?: number;
 }
 
-export function MiniChartCard({ title, value, change, data, delay = 0 }: MiniChartCardProps) {
+export const MiniChartCard = memo(function MiniChartCard({ title, value, change, data, delay = 0 }: MiniChartCardProps) {
   const isPositive = change >= 0;
   const max = Math.max(...data);
   const min = Math.min(...data);
@@ -135,7 +147,7 @@ export function MiniChartCard({ title, value, change, data, delay = 0 }: MiniCha
       </svg>
     </motion.div>
   );
-}
+});
 
 interface ProgressRingCardProps {
   title: string;
@@ -146,7 +158,7 @@ interface ProgressRingCardProps {
   delay?: number;
 }
 
-export function ProgressRingCard({ title, value, total, label, sublabel, delay = 0 }: ProgressRingCardProps) {
+export const ProgressRingCard = memo(function ProgressRingCard({ title, value, total, label, sublabel, delay = 0 }: ProgressRingCardProps) {
   const percentage = (value / total) * 100;
   const circumference = 2 * Math.PI * 40;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
@@ -161,8 +173,8 @@ export function ProgressRingCard({ title, value, total, label, sublabel, delay =
     >
       <p className="text-sm text-gray-500 mb-4">{title}</p>
       
-      <div className="relative w-28 h-28">
-        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+      <div className="relative w-28 h-28" role="img" aria-label={`${title}: ${value}% of ${total}`}>
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
           <circle
             cx="50"
             cy="50"
@@ -185,7 +197,7 @@ export function ProgressRingCard({ title, value, total, label, sublabel, delay =
             transition={{ delay: delay + 0.3, duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
           />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden="true">
           <span className="text-xl font-bold">{value}%</span>
           <span className="text-xs text-gray-400">{label}</span>
         </div>
@@ -196,4 +208,4 @@ export function ProgressRingCard({ title, value, total, label, sublabel, delay =
       )}
     </motion.div>
   );
-}
+});

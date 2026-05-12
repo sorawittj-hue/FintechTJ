@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
@@ -283,12 +283,12 @@ function Market() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4 relative">
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
-            <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-900 text-orange-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
-              <List size={20} />
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700" role="group" aria-label="View mode">
+            <button onClick={() => setViewMode('list')} aria-pressed={viewMode === 'list'} aria-label="List view" className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-900 text-orange-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+              <List size={20} aria-hidden="true" />
             </button>
-            <button onClick={() => setViewMode('grid')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-900 text-orange-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
-              <LayoutGrid size={20} />
+            <button onClick={() => setViewMode('grid')} aria-pressed={viewMode === 'grid'} aria-label="Grid view" className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-900 text-orange-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+              <LayoutGrid size={20} aria-hidden="true" />
             </button>
           </div>
           <div className="relative flex-1 md:w-80">
@@ -300,8 +300,8 @@ function Market() {
               className="pl-12 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none font-black text-sm uppercase shadow-inner"
             />
           </div>
-          <Button onClick={fetchAllData} disabled={refreshing} className="h-14 w-14 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 shrink-0 shadow-xl border border-slate-700">
-            <RefreshCw size={24} className={refreshing ? 'animate-spin' : ''} />
+          <Button onClick={fetchAllData} disabled={refreshing} aria-label={refreshing ? 'Refreshing data...' : 'Refresh market data'} className="h-14 w-14 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 shrink-0 shadow-xl border border-slate-700">
+            <RefreshCw size={24} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />
           </Button>
         </div>
       </div>
@@ -527,7 +527,7 @@ interface MarketItemProps {
   onClick?: () => void;
 }
 
-function MarketCard({ asset, idx, userCurrency, convert, isWatched, onToggleWatch, onClick }: MarketItemProps) {
+const MarketCard = memo(function MarketCard({ asset, idx, userCurrency, convert, isWatched, onToggleWatch, onClick }: MarketItemProps) {
   const isUp = asset.change24hPercent >= 0;
   const convertedPrice = convert(asset.priceUSD, userCurrency);
   
@@ -539,11 +539,13 @@ function MarketCard({ asset, idx, userCurrency, convert, isWatched, onToggleWatc
       onClick={onClick}
       className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-lg hover:shadow-2xl transition-all group relative cursor-pointer"
     >
-      <button 
-        onClick={onToggleWatch}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleWatch(); }}
+        aria-label={isWatched ? `Remove ${asset.symbol} from watchlist` : `Add ${asset.symbol} to watchlist`}
+        aria-pressed={isWatched}
         className={`absolute top-6 right-6 p-2 rounded-xl transition-all ${isWatched ? 'text-yellow-500' : 'text-slate-300 hover:text-orange-500'}`}
       >
-        <Star size={18} fill={isWatched ? 'currentColor' : 'none'} />
+        <Star size={18} fill={isWatched ? 'currentColor' : 'none'} aria-hidden="true" />
       </button>
 
       <div className="flex items-center gap-4 mb-6">
@@ -586,9 +588,9 @@ function MarketCard({ asset, idx, userCurrency, convert, isWatched, onToggleWatc
       </div>
     </motion.div>
   );
-}
+});
 
-function MarketRow({ asset, idx, userCurrency, convert, isWatched, onToggleWatch, onClick }: MarketItemProps) {
+const MarketRow = memo(function MarketRow({ asset, idx, userCurrency, convert, isWatched, onToggleWatch, onClick }: MarketItemProps) {
   const isUp = asset.change24hPercent >= 0;
   const convertedPrice = convert(asset.priceUSD, userCurrency);
   
@@ -642,19 +644,21 @@ function MarketRow({ asset, idx, userCurrency, convert, isWatched, onToggleWatch
         </p>
       </td>
       <td className="py-5 px-8 text-center">
-        <button 
-          onClick={onToggleWatch}
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleWatch(); }}
+          aria-label={isWatched ? `Remove ${asset.symbol} from watchlist` : `Add ${asset.symbol} to watchlist`}
+          aria-pressed={isWatched}
           className={`p-3 rounded-2xl transition-all ${
             isWatched
             ? 'bg-yellow-500 text-white shadow-xl shadow-yellow-500/20'
             : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-orange-500'
           }`}
         >
-          <Star size={18} fill={isWatched ? 'currentColor' : 'none'} />
+          <Star size={18} fill={isWatched ? 'currentColor' : 'none'} aria-hidden="true" />
         </button>
       </td>
     </motion.tr>
   );
-}
+});
 
-export default Market;
+export default memo(Market);
