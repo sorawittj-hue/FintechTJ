@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
@@ -159,7 +159,7 @@ async function fetchM2History(): Promise<LiquidityData[]> {
   } catch { return []; }
 }
 
-export default function MacroWorld() {
+function MacroWorld() {
   const { t } = useTranslation();
   const [indicators, setIndicators] = useState<MacroIndicator[]>([]);
   const [liquidityData, setLiquidityData] = useState<LiquidityData[]>([]);
@@ -294,3 +294,5 @@ export default function MacroWorld() {
     </div>
   );
 }
+
+export default memo(MacroWorld);

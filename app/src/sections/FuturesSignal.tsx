@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -774,7 +774,7 @@ function DiagnosticsOverview({ diagnostics, summary }: { diagnostics: FuturesSig
 
 type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OIL';
 
- export default function FuturesSignalSection() {
+ function FuturesSignalSection() {
   const { t } = useTranslation();
   const [signals, setSignals] = useState<FuturesSignal[]>([]);
   const [summary, setSummary] = useState<FuturesSignalSummary | null>(null);
@@ -1162,3 +1162,5 @@ type FilterType = 'all' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'CRYPTO' | 'GOLD' | 'OI
     </div>
   );
 }
+
+export default memo(FuturesSignalSection);

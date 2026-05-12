@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import {
   ShieldAlert,
@@ -472,4 +473,4 @@ export function DefconMonitor() {
   );
 }
 
-export default DefconMonitor;
+export default memo(DefconMonitor);
