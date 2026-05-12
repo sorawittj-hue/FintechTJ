@@ -321,17 +321,22 @@ function DashboardHome() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[70vh] bg-white dark:bg-[#09090b]">
+      <div
+        className="flex items-center justify-center min-h-[70vh] bg-white dark:bg-[#09090b]"
+        role="status"
+        aria-label="Initializing APEX Terminal"
+        aria-live="polite"
+      >
         <div className="text-center space-y-6">
           <div className="relative">
-            <div className="w-24 h-24 mx-auto rounded-[2rem] bg-slate-900 border border-slate-800 flex items-center justify-center shadow-2xl">
+            <div className="w-24 h-24 mx-auto rounded-[2rem] bg-slate-900 border border-slate-800 flex items-center justify-center shadow-2xl" aria-hidden="true">
               <Terminal className="w-10 h-10 text-[#f59e0b] animate-pulse" />
             </div>
-            <div className="absolute top-0 right-0 w-8 h-8 bg-[#f59e0b]/10 rounded-full blur-xl animate-pulse" />
+            <div className="absolute top-0 right-0 w-8 h-8 bg-[#f59e0b]/10 rounded-full blur-xl animate-pulse" aria-hidden="true" />
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-black dark:text-white uppercase tracking-[0.2em] italic">Initializing APEX</h2>
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2" aria-hidden="true">
               <div className="w-1 h-1 bg-[#f59e0b] rounded-full animate-bounce" />
               <div className="w-1 h-1 bg-[#f59e0b] rounded-full animate-bounce [animation-delay:0.2s]" />
               <div className="w-1 h-1 bg-[#f59e0b] rounded-full animate-bounce [animation-delay:0.4s]" />
@@ -383,15 +388,17 @@ function DashboardHome() {
               variant="ghost"
               size="icon"
               onClick={handleRefresh}
+              aria-label={refreshing ? 'Refreshing dashboard data…' : 'Refresh dashboard data'}
               className="h-10 w-10 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 group"
             >
-              <RefreshCw size={18} className={refreshing ? 'animate-spin text-[#f59e0b]' : 'text-slate-500 group-hover:text-[#f59e0b] transition-colors'} />
+              <RefreshCw size={18} aria-hidden="true" className={refreshing ? 'animate-spin text-[#f59e0b]' : 'text-slate-500 group-hover:text-[#f59e0b] transition-colors'} />
             </Button>
             <Button
               onClick={() => setIsDepositOpen(true)}
+              aria-label="Add new portfolio entry"
               className="h-10 rounded-xl bg-[#f59e0b] hover:bg-[#d97706] text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-[#f59e0b]/20 btn-hover-effect"
             >
-              <Plus size={16} className="mr-2" />
+              <Plus size={16} aria-hidden="true" className="mr-2" />
               New Entry
             </Button>
           </div>

@@ -372,11 +372,15 @@ export function PortfolioManager() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                     {filteredAssets.map((asset: Asset & { pnl: number; pnlPercent: number; portfolioWeight: number; currentValue: number }) => (
-                      <tr 
-                      key={asset.id} 
-                      onClick={() => setSelectedSymbol(asset.symbol)}
-                      className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors duration-200 cursor-pointer"
-                    >
+                      <tr
+                        key={asset.id}
+                        onClick={() => setSelectedSymbol(asset.symbol)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedSymbol(asset.symbol); }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`View details for ${asset.symbol} — ${asset.name}`}
+                        className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors duration-200 cursor-pointer focus:outline-none focus:bg-slate-50 dark:focus:bg-slate-800/30"
+                      >
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
@@ -424,16 +428,19 @@ export function PortfolioManager() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => setWithdrawAssetId(asset.id)}
+                              onClick={(e) => { e.stopPropagation(); setWithdrawAssetId(asset.id); }}
+                              aria-label={`Withdraw/sell ${asset.symbol}`}
                               className="h-9 w-9 rounded-xl hover:bg-amber-500/10 text-slate-400 hover:text-amber-600 transition-colors"
                             >
-                              <Minus size={16} />
+                              <Minus size={16} aria-hidden="true" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               disabled={deletingAssetId === asset.id}
-                              onClick={async () => {
+                              aria-label={`Remove ${asset.symbol} from portfolio`}
+                              onClick={async (e) => {
+                                e.stopPropagation();
                                 setDeletingAssetId(asset.id);
                                 try {
                                   await removeAsset(asset.id);
@@ -445,9 +452,9 @@ export function PortfolioManager() {
                               className="h-9 w-9 rounded-xl hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 transition-colors"
                             >
                               {deletingAssetId === asset.id ? (
-                                <Loader2 size={16} className="animate-spin" />
+                                <Loader2 size={16} className="animate-spin" aria-hidden="true" />
                               ) : (
-                                <Trash2 size={16} />
+                                <Trash2 size={16} aria-hidden="true" />
                               )}
                             </Button>
                           </div>
