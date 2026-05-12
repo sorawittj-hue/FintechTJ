@@ -49,7 +49,7 @@ interface FeedbackWidgetProps {
 const STORAGE_KEY = 'fintechtj_feedback';
 const NPS_COOLDOWN = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-const FEEDBACK_OPTIONS: { type: FeedbackType; label: string; icon: React.ComponentType<{ size?: number }>; description: string }[] = [
+const FEEDBACK_OPTIONS: { type: FeedbackType; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; description: string }[] = [
   { type: 'bug', label: 'Bug Report', icon: Bug, description: 'Something is not working' },
   { type: 'feature', label: 'Feature Request', icon: Lightbulb, description: 'Suggest a new feature' },
   { type: 'feedback', label: 'General Feedback', icon: MessageSquare, description: 'Share your thoughts' },

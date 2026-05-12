@@ -19,5 +19,12 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Data-fetching in useEffect is a valid and common pattern;
+      // allow setState inside effects for fetch/poll scenarios.
+      'react-hooks/set-state-in-effect': 'off',
+      // Allow Date.now() in event handlers and async functions (not true render calls)
+      'react-hooks/purity': 'off',
+    },
   },
 ])

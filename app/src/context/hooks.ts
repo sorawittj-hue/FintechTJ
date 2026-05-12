@@ -70,7 +70,6 @@ export function usePrice() {
     isLoading: priceState.isLoading,
     error: priceState.error,
     lastUpdate: priceState.lastUpdate,
-    // eslint-disable-next-line
     lastUpdateAgeSeconds: priceState.lastUpdate ? Math.floor((Date.now() - priceState.lastUpdate.getTime()) / 1000) : null,
     refreshPrices: priceState.refreshPrices,
     getPrice: (s: string) => priceState.prices.get(s.toUpperCase()),

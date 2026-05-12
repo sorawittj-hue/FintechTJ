@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 
 // =============================================================================
@@ -92,12 +92,6 @@ function formatPrice(price: number): string {
   }
 }
 
-function formatVolume(volume: number): string {
-  if (volume >= 1e9) return `$${(volume / 1e9).toFixed(1)}B`;
-  if (volume >= 1e6) return `$${(volume / 1e6).toFixed(1)}M`;
-  if (volume >= 1e3) return `$${(volume / 1e3).toFixed(1)}K`;
-  return `$${volume.toFixed(0)}`;
-}
 
 function getHeatmapStyle(percentChange: number): { bg: string; border: string; text: string; gradient: string } {
   if (percentChange >= 5) {
@@ -331,9 +325,7 @@ export function MarketHeatmap({ onAssetClick }: MarketHeatmapProps) {
     });
   }, [sortedAssets]);
 
-  // Separate large/medium from small for grid layout
-  const topAssets = assetsWithSize.filter(a => a.size !== 'small');
-  const bottomAssets = assetsWithSize.filter(a => a.size === 'small');
+  // assetsWithSize is split in the grid: first 4 as top, rest as bottom
 
   return (
     <div className="w-full">

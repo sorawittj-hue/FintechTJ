@@ -115,10 +115,10 @@ const SUITE_GROUPS: NavGroup[] = [
   },
 ];
 
-const BOTTOM_NAV: { icon: NavItem['icon']; labelKey: string; path: string }[] = [
-  { icon: Shield, labelKey: 'nav.crisisGuide', path: '/crisis' },
-  { icon: HelpCircle, labelKey: 'nav.help', path: '/help' },
-  { icon: Settings, labelKey: 'nav.settings', path: '/settings' },
+const BOTTOM_NAV: NavItem[] = [
+  { id: 'crisis', icon: Shield, labelKey: 'nav.crisisGuide', path: '/crisis' },
+  { id: 'help', icon: HelpCircle, labelKey: 'nav.help', path: '/help' },
+  { id: 'settings', icon: Settings, labelKey: 'nav.settings', path: '/settings' },
 ];
 
 // ─── Sub-item list (memoized) ────────────────────────────────────────────────

@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Trophy, TrendingUp, TrendingDown, BarChart } from 'lucide-react';
+import { Trophy, BarChart } from 'lucide-react';
 
 interface Crypto {
   rank: number;

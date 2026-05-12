@@ -200,7 +200,7 @@ export function AlphaSniper() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {Object.entries(stats?.byType || {}).map(([type, count]) => (
+                  {Object.entries(stats?.byType || {} as Record<string, number>).map(([type, count]) => (
                     <button
                       key={type}
                       onClick={() => setSelectedType(selectedType === type ? 'all' : type)}

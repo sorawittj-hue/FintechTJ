@@ -76,7 +76,7 @@ export async function openclawChat(
     if (!response.ok) throw new Error('OpenClaw not reachable');
     const data = await response.json();
     return data.result?.content || 'ไม่สามารถติดต่อ OpenClaw ได้';
-  } catch (error) {
+  } catch {
     // Fallback: return offline message
     return '🤖 OpenClaw ออฟไลน์ — กรุณาเชื่อมต่อ PC ที่รัน OpenClaw';
   }

@@ -118,7 +118,7 @@ export function PortfolioManager() {
   // State for asset detail modal
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
 
-  const assetMetrics = useMemo(() => {
+  const assetMetrics = useMemo((): (Asset & { currentValue: number; pnl: number; pnlPercent: number; portfolioWeight: number })[] => {
     return assets.map((asset: Asset) => {
       const currentValue = asset.value;
       const invested = (asset.quantity || 0) * (asset.avgPrice || 0);
@@ -320,7 +320,7 @@ export function PortfolioManager() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {hasAssets ? topPerformers.map((asset: Asset & { pnl: number; pnlPercent: number; portfolioWeight: number }) => (
+                  {hasAssets ? topPerformers.map((asset: Asset & { pnl: number; pnlPercent: number; portfolioWeight: number; currentValue: number }) => (
                     <div key={asset.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white text-xs font-bold">
@@ -371,7 +371,7 @@ export function PortfolioManager() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                    {filteredAssets.map((asset: Asset & { pnl: number; pnlPercent: number; portfolioWeight: number }) => (
+                    {filteredAssets.map((asset: Asset & { pnl: number; pnlPercent: number; portfolioWeight: number; currentValue: number }) => (
                       <tr 
                       key={asset.id} 
                       onClick={() => setSelectedSymbol(asset.symbol)}
@@ -579,7 +579,7 @@ export function PortfolioManager() {
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleTransactions.map((tx: { id: string; symbol: string; type: string; quantity: number; price: number; value: number; timestamp: string | number }) => (
+                      {visibleTransactions.map((tx) => (
                         <tr key={tx.id} className="border-b border-gray-50 dark:border-gray-800">
                           <td className="py-3 px-4 text-sm text-gray-500">
                             {new Date(tx.timestamp).toLocaleDateString()}

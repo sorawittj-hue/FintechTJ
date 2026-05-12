@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, Calendar, Target, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, Target } from 'lucide-react';
 
 interface Forecast {
   asset: string;

@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Users, TrendingUp, TrendingDown } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 interface RatioData {
   exchange: string;

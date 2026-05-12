@@ -6,8 +6,8 @@
  * - usePortfolioStore (User's real portfolio from localStorage/Supabase)
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
   TrendingUp,
   TrendingDown,
@@ -16,10 +16,8 @@ import {
   Wallet,
   Newspaper,
   BarChart3,
-  RefreshCw,
   Bell,
   Star,
-  Calendar,
   Globe,
   Fish,
   ArrowUpRight,
@@ -31,13 +29,13 @@ import {
   Trash2,
   Check,
   X,
-  ChevronDown,
   Coins,
   Layers,
-  ExternalLink,
 } from 'lucide-react';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { usePriceStore } from '@/store/usePriceStore';
+import type { CryptoPrice } from '@/services/binance';
+import type { PortfolioAsset, Alert } from '@/types';
 
 // ==================== TYPES ====================
 
@@ -124,7 +122,7 @@ const SYMBOL_MAP: Record<string, { name: string; icon: string; binanceSymbol: st
 
 // ==================== DATA GENERATORS ====================
 
-function generateSignals(prices: Map<string, any>): Signal[] {
+function generateSignals(prices: Map<string, CryptoPrice>): Signal[] {
   const signals: Signal[] = [];
   const now = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
@@ -262,8 +260,7 @@ function CryptoRow({ data }: { data: PriceData }) {
   );
 }
 
-function PortfolioRow({ asset, priceData }: { asset: any; priceData: any }) {
-  const isPositive = asset.profitLossPercent >= 0;
+function PortfolioRow({ asset, priceData }: { asset: PortfolioAsset; priceData: CryptoPrice | undefined }) {
   const currentPrice = priceData?.price || asset.currentPrice || asset.avgPrice;
   const value = asset.quantity * currentPrice;
   const cost = asset.quantity * asset.avgPrice;
@@ -369,14 +366,14 @@ function WhaleRow({ tx }: { tx: WhaleTx }) {
   );
 }
 
-function PortfolioCard({ holdings, prices }: { holdings: any[]; prices: Map<string, any> }) {
-  const totalValue = holdings.reduce((sum: number, h: any) => {
+function PortfolioCard({ holdings, prices }: { holdings: PortfolioAsset[]; prices: Map<string, CryptoPrice> }) {
+  const totalValue = holdings.reduce((sum: number, h: PortfolioAsset) => {
     const priceData = prices.get(h.symbol);
     const currentPrice = priceData?.price || h.currentPrice || h.avgPrice || 0;
     return sum + (h.quantity * currentPrice);
   }, 0);
 
-  const totalCost = holdings.reduce((sum: number, h: any) => sum + (h.quantity * h.avgPrice), 0);
+  const totalCost = holdings.reduce((sum: number, h: PortfolioAsset) => sum + (h.quantity * h.avgPrice), 0);
   const totalPnL = totalValue - totalCost;
   const totalPnLPercent = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
 
@@ -404,7 +401,7 @@ function PortfolioCard({ holdings, prices }: { holdings: any[]; prices: Map<stri
             <p className="text-xs">เพิ่ม holdings จากหน้า Portfolio</p>
           </div>
         ) : (
-          holdings.map((h: any) => (
+          holdings.map((h: PortfolioAsset) => (
             <PortfolioRow key={h.id || h.symbol} asset={h} priceData={prices.get(h.symbol)} />
           ))
         )}
@@ -413,18 +410,18 @@ function PortfolioCard({ holdings, prices }: { holdings: any[]; prices: Map<stri
   );
 }
 
-function PerformanceCard({ holdings, prices }: { holdings: any[]; prices: Map<string, any> }) {
+function PerformanceCard({ holdings, prices }: { holdings: PortfolioAsset[]; prices: Map<string, CryptoPrice> }) {
   const btc = prices.get('BTC');
   const eth = prices.get('ETH');
   const sol = prices.get('SOL');
 
-  const totalValue = holdings.reduce((sum: number, h: any) => {
+  const totalValue = holdings.reduce((sum: number, h: PortfolioAsset) => {
     const priceData = prices.get(h.symbol);
     const currentPrice = priceData?.price || h.currentPrice || h.avgPrice || 0;
     return sum + (h.quantity * currentPrice);
   }, 0);
 
-  const totalCost = holdings.reduce((sum: number, h: any) => sum + (h.quantity * h.avgPrice), 0);
+  const totalCost = holdings.reduce((sum: number, h: PortfolioAsset) => sum + (h.quantity * h.avgPrice), 0);
   const portfolioReturn = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
 
   const btcReturn = btc?.change24hPercent || 0;
@@ -522,7 +519,7 @@ function NewsCard({ news }: { news: NewsItem[] }) {
   );
 }
 
-function AlertsCard({ alerts, onRemove, onToggle }: { alerts: any[]; onRemove: (id: string) => void; onToggle: (id: string) => void }) {
+function AlertsCard({ alerts, onRemove, onToggle }: { alerts: Alert[]; onRemove: (id: string) => void; onToggle: (id: string) => void }) {
   const [showForm, setShowForm] = useState(false);
   const [newAlert, setNewAlert] = useState({ symbol: 'BTC', targetPrice: '', condition: 'above' as 'above' | 'below' });
 
@@ -530,6 +527,7 @@ function AlertsCard({ alerts, onRemove, onToggle }: { alerts: any[]; onRemove: (
     if (!newAlert.targetPrice) return;
     const { addAlert } = usePortfolioStore.getState();
     addAlert({
+      type: 'price',
       symbol: newAlert.symbol,
       condition: newAlert.condition,
       value: parseFloat(newAlert.targetPrice),
@@ -721,7 +719,7 @@ function DeFiCard({ protocols }: { protocols: DeFiProtocol[] }) {
   );
 }
 
-function RiskCalculator({ prices }: { prices: Map<string, any> }) {
+function RiskCalculator({ prices }: { prices: Map<string, CryptoPrice> }) {
   const [capital, setCapital] = useState('10000');
   const [riskPercent, setRiskPercent] = useState('2');
   const [symbol, setSymbol] = useState('BTC');
@@ -864,26 +862,14 @@ function TechnicalIndicator({ label, value, status }: { label: string; value: st
 
 export default function KapraoHub() {
   // Use REAL stores
-  const { assets: holdings, alerts, summary } = usePortfolioStore();
-  const { prices, allPrices, lastUpdate, isLoading: priceLoading } = usePriceStore();
-  
-  const [signals, setSignals] = useState<Signal[]>([]);
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [icoTokens, setIcoTokens] = useState<ICOToken[]>([]);
-  const [defiProtocols, setDefiProtocols] = useState<DeFiProtocol[]>([]);
+  const { assets: holdings, alerts } = usePortfolioStore();
+  const { prices, lastUpdate, isLoading: priceLoading } = usePriceStore();
 
-  // Generate derived data
-  useEffect(() => {
-    if (prices.size > 0) {
-      setSignals(generateSignals(prices));
-    }
-  }, [prices]);
-
-  useEffect(() => {
-    setNews(generateNews());
-    setIcoTokens(generateICOTokens());
-    setDefiProtocols(generateDeFiProtocols());
-  }, []);
+  // Generate derived data with useMemo to avoid setState-in-effect anti-pattern
+  const signals = useMemo(() => prices.size > 0 ? generateSignals(prices) : [], [prices]);
+  const news = useMemo(() => generateNews(), []);
+  const icoTokens = useMemo(() => generateICOTokens(), []);
+  const defiProtocols = useMemo(() => generateDeFiProtocols(), []);
 
   // Calculate live prices list
   const pricesList = useMemo(() => {
@@ -897,11 +883,11 @@ export default function KapraoHub() {
           icon: info.icon,
           price: priceData.price || 0,
           change24h: priceData.change24hPercent || 0,
-          change7d: priceData.change7dPercent || 0,
+          change7d: 0,
           high24h: priceData.high24h || 0,
           low24h: priceData.low24h || 0,
-          volume: priceData.quoteVolume || 0,
-          marketCap: priceData.quoteVolume ? priceData.quoteVolume * 0.3 : 0,
+          volume: priceData.quoteVolume24h || 0,
+          marketCap: priceData.quoteVolume24h ? priceData.quoteVolume24h * 0.3 : 0,
         });
       }
     });

@@ -9,13 +9,12 @@
  */
 
 import { useState } from 'react';
-import { Play, Pause, RotateCcw, TrendingUp, TrendingDown } from 'lucide-react';
+import { Play, RotateCcw, TrendingUp, TrendingDown } from 'lucide-react';
 
 export default function TradeSimulator() {
   const [balance, setBalance] = useState(10000);
   const [position, setPosition] = useState<{type: 'long' | 'short' | null; entry: number; size: number}>({ type: null, entry: 0, size: 0 });
   const [currentPrice, setCurrentPrice] = useState(66400);
-  const [running, setRunning] = useState(false);
 
   const openPosition = (type: 'long' | 'short') => {
     setPosition({ type, entry: currentPrice, size: balance / currentPrice });
@@ -35,7 +34,6 @@ export default function TradeSimulator() {
     setBalance(10000);
     setPosition({ type: null, entry: 0, size: 0 });
     setCurrentPrice(66400);
-    setRunning(false);
   };
 
   const pnl = position.type === 'long' 

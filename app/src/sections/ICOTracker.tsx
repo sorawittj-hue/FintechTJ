@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Rocket, Clock, TrendingUp, Star } from 'lucide-react';
+import { Rocket, Clock, TrendingUp } from 'lucide-react';
 
 interface ICO {
   name: string;

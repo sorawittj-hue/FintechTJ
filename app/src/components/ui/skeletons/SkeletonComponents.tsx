@@ -22,6 +22,7 @@ type SkeletonVariant = 'default' | 'pulse' | 'shimmer' | 'wave';
 interface SkeletonProps {
   className?: string;
   variant?: SkeletonVariant;
+  style?: Record<string, string | number>;
 }
 
 // ============================================================================
@@ -38,6 +39,7 @@ const variantClasses: Record<SkeletonVariant, string> = {
 export const Skeleton = memo(function Skeleton({
   className,
   variant = 'default',
+  style,
 }: SkeletonProps) {
   return (
     <div
@@ -46,6 +48,7 @@ export const Skeleton = memo(function Skeleton({
         variantClasses[variant],
         className
       )}
+      style={style}
     />
   );
 });

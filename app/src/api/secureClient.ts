@@ -49,7 +49,7 @@ function getRequestKey(config: ProxyRequestConfig): string {
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
 function checkRateLimit(service: ApiService): boolean {
-  const limit = rateLimits[service];
+  const limit = (rateLimits as Record<string, { requests: number; window: number } | undefined>)[service];
   if (!limit) return true;
 
   const now = Date.now();
@@ -169,7 +169,7 @@ export async function proxyRequest<T = unknown>(
       'Content-Type': 'application/json',
       ...config.headers,
     },
-    ...(config.body && { body: JSON.stringify(config.body) }),
+    ...(config.body !== undefined ? { body: JSON.stringify(config.body) } : {}),
   };
 
   // Create the request promise

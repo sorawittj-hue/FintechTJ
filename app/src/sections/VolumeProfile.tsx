@@ -77,7 +77,7 @@ export default function VolumeProfile() {
 
       {/* Volume Bars */}
       <div className="space-y-1">
-        {[...profile].reverse().map((level, i) => (
+        {[...profile].reverse().map((level) => (
           <div key={level.price} className="flex items-center gap-2">
             <span className="w-16 text-xs text-gray-400 text-right">
               ${level.price.toLocaleString()}

@@ -22,13 +22,12 @@ import { binanceAPI, type CryptoPrice, type KlineData, type OrderBook } from './
 import {
   fetchCryptoPrices,
   fetchWhaleTransactions,
-  fetchCryptoNews,
   fetchGlobalMarketData,
   type RealTimePrice,
   type WhaleTransaction,
-  type NewsItem,
   type GlobalMarketData,
 } from './realDataService';
+import { fetchCryptoNews, type NewsItem } from './realTimeData';
 import { aiAnalysisService, type MarketAnalysis, type PortfolioAnalysis } from './aiAnalysis';
 import type { NewsArticle } from '@/api/newsapi';
 import { globalRateLimiter } from '@/api/rateLimiter';

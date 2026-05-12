@@ -45,7 +45,6 @@ export function CandlestickChart({ data, isLoading, height = DEFAULT_HEIGHT }: C
    * Creates and configures the chart instance.
    * Called once on mount, never recreated on data changes.
    */
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const createChartInstance = useCallback(() => {
     if (!containerRef.current) return;
 
@@ -102,7 +101,8 @@ export function CandlestickChart({ data, isLoading, height = DEFAULT_HEIGHT }: C
       series.setData(data);
       chart.timeScale().fitContent();
     }
-  }, [height]); // Only recreate if height changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [height]); // Only recreate if height changes; data is handled by a separate effect
 
   /**
    * Updates chart data when it changes.

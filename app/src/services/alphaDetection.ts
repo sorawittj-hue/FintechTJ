@@ -54,10 +54,11 @@ export interface AlphaOpportunity {
 export interface AlphaStats {
   totalOpportunities: number;
   avgScore: number;
-  highConvictionCount: number; 
+  highConvictionCount: number;
   avgRiskReward: number;
   isAvailable: boolean;
   statusMessage: string;
+  byType?: Record<string, number>;
 }
 
 /**

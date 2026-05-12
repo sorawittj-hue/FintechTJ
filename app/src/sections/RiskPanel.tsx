@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { Shield, AlertTriangle, TrendingDown, Percent, Activity } from 'lucide-react';
+import { Shield, AlertTriangle, TrendingDown, Activity } from 'lucide-react';
 
 interface RiskMetric {
   label: string;
