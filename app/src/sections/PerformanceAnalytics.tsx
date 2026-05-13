@@ -56,10 +56,15 @@ export default function PerformanceAnalytics() {
   const daysFor = (label: string) => periods.find(p => p.label === label)?.days ?? 30;
   const days = daysFor(period);
 
+  const symbolsKey = useMemo(() =>
+    Array.from(new Set(portfolio.assets.map(a => a.symbol).filter(s => s !== 'USDT' && s !== 'USDC'))).sort().join(','),
+    [portfolio.assets]
+  );
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const symbols = Array.from(new Set(portfolio.assets.map(a => a.symbol).filter(s => s !== 'USDT' && s !== 'USDC')));
+      const symbols = symbolsKey ? symbolsKey.split(',') : [];
       const [btc, ...asset] = await Promise.all([
         binanceAPI.getKlines('BTC', '1d', days),
         ...symbols.map(s => binanceAPI.getKlines(s, '1d', days).catch(() => [] as KlineData[])),
@@ -71,7 +76,7 @@ export default function PerformanceAnalytics() {
     } finally {
       setLoading(false);
     }
-  }, [portfolio.assets, days]);
+  }, [symbolsKey, days]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
