@@ -36,7 +36,6 @@ export default function TradingJournal() {
 
   const totalPnL = tradesList.reduce((sum, t) => sum + t.pnl, 0);
   const winTrades = tradesList.filter(t => t.pnl > 0);
-  const lossTrades = tradesList.filter(t => t.pnl < 0);
   const winRate = (winTrades.length / tradesList.length) * 100;
 
   return (

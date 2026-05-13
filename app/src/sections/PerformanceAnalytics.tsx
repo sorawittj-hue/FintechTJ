@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { LineChart, TrendingUp, Calendar, Target } from 'lucide-react';
+import { LineChart } from 'lucide-react';
 
 interface Period {
   label: string;

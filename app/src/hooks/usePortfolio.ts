@@ -43,8 +43,8 @@ export interface UsePortfolioReturn {
 
   // Transaction operations
   addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
-  removeTransaction: (id: string) => Promise<void>;
-  clearTransactions: () => Promise<void>;
+  removeTransaction: (id: string) => void | Promise<void>;
+  clearTransactions: () => void | Promise<void>;
 
   // Analysis
   getAllocationByType: () => Record<string, number>;
@@ -72,7 +72,7 @@ export function usePortfolio(): UsePortfolioReturn {
   // Sync asset prices when prices change
   useEffect(() => {
     if (prices.size > 0 && assets.length > 0) {
-      updateAssetPrices(prices);
+      updateAssetPrices();
     }
   }, [prices, assets.length, updateAssetPrices]);
 

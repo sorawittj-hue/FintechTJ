@@ -23,7 +23,7 @@ export default function OptionsCalculator() {
     const r = 0.05;
     const T = days / 365;
     const d1 = (Math.log(spot / strike) + (r + (iv / 100) ** 2 / 2) * T) / ((iv / 100) * Math.sqrt(T));
-    const d2 = d1 - (iv / 100) * Math.sqrt(T);
+    const _d2 = d1 - (iv / 100) * Math.sqrt(T); void _d2;
     
     if (type === 'call') {
       return Math.max(0, spot * 0.72 - strike * 0.68); // Simplified

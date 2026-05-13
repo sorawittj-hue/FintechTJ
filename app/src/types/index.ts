@@ -280,10 +280,12 @@ export interface MarketDataContext {
 export interface SqueezeSignal {
   type: 'SHORT_SQUEEZE_WARNING' | 'LONG_SQUEEZE_WARNING' | 'EXTREME_FEAR' | 'EXTREME_GREED' | 'NEUTRAL';
   probability: number;
+  severity?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   advice: string;
   details: {
     crowdSentiment: 'LONG_HEAVY' | 'SHORT_HEAVY' | 'BALANCED';
     smartMoneyDirection: 'UP' | 'DOWN' | 'UNCLEAR';
+    oiMomentum?: 'RISING' | 'FALLING' | 'STABLE';
   };
 }
 

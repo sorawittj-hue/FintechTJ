@@ -11,10 +11,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { openclawChat, checkOpenClawStatus, type OpenClawMessage } from '@/services/openclawService';
-import { Send, Bot, User, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { Send, Bot, Loader2, Wifi, WifiOff } from 'lucide-react';
 
 export default function KapraoChat() {
-  const [messages, setMessages] = useState<OpenClawMessage[]>([
+  const [messages, setMessages] = useState<OpenClawMessage[]>(() => [
     {
       role: 'assistant',
       content: 'สวัสดีครับ! ผมคือ KapraoClaw AI ที่เชื่อมกับ OpenClaw ครับ ถามเรื่องตลาดได้เลย! 📈',

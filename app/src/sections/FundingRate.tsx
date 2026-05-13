@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Clock, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 interface FundingData {
   symbol: string;

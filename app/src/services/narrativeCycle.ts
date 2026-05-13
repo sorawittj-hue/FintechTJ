@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { fetchCryptoNews, type NewsItem } from './realDataService';
+import { fetchCryptoNews, type NewsItem } from './realTimeData';
 
 // ═══════════════════ TYPE DEFINITIONS ═══════════════════
 

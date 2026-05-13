@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import {
   ShieldAlert,
@@ -157,7 +158,7 @@ export function DefconMonitor() {
   const riskDomains = useMemo<RiskDomain[]>(() => {
     const activeAlerts = dataState.alerts.filter((alert) => alert.isActive).length;
     const largestAllocation = portfolio.assets.reduce((max, asset) => Math.max(max, asset.allocation), 0);
-    const negativeIndices = dataState.marketData.indices.filter((index) => index.changePercent < 0).length;
+    const negativeIndices = dataState.marketData.indices.filter((index) => index.change24hPercent < 0).length;
     const feedPenalty = dataState.connectionStatus.state === 'connected' ? 0 : dataState.connectionStatus.state === 'reconnecting' ? 20 : 35;
 
     return [
@@ -472,4 +473,4 @@ export function DefconMonitor() {
   );
 }
 
-export default DefconMonitor;
+export default memo(DefconMonitor);

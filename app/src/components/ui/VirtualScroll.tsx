@@ -13,7 +13,7 @@
  * - Empty states
  */
 
-import { useRef, useState, useCallback, useEffect, useMemo, memo } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo, memo, type ReactElement } from 'react';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -25,6 +25,7 @@ interface VirtualScrollProps<T> {
   itemHeight: number | ((item: T, index: number) => number);
   renderItem: (item: T, index: number, style?: React.CSSProperties) => React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
   overscan?: number;
   horizontal?: boolean;
   onEndReached?: () => void;
@@ -243,7 +244,7 @@ function VirtualScroll<T>({
 
 export const VirtualList = memo(VirtualScroll) as <T>(
   props: VirtualScrollProps<T>
-) => JSX.Element;
+) => ReactElement;
 
 // ============================================================================
 // Virtual Table Component

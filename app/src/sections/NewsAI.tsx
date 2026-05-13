@@ -9,7 +9,7 @@
  * - Transmission chain visualization
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Newspaper, TrendingUp, TrendingDown, Minus, RefreshCw, Clock } from 'lucide-react';
 
 interface NewsItem {
@@ -44,7 +44,7 @@ const impactColors = {
 };
 
 export default function NewsAI() {
-  const [news, setNews] = useState<NewsItem[]>(mockNews);
+  const [news] = useState<NewsItem[]>(mockNews);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'positive' | 'negative'>('all');
 

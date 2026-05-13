@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -734,7 +734,7 @@ function CircuitBreakerPanel() {
 // ============================================
 // 🏛️ MAIN PAGE
 // ============================================
-export default function InstitutionalTrading() {
+function InstitutionalTrading() {
   const { t } = useTranslation();
   return (
     <div className="space-y-6 p-6">
@@ -827,3 +827,5 @@ export default function InstitutionalTrading() {
     </div>
   );
 }
+
+export default memo(InstitutionalTrading);

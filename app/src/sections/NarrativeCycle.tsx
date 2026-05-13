@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare,
@@ -489,4 +489,4 @@ export function NarrativeCycle() {
   );
 }
 
-export default NarrativeCycle;
+export default memo(NarrativeCycle);

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Radio,
@@ -123,4 +124,4 @@ export function BrioTerminal() {
   );
 }
 
-export default BrioTerminal;
+export default memo(BrioTerminal);

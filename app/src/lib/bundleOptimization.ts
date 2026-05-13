@@ -29,8 +29,8 @@
  */
 export const lazyComponents = {
   // Charts (uses recharts which is heavy)
-  Chart: () => import('@/components/charts/Chart'),
-  
+  Chart: () => import('@/components/charts/CandlestickChart'),
+
   // AI features (uses @google/genai)
   AITerminal: () => import('@/sections/BrioTerminal'),
   AIAnalysis: () => import('@/sections/AISystems'),

@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Star, Plus, Trash2, Bell, Eye } from 'lucide-react';
+import { Star, Plus, Trash2, Bell } from 'lucide-react';
 
 interface WatchlistItem {
   symbol: string;
@@ -45,12 +45,6 @@ export default function Watchlist() {
 
   const removeItem = (symbol: string) => {
     setWatchlist(watchlist.filter(w => w.symbol !== symbol));
-  };
-
-  const setAlert = (symbol: string, price: number) => {
-    setWatchlist(watchlist.map(w => 
-      w.symbol === symbol ? { ...w, alertPrice: price } : w
-    ));
   };
 
   return (

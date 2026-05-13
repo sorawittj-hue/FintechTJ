@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Globe, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Globe, TrendingUp, DollarSign } from 'lucide-react';
 
 interface MacroData {
   country: string;

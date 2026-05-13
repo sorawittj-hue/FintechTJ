@@ -186,8 +186,9 @@ export function initPriceStore(): () => void {
   const wsManager = WebSocketManager.getInstance();
   
   // Update connection status
-  wsUnsubscribe = wsManager.on('state-change', (status: ConnectionStatus) => {
-    usePriceStore.getState().setConnectionStatus(status as ConnectionStatus);
+  wsUnsubscribe = wsManager.on('state-change', (...args: unknown[]) => {
+    const status = args[0] as ConnectionStatus;
+    usePriceStore.getState().setConnectionStatus(status);
   });
 
   // Initial fetch

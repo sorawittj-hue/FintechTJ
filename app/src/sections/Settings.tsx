@@ -92,42 +92,46 @@ export function Settings() {
           className="lg:w-72 flex-shrink-0"
         >
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-xl border border-slate-100 dark:border-slate-800 sticky top-24">
-            <div className="space-y-1">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-200 ${isActive
-                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
-                  >
-                    <Icon size={20} className={isActive ? 'text-white' : 'text-slate-400'} />
-                    <span className="font-semibold">{tab.label}</span>
-                    {isActive && (
-                      <motion.div 
-                        layoutId="active-tab" 
-                        className="ml-auto"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                      >
-                        <ChevronRight size={16} />
-                      </motion.div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            
+            <nav aria-label="Settings sections">
+              <div className="space-y-1" role="tablist" aria-orientation="vertical">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      role="tab"
+                      aria-selected={isActive}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-200 ${isActive
+                          ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        }`}
+                    >
+                      <Icon size={20} aria-hidden="true" className={isActive ? 'text-white' : 'text-slate-400'} />
+                      <span className="font-semibold">{tab.label}</span>
+                      {isActive && (
+                        <motion.div
+                          layoutId="active-tab"
+                          className="ml-auto"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                        >
+                          <ChevronRight size={16} aria-hidden="true" />
+                        </motion.div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+
             <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 px-3">
               <button
                 onClick={() => { logout(); toast.success('Logged out successfully'); }}
                 className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
               >
-                <LogOut size={20} />
+                <LogOut size={20} aria-hidden="true" />
                 <span className="font-semibold">Sign Out</span>
               </button>
             </div>
@@ -253,10 +257,13 @@ export function Settings() {
                     </div>
                   </div>
                   <button
+                    role="switch"
+                    aria-checked={settings.advancedMode}
+                    aria-label="Professional Advanced Mode"
                     onClick={() => updateSettings({ advancedMode: !settings.advancedMode })}
                     className={`w-14 h-7 rounded-full transition-all duration-300 relative ${settings.advancedMode ? 'bg-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.5)]' : 'bg-slate-300'}`}
                   >
-                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md ${settings.advancedMode ? 'left-8' : 'left-1'}`} />
+                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md ${settings.advancedMode ? 'left-8' : 'left-1'}`} aria-hidden="true" />
                   </button>
                 </div>
 
@@ -273,18 +280,19 @@ export function Settings() {
                         <span className="font-bold dark:text-white">AI Engine Intensity</span>
                       </div>
                       <div className="flex flex-col gap-2">
-                         {['basic', 'pro', 'experimental'].map((level) => (
+                         {(['basic', 'pro', 'experimental'] as const).map((level) => (
                            <button
                              key={level}
-                             onClick={() => updateSettings({ aiAnalyticsLevel: level as 'basic' | 'pro' | 'experimental' })}
+                             aria-pressed={settings.aiAnalyticsLevel === level}
+                             onClick={() => updateSettings({ aiAnalyticsLevel: level })}
                              className={`px-4 py-3 rounded-xl border text-left flex items-center justify-between transition-all ${
-                               settings.aiAnalyticsLevel === level 
-                               ? 'bg-indigo-500 text-white border-indigo-600 shadow-md' 
+                               settings.aiAnalyticsLevel === level
+                               ? 'bg-indigo-500 text-white border-indigo-600 shadow-md'
                                : 'bg-white dark:bg-slate-900 text-slate-600 border-slate-200 dark:border-slate-700 hover:border-indigo-300'
                              }`}
                            >
                              <span className="capitalize font-semibold">{level}</span>
-                             {settings.aiAnalyticsLevel === level && <ShieldCheck size={16} />}
+                             {settings.aiAnalyticsLevel === level && <ShieldCheck size={16} aria-hidden="true" />}
                            </button>
                          ))}
                       </div>
@@ -297,18 +305,19 @@ export function Settings() {
                         <span className="font-bold dark:text-white">System Risk Tolerance</span>
                       </div>
                       <div className="flex flex-col gap-2">
-                         {['conservative', 'moderate', 'aggressive'].map((threshold) => (
+                         {(['conservative', 'moderate', 'aggressive'] as const).map((threshold) => (
                            <button
                              key={threshold}
-                             onClick={() => updateSettings({ riskThreshold: threshold as 'conservative' | 'moderate' | 'aggressive' })}
+                             aria-pressed={settings.riskThreshold === threshold}
+                             onClick={() => updateSettings({ riskThreshold: threshold })}
                              className={`px-4 py-3 rounded-xl border text-left flex items-center justify-between transition-all ${
-                               settings.riskThreshold === threshold 
-                               ? 'bg-red-500 text-white border-red-600 shadow-md' 
+                               settings.riskThreshold === threshold
+                               ? 'bg-red-500 text-white border-red-600 shadow-md'
                                : 'bg-white dark:bg-slate-900 text-slate-600 border-slate-200 dark:border-slate-700 hover:border-red-300'
                              }`}
                            >
                              <span className="capitalize font-semibold">{threshold}</span>
-                             {settings.riskThreshold === threshold && <ShieldCheck size={16} />}
+                             {settings.riskThreshold === threshold && <ShieldCheck size={16} aria-hidden="true" />}
                            </button>
                          ))}
                       </div>

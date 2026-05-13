@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Activity, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { Activity, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface OptionData {
   strike: number;

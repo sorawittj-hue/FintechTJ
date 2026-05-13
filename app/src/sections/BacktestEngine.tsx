@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Play, Clock, TrendingUp, BarChart2 } from 'lucide-react';
+import { Play, BarChart2 } from 'lucide-react';
 
 interface Strategy {
   name: string;

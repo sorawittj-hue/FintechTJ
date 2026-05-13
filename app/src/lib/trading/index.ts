@@ -19,10 +19,10 @@ export {
   detectLiquidationHunt,
   calculateMarketRiskScore,
   analyzeSmartMoneyFlow,
-  type MarketDataContext,
-  type SqueezeSignal,
   type SqueezeType
 } from './squeezeDetector';
+
+export type { MarketDataContext, SqueezeSignal } from '@/types';
 
 // 🚨 Circuit Breaker - ป้องกัน Flash Crash
 export {

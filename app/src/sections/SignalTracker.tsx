@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, Bell, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Bell, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 interface Signal {
   id: string;

@@ -73,7 +73,7 @@ export function useAI(options: UseAIOptions = {}): UseAIResult {
         })),
         indices: dataState.marketData.indices.map((index) => ({
           name: index.name,
-          change: index.changePercent,
+          change: index.change24hPercent,
         })),
         fearGreed: dataState.globalStats.fearGreedIndex,
         dominance: {

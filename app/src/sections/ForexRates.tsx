@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, Globe } from 'lucide-react';
+import { DollarSign, Globe } from 'lucide-react';
 
 interface ForexPair {
   symbol: string;

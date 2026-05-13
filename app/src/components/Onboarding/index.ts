@@ -1,2 +1,2 @@
-export { OnboardingFlow, useOnboardingControl, STORAGE_KEY } from './OnboardingFlow';
-export { useOnboardingControl } from './useOnboardingControl';
+export { OnboardingFlow } from './OnboardingFlow';
+export { useOnboardingControl, STORAGE_KEY } from './useOnboardingControl';

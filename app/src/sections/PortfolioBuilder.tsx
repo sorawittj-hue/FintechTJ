@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Briefcase, Plus, Trash2, PieChart, TrendingUp } from 'lucide-react';
+import { Briefcase, Plus, Trash2, PieChart } from 'lucide-react';
 
 interface Allocation {
   symbol: string;
@@ -27,7 +27,7 @@ export default function PortfolioBuilder() {
     { symbol: 'XAU', percent: 20, expectedReturn: 8, risk: 15 },
   ]);
 
-  const [riskFreeRate, setRiskFreeRate] = useState(4.5);
+  const riskFreeRate = 4.5;
 
   const totalPercent = allocations.reduce((sum, a) => sum + a.percent, 0);
   const weightedReturn = allocations.reduce((sum, a) => sum + (a.percent / 100) * a.expectedReturn, 0);

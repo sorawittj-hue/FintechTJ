@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { ExchangePrice, ArbitrageOpportunity, Exchange } from '../services/arbitrageScanner';
+import type { ExchangePrice, ArbitrageOpportunity, Exchange } from '../services/arbitrageScanner';
 
 // Real-world calibrated exchange profiles
 const EXCHANGES: Exchange[] = [

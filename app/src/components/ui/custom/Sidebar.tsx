@@ -115,10 +115,10 @@ const SUITE_GROUPS: NavGroup[] = [
   },
 ];
 
-const BOTTOM_NAV: { icon: NavItem['icon']; labelKey: string; path: string }[] = [
-  { icon: Shield, labelKey: 'nav.crisisGuide', path: '/crisis' },
-  { icon: HelpCircle, labelKey: 'nav.help', path: '/help' },
-  { icon: Settings, labelKey: 'nav.settings', path: '/settings' },
+const BOTTOM_NAV: NavItem[] = [
+  { id: 'crisis', icon: Shield, labelKey: 'nav.crisisGuide', path: '/crisis' },
+  { id: 'help', icon: HelpCircle, labelKey: 'nav.help', path: '/help' },
+  { id: 'settings', icon: Settings, labelKey: 'nav.settings', path: '/settings' },
 ];
 
 // ─── Sub-item list (memoized) ────────────────────────────────────────────────
@@ -182,6 +182,8 @@ const SuiteGroupRow = memo(function SuiteGroupRow({
     <div>
       <button
         onClick={handleToggle}
+        aria-expanded={isExpanded}
+        aria-controls={`sidebar-group-${group.id}`}
         className={`
           w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest
           transition-all duration-300 group/btn
@@ -192,13 +194,14 @@ const SuiteGroupRow = memo(function SuiteGroupRow({
         `}
       >
         <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${group.color} flex items-center justify-center shadow-lg transition-transform duration-300 group-hover/btn:scale-110`}>
+          <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${group.color} flex items-center justify-center shadow-lg transition-transform duration-300 group-hover/btn:scale-110`} aria-hidden="true">
             <group.icon size={14} className="text-white" />
           </div>
           <span>{t(group.labelKey)}</span>
         </div>
         <ChevronDown
           size={14}
+          aria-hidden="true"
           className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} text-slate-400 dark:text-slate-500`}
         />
       </button>
@@ -206,12 +209,15 @@ const SuiteGroupRow = memo(function SuiteGroupRow({
       <AnimatePresence initial={false}>
         {isExpanded && (
           <motion.div
+            id={`sidebar-group-${group.id}`}
             key={`${group.id}-content`}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
+            role="region"
+            aria-label={t(group.labelKey)}
           >
             <SubItemList group={group} onClose={onClose} />
           </motion.div>

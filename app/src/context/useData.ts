@@ -3,13 +3,10 @@
  * Fast Refresh requires that a file only exports React components OR other exports, not both.
  */
 
-import { useContext } from 'react';
-import DataContext, { type DataContextType } from './DataContext';
+import { useData as useDataFromHook } from '@/hooks/useData';
+
+export type DataContextType = ReturnType<typeof useDataFromHook>;
 
 export function useData(): DataContextType {
-    const context = useContext(DataContext);
-    if (!context) {
-        throw new Error('useData must be used within DataProvider');
-    }
-    return context;
+  return useDataFromHook();
 }

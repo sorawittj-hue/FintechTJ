@@ -9,8 +9,8 @@
  * - Risk alerts
  */
 
-import { useState } from 'react';
-import { Shield, AlertTriangle, TrendingDown, Percent, Activity } from 'lucide-react';
+import { useState, memo } from 'react';
+import { Shield, AlertTriangle, TrendingDown, Activity } from 'lucide-react';
 
 interface RiskMetric {
   label: string;
@@ -36,7 +36,7 @@ const statusConfig = {
   critical: { color: 'text-red-400', bg: 'bg-red-400', label: 'วิกฤต' },
 };
 
-export default function RiskPanel() {
+function RiskPanel() {
   const [selectedMetric, setSelectedMetric] = useState<RiskMetric>(mockMetrics[0]);
 
   return (
@@ -140,3 +140,5 @@ export default function RiskPanel() {
     </div>
   );
 }
+
+export default memo(RiskPanel);

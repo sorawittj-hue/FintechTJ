@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -200,7 +200,7 @@ export function AlphaSniper() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {Object.entries(stats?.byType || {}).map(([type, count]) => (
+                  {Object.entries(stats?.byType || {} as Record<string, number>).map(([type, count]) => (
                     <button
                       key={type}
                       onClick={() => setSelectedType(selectedType === type ? 'all' : type)}
@@ -382,4 +382,4 @@ export function AlphaSniper() {
   );
 }
 
-export default AlphaSniper;
+export default memo(AlphaSniper);

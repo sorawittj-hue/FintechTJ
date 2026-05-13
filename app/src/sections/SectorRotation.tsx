@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import {
   PieChart,
@@ -327,4 +327,4 @@ export function SectorRotation() {
   );
 }
 
-export default SectorRotation;
+export default memo(SectorRotation);
