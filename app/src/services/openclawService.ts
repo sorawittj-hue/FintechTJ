@@ -6,7 +6,9 @@
  *   import { openclawChat, getMarketSummary, getCryptoSignals } from '@/services/openclawService'
  */
 
-const OPENCLAW_GATEWAY = 'http://localhost:3000';
+import { binanceAPI } from './binance';
+
+const OPENCLAW_GATEWAY = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_OPENCLAW_GATEWAY || 'http://localhost:3000';
 
 // ============================================================================
 // Types
@@ -70,17 +72,98 @@ export async function openclawChat(
         method: 'chat',
         params: { message, history }
       }),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(15000)
     });
-    
+
     if (!response.ok) throw new Error('OpenClaw not reachable');
     const data = await response.json();
-    return data.result?.content || 'ไม่สามารถติดต่อ OpenClaw ได้';
+    if (data?.result?.content) return data.result.content;
+    throw new Error('Empty response');
   } catch {
-    // Fallback: return offline message
-    return '🤖 OpenClaw ออฟไลน์ — กรุณาเชื่อมต่อ PC ที่รัน OpenClaw';
+    return offlineAnswer(message);
   }
 }
+
+// ============================================================================
+// Offline brain: answer using live Binance data + simple intent matching
+// ============================================================================
+
+const KNOWN_SYMBOLS = ['BTC','ETH','BNB','SOL','XRP','ADA','DOGE','AVAX','DOT','LINK','MATIC','LTC','TRX'];
+
+function extractSymbols(text: string): string[] {
+  const upper = text.toUpperCase();
+  return KNOWN_SYMBOLS.filter(s => upper.includes(s));
+}
+
+function fmtUsd(n: number): string {
+  if (n >= 1000) return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  if (n >= 1) return `$${n.toFixed(2)}`;
+  return `$${n.toFixed(4)}`;
+}
+
+async function offlineAnswer(message: string): Promise<string> {
+  const lower = message.toLowerCase();
+  const symbols = extractSymbols(message);
+
+  // Symbol-specific query
+  if (symbols.length) {
+    try {
+      const prices = await binanceAPI.getMultiplePrices(symbols);
+      const lines = prices.map(p => {
+        const trend = p.change24hPercent > 2 ? '🚀 แรง' : p.change24hPercent > 0 ? '📈 บวก' : p.change24hPercent > -2 ? '📉 อ่อน' : '🔻 หนัก';
+        return `${p.symbol}: ${fmtUsd(p.price)} (${p.change24hPercent >= 0 ? '+' : ''}${p.change24hPercent.toFixed(2)}%) ${trend}\n  High ${fmtUsd(p.high24h)} / Low ${fmtUsd(p.low24h)} • Vol $${(p.quoteVolume24h / 1e6).toFixed(1)}M`;
+      });
+      return `📊 ข้อมูลล่าสุดจาก Binance:\n\n${lines.join('\n\n')}\n\n💡 อยากเจาะลึก? พิมพ์ "วิเคราะห์ ${symbols[0]}" หรือไปที่หน้า Deep Research`;
+    } catch {
+      return `ไม่สามารถดึงข้อมูล ${symbols.join(', ')} ได้ในตอนนี้ ลองใหม่อีกครั้งครับ`;
+    }
+  }
+
+  // Market summary intent
+  if (lower.includes('สรุป') || lower.includes('ตลาด') || lower.includes('market') || lower.includes('summary')) {
+    try {
+      const prices = await binanceAPI.getMultiplePrices(['BTC','ETH','BNB','SOL','XRP','ADA','DOGE','AVAX','DOT','LINK']);
+      const sorted = [...prices].sort((a,b) => b.change24hPercent - a.change24hPercent);
+      const avg = prices.reduce((s,p) => s + p.change24hPercent, 0) / prices.length;
+      const mood = avg > 2 ? '🟢 Risk-On (เงินไหลเข้า)' : avg > 0 ? '🟡 Neutral-Bullish' : avg > -2 ? '🟠 Cautious' : '🔴 Risk-Off (เงินไหลออก)';
+      return `📊 สรุปตลาดคริปโต Top 10\n\n` +
+             `Mood: ${mood} (เฉลี่ย ${avg >= 0 ? '+' : ''}${avg.toFixed(2)}%)\n\n` +
+             `🏆 ผู้นำ:\n${sorted.slice(0,3).map(p => `  • ${p.symbol}: ${p.change24hPercent >= 0 ? '+' : ''}${p.change24hPercent.toFixed(2)}%`).join('\n')}\n\n` +
+             `📉 ผู้ตาม:\n${sorted.slice(-3).reverse().map(p => `  • ${p.symbol}: ${p.change24hPercent.toFixed(2)}%`).join('\n')}\n\n` +
+             `BTC: ${fmtUsd(prices.find(p => p.symbol === 'BTC')?.price ?? 0)}`;
+    } catch {
+      return 'ไม่สามารถดึงข้อมูลตลาดได้ในตอนนี้ ลองใหม่อีกครั้งครับ';
+    }
+  }
+
+  // Signal intent
+  if (lower.includes('signal') || lower.includes('สัญญาณ')) {
+    try {
+      const prices = await binanceAPI.getMultiplePrices(['BTC','ETH','SOL','BNB']);
+      const signals = prices.map(p => {
+        const range = ((p.high24h - p.low24h) / p.low24h) * 100;
+        const sig = p.change24hPercent > 3 ? '🟢 STRONG BUY'
+                  : p.change24hPercent > 1 ? '🟢 BUY'
+                  : p.change24hPercent > -1 ? '🟡 HOLD'
+                  : p.change24hPercent > -3 ? '🟠 SELL' : '🔴 STRONG SELL';
+        return `${p.symbol}: ${sig} • ${fmtUsd(p.price)} • Range ${range.toFixed(1)}%`;
+      });
+      return `📡 Signal Tracker (24h)\n\n${signals.join('\n')}\n\n⚠️ ไม่ใช่คำแนะนำการลงทุน — ใช้ดุลพินิจของตัวเอง`;
+    } catch {
+      return 'ไม่สามารถสร้าง signal ได้ในตอนนี้ ลองใหม่อีกครั้ง';
+    }
+  }
+
+  // Help / fallback
+  return `🤖 KapraoClaw AI (Offline Mode)\n\n` +
+         `ผมยังตอบได้ด้วยข้อมูลตลาดสด! ลองถาม:\n` +
+         `• "สรุปตลาดวันนี้"\n` +
+         `• "BTC ราคาเท่าไหร่"\n` +
+         `• "Signal ล่าสุด"\n` +
+         `• "วิเคราะห์ ETH"\n\n` +
+         `เชื่อม OpenClaw gateway (VITE_OPENCLAW_GATEWAY) เพื่อปลดล็อก AI เต็มรูปแบบ`;
+}
+
 
 // ============================================================================
 // Market Data (from local scripts)

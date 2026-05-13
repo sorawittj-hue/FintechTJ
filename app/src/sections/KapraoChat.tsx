@@ -17,7 +17,7 @@ export default function KapraoChat() {
   const [messages, setMessages] = useState<OpenClawMessage[]>(() => [
     {
       role: 'assistant',
-      content: 'สวัสดีครับ! ผมคือ KapraoClaw AI ที่เชื่อมกับ OpenClaw ครับ ถามเรื่องตลาดได้เลย! 📈',
+      content: 'สวัสดีครับ! ผมคือ KapraoClaw AI 🤖\n\nผมตอบได้ด้วยข้อมูลตลาดสดจาก Binance\nลองถาม:\n• "สรุปตลาดวันนี้"\n• "BTC ราคาเท่าไหร่"\n• "Signal ล่าสุด"\n• "วิเคราะห์ ETH"',
       timestamp: Date.now()
     }
   ]);
@@ -81,12 +81,12 @@ export default function KapraoChat() {
           </div>
           <div>
             <h3 className="font-semibold text-white">KapraoClaw AI</h3>
-            <p className="text-xs text-gray-400">OpenClaw-powered analysis</p>
+            <p className="text-xs text-gray-400">{isOnline ? 'OpenClaw connected' : 'Live data mode'}</p>
           </div>
         </div>
-        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs ${isOnline ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs ${isOnline ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
           {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-          {isOnline ? 'ออนไลน์' : 'ออฟไลน์'}
+          {isOnline ? 'AI Online' : 'Live Data'}
         </div>
       </div>
 
