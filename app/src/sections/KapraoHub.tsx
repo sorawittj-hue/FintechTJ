@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { usePriceStore } from '@/store/usePriceStore';
+import { useWhaleTracking } from '@/services/whaleTracking';
 import type { CryptoPrice } from '@/services/binance';
 import type { PortfolioAsset, Alert } from '@/types';
 
@@ -151,7 +152,9 @@ function generateSignals(prices: Map<string, CryptoPrice>): Signal[] {
       stop: signalType === 'BUY' 
         ? Math.round(price * 0.97 * 100) / 100 
         : Math.round(price * 1.03 * 100) / 100,
-      confidence: signalType === 'HOLD' ? 50 + Math.floor(Math.random() * 20) : 65 + Math.floor(Math.random() * 30),
+      confidence: signalType === 'HOLD'
+        ? Math.round(Math.min(95, 50 + Math.abs(change24h) * 4))
+        : Math.round(Math.min(95, 65 + Math.abs(change24h) * 4)),
       reason: signalType === 'BUY' 
         ? 'RSI oversold • MACD bullish divergence • Support holding'
         : signalType === 'SELL'
@@ -164,22 +167,7 @@ function generateSignals(prices: Map<string, CryptoPrice>): Signal[] {
   return signals;
 }
 
-function generateWhaleTxs(): WhaleTx[] {
-  const exchanges = ['Binance', 'Coinbase', 'Kraken', 'Bybit', 'OKX'];
-  return Array.from({ length: 8 }, (_, i) => {
-    const amount = 100 + Math.random() * 900;
-    const price = 64000 + Math.random() * 4000;
-    return {
-      id: `whale-${Date.now()}-${i}`,
-      type: Math.random() > 0.5 ? 'buy' : 'sell',
-      amount: Math.round(amount * 100) / 100,
-      price: Math.round(price),
-      total: Math.round(amount * price),
-      exchange: exchanges[Math.floor(Math.random() * exchanges.length)],
-      time: i === 0 ? 'Just now' : `${i * 2 + 1}m ago`,
-    };
-  });
-}
+// generateWhaleTxs removed — we now use real on-chain whale data via useWhaleTracking
 
 function generateNews(): NewsItem[] {
   return [
@@ -870,6 +858,7 @@ export default function KapraoHub() {
   const news = useMemo(() => generateNews(), []);
   const icoTokens = useMemo(() => generateICOTokens(), []);
   const defiProtocols = useMemo(() => generateDeFiProtocols(), []);
+  const { transactions: whaleTxs } = useWhaleTracking('BTC');
 
   // Calculate live prices list
   const pricesList = useMemo(() => {
@@ -979,9 +968,24 @@ export default function KapraoHub() {
             </div>
 
             <div>
-              <SectionHeader title="🐋 Whale Activity" icon={<Fish size={16} />} subtitle="รายการใหญ่" />
+              <SectionHeader title="🐋 Whale Activity" icon={<Fish size={16} />} subtitle="ข้อมูลจริง" />
               <div className="space-y-2">
-                {generateWhaleTxs().slice(0, 5).map(tx => <WhaleRow key={tx.id} tx={tx} />)}
+                {whaleTxs.length === 0 && (
+                  <div className="text-sm text-gray-500 p-4 text-center">
+                    ยังไม่มี whale transactions — กำลังตรวจสอบ on-chain
+                  </div>
+                )}
+                {whaleTxs.slice(0, 5).map(tx => (
+                  <WhaleRow key={tx.id} tx={{
+                    id: tx.id,
+                    type: tx.type === 'buy' || tx.type === 'mint' ? 'buy' : 'sell',
+                    amount: tx.amount,
+                    price: tx.price,
+                    total: tx.valueUSD,
+                    exchange: tx.exchange ?? (tx.fromLabel || 'On-chain'),
+                    time: new Date(tx.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+                  }} />
+                ))}
               </div>
             </div>
           </div>
