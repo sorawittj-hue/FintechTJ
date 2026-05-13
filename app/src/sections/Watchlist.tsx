@@ -61,11 +61,14 @@ export default function Watchlist() {
   const subscribe = usePriceStore(s => s.subscribeToPrices);
   const unsubscribe = usePriceStore(s => s.unsubscribeFromPrices);
 
+  const symbolsKey = items.map(i => i.symbol).sort().join(',');
+
   useEffect(() => {
-    const symbols = items.map(i => i.symbol);
-    if (symbols.length) subscribe(symbols);
-    return () => { if (symbols.length) unsubscribe(symbols); };
-  }, [items, subscribe, unsubscribe]);
+    if (!symbolsKey) return;
+    const symbols = symbolsKey.split(',');
+    subscribe(symbols);
+    return () => { unsubscribe(symbols); };
+  }, [symbolsKey, subscribe, unsubscribe]);
 
   useEffect(() => { saveToStorage(items); }, [items]);
 

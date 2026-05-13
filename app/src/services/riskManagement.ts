@@ -643,17 +643,23 @@ export function useRiskManagement() {
   const [alerts, setAlerts] = useState<RiskAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Convert portfolio to RiskManagement format
-  const portfolioData = useMemo(() => ({
-    balance: portfolio.totalValue,
-    positions: portfolio.assets.map(a => ({
-      symbol: a.symbol,
-      quantity: a.quantity,
-      entryPrice: a.avgPrice,
-    }))
-  }), [portfolio]);
+  // Build a stable key from portfolio so effect only re-runs on real changes
+  const portfolioKey = useMemo(() =>
+    `${portfolio.totalValue.toFixed(2)}|${portfolio.assets.map(a =>
+      `${a.symbol}:${a.quantity}:${a.avgPrice}`
+    ).sort().join(',')}`,
+    [portfolio.totalValue, portfolio.assets]
+  );
 
   useEffect(() => {
+    const portfolioData = {
+      balance: portfolio.totalValue,
+      positions: portfolio.assets.map(a => ({
+        symbol: a.symbol,
+        quantity: a.quantity,
+        entryPrice: a.avgPrice,
+      })),
+    };
     service.current.startMonitoring(portfolioData);
 
     const unsubscribe = service.current.subscribe((m) => {
@@ -669,7 +675,8 @@ export function useRiskManagement() {
       unsubscribe();
       unsubscribeAlerts();
     };
-  }, [portfolioData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolioKey]);
 
   const refresh = useCallback(() => {
     setLoading(true);
