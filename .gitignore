@@ -8,6 +8,9 @@ build/
 dist/
 out/
 .next/
+.vercel/
+.vercel
+
 
 # Environment variables
 .env
@@ -62,3 +65,5 @@ null
 
 # Data exports (may contain sensitive data)
 pb_export.json
+
+.vercel

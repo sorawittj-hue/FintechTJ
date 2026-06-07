@@ -14,15 +14,57 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 import { useMarketStore } from '@/store/useMarketStore';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 export function useData() {
   const { user } = useAuth();
   
-  // Connect stores
-  const priceState = usePriceStore();
-  const portfolioState = usePortfolioStore();
-  const settingsState = useSettingsStore();
-  const marketState = useMarketStore();
+  // Connect stores using shallow comparison to only re-render if the selected properties actually change
+  const priceState = usePriceStore(useShallow(state => ({
+    prices: state.prices,
+    allPrices: state.allPrices,
+    connectionStatus: state.connectionStatus,
+    isLoading: state.isLoading,
+    error: state.error,
+    lastUpdate: state.lastUpdate,
+    refreshPrices: state.refreshPrices,
+    subscribeToPrices: state.subscribeToPrices,
+    unsubscribeFromPrices: state.unsubscribeFromPrices,
+    updatePricesBatch: state.updatePricesBatch,
+  })));
+
+  const portfolioState = usePortfolioStore(useShallow(state => ({
+    assets: state.assets,
+    transactions: state.transactions,
+    alerts: state.alerts,
+    summary: state.summary,
+    isLoading: state.isLoading,
+    addAsset: state.addAsset,
+    removeAsset: state.removeAsset,
+    updateAsset: state.updateAsset,
+    calculateSummary: state.calculateSummary,
+    addAlert: state.addAlert,
+    removeAlert: state.removeAlert,
+    toggleAlert: state.toggleAlert,
+    checkAlerts: state.checkAlerts,
+    fetchAssets: state.fetchAssets,
+    fetchTransactions: state.fetchTransactions,
+    addTransaction: state.addTransaction,
+  })));
+
+  const settingsState = useSettingsStore(useShallow(state => ({
+    settings: state.settings,
+    updateSettings: state.updateSettings,
+    updateNotificationSettings: state.updateNotificationSettings,
+    updateDisplaySettings: state.updateDisplaySettings,
+  })));
+
+  const marketState = useMarketStore(useShallow(state => ({
+    marketData: state.marketData,
+    globalStats: state.globalStats,
+    isLoading: state.isLoading,
+    fetchMarketData: state.fetchMarketData,
+  })));
 
   // Initial fetch trigger
   useEffect(() => {

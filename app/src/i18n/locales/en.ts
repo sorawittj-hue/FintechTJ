@@ -100,6 +100,8 @@ const en = {
     usStockFrameworkDesc: 'Fundamental stock analysis',
     advancedCrypto: 'Advanced Crypto',
     advancedCryptoDesc: 'Deep crypto analysis',
+    marketAction: 'Market Action',
+    marketActionDesc: '2026 playbook & themes',
     sectorRotation: 'Sector Rotation',
     sectorRotationDesc: 'Real snapshot sector rotation',
     narrativeCycle: 'Narrative Cycle',

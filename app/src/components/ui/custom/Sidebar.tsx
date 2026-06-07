@@ -106,6 +106,7 @@ const SUITE_GROUPS: NavGroup[] = [
     icon: PieChart,
     color: 'from-amber-500 to-orange-600',
     items: [
+      { id: 'market-action', labelKey: 'nav.marketAction', icon: BarChart3, path: '/market-action', descKey: 'nav.marketActionDesc' },
       { id: 'us-framework', labelKey: 'nav.usStockFramework', icon: Target, path: '/us-framework', descKey: 'nav.usStockFrameworkDesc' },
       { id: 'advanced', labelKey: 'nav.advancedCrypto', icon: Bitcoin, path: '/advanced', descKey: 'nav.advancedCryptoDesc' },
       { id: 'sector', labelKey: 'nav.sectorRotation', icon: PieChart, path: '/sector', descKey: 'nav.sectorRotationDesc' },

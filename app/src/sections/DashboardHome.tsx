@@ -21,7 +21,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { usePortfolio, usePrice, useData, useSettings } from '@/context/hooks';
+import { usePriceStore } from '@/store/usePriceStore';
+import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { useMarketStore } from '@/store/useMarketStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -49,6 +53,7 @@ import { formatCurrency } from '@/lib/utils';
 
 // ---------- Constants & Helpers ----------
 const PORTFOLIO_HISTORY_KEY = 'dashboard-portfolio-history-v1';
+const FALLBACK_DATE = new Date();
 
 type PortfolioHistoryPoint = {
   timestamp: number;
@@ -104,21 +109,22 @@ function upsertPortfolioHistory(history: PortfolioHistoryPoint[], value: number,
 }
 
 function DashboardHome() {
-  const { settings } = useSettings();
-  const { portfolio, setIsDepositOpen } = usePortfolio();
-  const {
-    allPrices,
-    refreshPrices,
-    latencyMs,
-    convert,
-    updatePricesBatch
-  } = usePrice();
-  const { state: dataState } = useData();
+  const settings = useSettingsStore(s => s.settings);
+  const portfolio = usePortfolioStore(s => s.summary);
+  const setIsDepositOpen = usePortfolioStore(s => s.setIsDepositOpen);
+  const assets = usePortfolioStore(useShallow(s => s.assets));
+  
+  const refreshPrices = usePriceStore(s => s.refreshPrices);
+  const latencyMs = usePriceStore(s => s.connectionStatus.latency);
+  const convert = usePriceStore(s => s.convert);
+  const updatePricesBatch = usePriceStore(s => s.updatePricesBatch);
+  const cryptoPrices = usePriceStore(useShallow(s => s.allPrices.slice(0, 10)));
+  
+  const globalStats = useMarketStore(useShallow(s => s.globalStats));
 
   const userCurrency = settings.currency || 'USD';
 
   // State
-  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([]);
   const [commodities, setCommodities] = useState<CommodityPrice[]>([]);
   const [whaleActivity, setWhaleActivity] = useState<WhaleTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,7 +147,7 @@ function DashboardHome() {
       const timer = setTimeout(() => {
         console.warn('[Dashboard] Loading safety timeout reached - showing UI anyway');
         setLoading(false);
-      }, 8000); // Max 8 seconds of "Initializing"
+      }, 15000); // Max 15 seconds of "Initializing"
       return () => clearTimeout(timer);
     }
   }, [loading]);
@@ -245,10 +251,9 @@ function DashboardHome() {
 
   // Price Flash & Updates
   useEffect(() => {
-    if (allPrices.length === 0) return;
-    const nextCryptoPrices = allPrices.slice(0, 10);
+    if (cryptoPrices.length === 0) return;
     const newFlash: Record<string, boolean> = {};
-    nextCryptoPrices.forEach((price: CryptoPrice) => {
+    cryptoPrices.forEach((price: CryptoPrice) => {
       const prev = prevPricesRef.current[price.symbol];
       if (prev && Math.abs(prev - price.price) / prev > 0.0005) {
         newFlash[price.symbol] = true;
@@ -260,8 +265,7 @@ function DashboardHome() {
       if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
       flashTimeoutRef.current = setTimeout(() => setPriceFlash({}), 1000);
     }
-    setCryptoPrices(nextCryptoPrices);
-  }, [allPrices]);
+  }, [cryptoPrices]);
 
   // Derived Values
   const portfolioHistory = useMemo(
@@ -285,19 +289,19 @@ function DashboardHome() {
   }, [portfolioHistory, convert, userCurrency]);
 
   const fearGreedIndex = useMemo(() => {
-    if (!dataState.globalStats.lastUpdated) return null;
-    const val = Math.round(dataState.globalStats.fearGreedIndex);
+    if (!globalStats.lastUpdated) return null;
+    const val = Math.round(globalStats.fearGreedIndex);
     let label = 'Neutral';
     if (val >= 75) label = 'Extreme Greed';
     else if (val >= 55) label = 'Greed';
     else if (val <= 25) label = 'Extreme Fear';
     else if (val <= 45) label = 'Fear';
-    return { value: val, classification: label, updatedAt: dataState.globalStats.lastUpdated };
-  }, [dataState.globalStats]);
+    return { value: val, classification: label, updatedAt: globalStats.lastUpdated };
+  }, [globalStats]);
 
   const riskIndicators = useMemo<RiskIndicator[]>(() => (
-    calculateRiskIndicators(portfolio.totalValue, dataState.assets)
-  ), [portfolio.totalValue, dataState.assets]);
+    calculateRiskIndicators(portfolio.totalValue, assets)
+  ), [portfolio.totalValue, assets]);
 
   const macroConditions: MacroConditions = useMemo(() => {
     const btcChange = cryptoPrices.find((c: CryptoPrice) => c.symbol === 'BTC')?.change24hPercent || 0;
@@ -417,7 +421,7 @@ function DashboardHome() {
           <SentimentWidget
             value={fearGreedIndex?.value || 50}
             label={fearGreedIndex?.classification || 'Neutral'}
-            updatedAt={fearGreedIndex?.updatedAt || new Date()}
+            updatedAt={fearGreedIndex?.updatedAt || FALLBACK_DATE}
           />
 
           <DashboardAnalyst />

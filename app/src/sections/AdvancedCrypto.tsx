@@ -9,7 +9,8 @@ import {
   Info,
   Shield
 } from 'lucide-react';
-import { useData } from '@/context/hooks';
+import { useMarketStore } from '@/store/useMarketStore';
+import { useShallow } from 'zustand/react/shallow';
 import {
   BarChart,
   Bar,
@@ -21,8 +22,8 @@ import {
 } from 'recharts';
 
 export const AdvancedCrypto = React.memo(function AdvancedCrypto() {
-  const { state: dataState } = useData();
-  const { topGainers, topLosers } = dataState.marketData;
+  const marketData = useMarketStore(useShallow(s => s.marketData));
+  const { topGainers, topLosers } = marketData;
   type MarketCoin = (typeof topGainers)[number];
 
   const cryptoData = useMemo(() => {

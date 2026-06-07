@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { usePriceStore } from '@/store/usePriceStore';
+import { useShallow } from 'zustand/react/shallow';
 
 export type SignalType = 'buy' | 'sell' | 'neutral' | 'watch' | 'alert';
 export type SignalSource = 'ai_model' | 'whale_tracking' | 'technical' | 'sentiment' | 'news' | 'on_chain';
@@ -60,7 +61,7 @@ function deriveSignal(symbol: string, price: number, change: number): TradingSig
 }
 
 export function useBrioTerminal() {
-  const { allPrices } = usePriceStore();
+  const allPrices = usePriceStore(useShallow(s => s.allPrices));
 
   const result = useMemo(() => {
     if (allPrices.length === 0) {

@@ -108,14 +108,19 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['framer-motion', '@radix-ui/react-slot', 'recharts'],
+          'vendor-ui': ['framer-motion', '@radix-ui/react-slot'],
+          'vendor-charts': ['lightweight-charts', 'recharts'],
+          'vendor-icons': ['lucide-react'],
           'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
           'vendor-query': ['@tanstack/react-query'],
           'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          'vendor-charts': ['lightweight-charts'],
           'vendor-radix': [
+            '@radix-ui/react-accordion',
+            '@radix-ui/react-alert-dialog',
             '@radix-ui/react-dialog',
             '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-scroll-area',
             '@radix-ui/react-select',
             '@radix-ui/react-tabs',
             '@radix-ui/react-tooltip',

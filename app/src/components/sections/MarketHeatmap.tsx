@@ -9,7 +9,7 @@
  * - Responsive grid layout
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 
@@ -291,7 +291,7 @@ function MarketStats({ assets }: { assets: HeatmapAsset[] }) {
 // Main Component
 // =============================================================================
 
-export function MarketHeatmap({ onAssetClick }: MarketHeatmapProps) {
+export const MarketHeatmap = memo(function MarketHeatmap({ onAssetClick }: MarketHeatmapProps) {
   const [assets, setAssets] = useState<HeatmapAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -400,4 +400,4 @@ export function MarketHeatmap({ onAssetClick }: MarketHeatmapProps) {
       )}
     </div>
   );
-}
+});

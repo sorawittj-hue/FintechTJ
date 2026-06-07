@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, TrendingUp, AlertTriangle, ShieldCheck, ChevronRight, Zap } from 'lucide-react';
 import { useAI } from '@/hooks/useAI';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-export function DashboardAnalyst() {
+export const DashboardAnalyst = memo(function DashboardAnalyst() {
   const { insights, loading, isDemoMode } = useAI({ autoRefresh: true, refreshInterval: 600000 });
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
 
@@ -107,4 +107,4 @@ export function DashboardAnalyst() {
       </div>
     </div>
   );
-}
+});

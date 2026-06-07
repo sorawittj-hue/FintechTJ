@@ -16,10 +16,22 @@ import {
   Globe,
   Cpu
 } from 'lucide-react';
-import { useData } from '@/context/hooks';
+import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { usePriceStore } from '@/store/usePriceStore';
+import { useMarketStore } from '@/store/useMarketStore';
+import { useShallow } from 'zustand/react/shallow';
 
 export const Sentinel = React.memo(function Sentinel() {
-  const { state: dataState, actions } = useData();
+  const rawAlerts = usePortfolioStore(useShallow(s => s.alerts));
+  const assets = usePortfolioStore(useShallow(s => s.assets));
+  const portfolioSummary = usePortfolioStore(useShallow(s => s.summary));
+  const toggleAlert = usePortfolioStore(s => s.toggleAlert);
+  
+  const pricesSize = usePriceStore(s => s.prices.size);
+  const connectionState = usePriceStore(s => s.connectionStatus.state);
+  
+  const marketIndices = useMarketStore(useShallow(s => s.marketData.indices));
+  const globalStats = useMarketStore(useShallow(s => s.globalStats));
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
 
   // Request notification permissions on mount
@@ -37,7 +49,7 @@ export const Sentinel = React.memo(function Sentinel() {
 
   // Convert internal Alert to SentinelAlert format for UI consistency
   const alerts = useMemo(() => {
-    return dataState.alerts.map((a) => ({
+    return rawAlerts.map((a) => ({
       id: a.id,
       type: a.type as 'price' | 'volume' | 'pattern' | 'news' | 'risk',
       severity: (a.value > 5 ? 'high' : 'medium') as 'critical' | 'high' | 'medium' | 'low',
@@ -47,7 +59,7 @@ export const Sentinel = React.memo(function Sentinel() {
       asset: a.symbol,
       isRead: !a.isActive
     }));
-  }, [dataState.alerts]);
+  }, [rawAlerts]);
 
   // Watch for new alerts and trigger system notification
   React.useEffect(() => {
@@ -102,54 +114,54 @@ export const Sentinel = React.memo(function Sentinel() {
 
   // Memoized handlers
   const markAsRead = useCallback((id: string) => {
-    actions.toggleAlert(id);
+    toggleAlert(id);
     toast.success('Alert marked as read');
     // Optional: could trigger system notification here as a test
-  }, [actions]);
+  }, [toggleAlert]);
 
   const handleTabChange = useCallback((tab: 'all' | 'unread') => {
     setActiveTab(tab);
   }, []);
 
-  const activeAlerts = useMemo(() => dataState.alerts.filter((alert) => alert.isActive), [dataState.alerts]);
-
+  const activeAlerts = useMemo(() => rawAlerts.filter((alert) => alert.isActive), [rawAlerts]);
+ 
   const riskExposure = useMemo(() => {
-    const volatility = Math.abs(dataState.portfolioSummary.totalChange24hPercent);
+    const volatility = Math.abs(portfolioSummary.totalChange24hPercent);
     if (volatility >= 5) return { label: 'High', color: 'text-red-500' };
     if (volatility >= 2) return { label: 'Moderate', color: 'text-yellow-500' };
     return { label: 'Controlled', color: 'text-green-500' };
-  }, [dataState.portfolioSummary.totalChange24hPercent]);
-
+  }, [portfolioSummary.totalChange24hPercent]);
+ 
   const monitoringStats = useMemo(() => {
-    const priceCoverage = dataState.prices.size;
+    const priceCoverage = pricesSize;
     const marketSources = [
       priceCoverage > 0,
-      dataState.marketData.indices.length > 0,
-      dataState.globalStats.lastUpdated !== null,
-      dataState.alerts.length > 0,
+      marketIndices.length > 0,
+      globalStats.lastUpdated !== null,
+      rawAlerts.length > 0,
     ].filter(Boolean).length;
-
+ 
     const coverageLabel = marketSources >= 4
       ? 'Broad Coverage'
       : marketSources >= 2
         ? 'Partial Coverage'
         : 'Limited Coverage';
-
-    const monitoringLabel = dataState.connectionStatus.state === 'connected'
+ 
+    const monitoringLabel = connectionState === 'connected'
       ? 'Feed Healthy'
-      : dataState.connectionStatus.state === 'reconnecting'
+      : connectionState === 'reconnecting'
         ? 'Feed Reconnecting'
         : 'Feed Degraded';
-
-    const monitoringBadgeClass = dataState.connectionStatus.state === 'connected'
+ 
+    const monitoringBadgeClass = connectionState === 'connected'
       ? 'bg-green-100 text-green-700'
-      : dataState.connectionStatus.state === 'reconnecting'
+      : connectionState === 'reconnecting'
         ? 'bg-yellow-100 text-yellow-700'
         : 'bg-red-100 text-red-700';
-
+ 
     return {
-      marketsTracked: dataState.marketData.indices.length + (priceCoverage > 0 ? 1 : 0),
-      assetsMonitored: dataState.assets.length,
+      marketsTracked: marketIndices.length + (priceCoverage > 0 ? 1 : 0),
+      assetsMonitored: assets.length,
       dataSources: marketSources,
       coverageLabel,
       monitoringLabel,
@@ -157,14 +169,14 @@ export const Sentinel = React.memo(function Sentinel() {
       stopLossesSet: activeAlerts.filter((alert) => alert.type === 'price' || alert.type === 'portfolio').length,
       alertsGenerated: alerts.length,
       patternsDetected: activeAlerts.filter((alert) => alert.type === 'pattern').length,
-      feedLabel: dataState.connectionStatus.state === 'connected'
+      feedLabel: connectionState === 'connected'
         ? 'Live'
-        : dataState.connectionStatus.state === 'reconnecting'
+        : connectionState === 'reconnecting'
           ? 'Reconnecting'
           : 'Degraded',
-      feedColor: dataState.connectionStatus.state === 'connected'
+      feedColor: connectionState === 'connected'
         ? 'text-green-500'
-        : dataState.connectionStatus.state === 'reconnecting'
+        : connectionState === 'reconnecting'
           ? 'text-yellow-500'
           : 'text-red-500',
       activeMonitors: [
@@ -174,7 +186,7 @@ export const Sentinel = React.memo(function Sentinel() {
         { name: 'Portfolio Guards', count: activeAlerts.filter((alert) => alert.type === 'portfolio').length },
       ],
     };
-  }, [activeAlerts, alerts.length, dataState.alerts.length, dataState.assets.length, dataState.connectionStatus.state, dataState.globalStats.lastUpdated, dataState.marketData.indices.length, dataState.prices.size]);
+  }, [activeAlerts, alerts.length, rawAlerts.length, assets.length, connectionState, globalStats.lastUpdated, marketIndices.length, pricesSize]);
 
   return (
     <div className="space-y-6">
@@ -191,7 +203,7 @@ export const Sentinel = React.memo(function Sentinel() {
         </div>
         <div className="flex items-center gap-2">
           <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs ${monitoringStats.monitoringBadgeClass}`}>
-            <div className={`w-2 h-2 rounded-full ${dataState.connectionStatus.state === 'connected' ? 'bg-green-500 animate-pulse' : dataState.connectionStatus.state === 'reconnecting' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+            <div className={`w-2 h-2 rounded-full ${connectionState === 'connected' ? 'bg-green-500 animate-pulse' : connectionState === 'reconnecting' ? 'bg-yellow-500' : 'bg-red-500'}`} />
             {monitoringStats.monitoringLabel}
           </span>
         </div>
@@ -248,7 +260,7 @@ export const Sentinel = React.memo(function Sentinel() {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Portfolio Value</span>
-              <span className="font-medium">${dataState.portfolioSummary.totalValue.toLocaleString()}</span>
+              <span className="font-medium">${portfolioSummary.totalValue.toLocaleString()}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Stop Losses Set</span>
@@ -435,7 +447,7 @@ export const Sentinel = React.memo(function Sentinel() {
               <p className="text-xs opacity-70">Unread alerts</p>
             </div>
             <div className="p-3 rounded-xl bg-white/10">
-              <p className="text-2xl font-bold">{dataState.assets.length}</p>
+              <p className="text-2xl font-bold">{assets.length}</p>
               <p className="text-xs opacity-70">Tracked portfolio assets</p>
             </div>
           </div>

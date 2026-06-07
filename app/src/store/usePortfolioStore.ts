@@ -11,6 +11,14 @@ interface PortfolioState {
   alerts: Alert[];
   summary: PortfolioSummary;
   isLoading: boolean;
+  
+  // UI Dialog States
+  isDepositOpen: boolean;
+  isWithdrawOpen: boolean;
+  isAlertOpen: boolean;
+  setIsDepositOpen: (open: boolean) => void;
+  setIsWithdrawOpen: (open: boolean) => void;
+  setIsAlertOpen: (open: boolean) => void;
 
   // Actions
   fetchAssets: (userId: string) => Promise<void>;
@@ -86,6 +94,14 @@ export const usePortfolioStore = create<PortfolioState>()(
         assets: [],
       },
       isLoading: false,
+
+      // UI Dialog States
+      isDepositOpen: false,
+      isWithdrawOpen: false,
+      isAlertOpen: false,
+      setIsDepositOpen: (open) => set({ isDepositOpen: open }),
+      setIsWithdrawOpen: (open) => set({ isWithdrawOpen: open }),
+      setIsAlertOpen: (open) => set({ isAlertOpen: open }),
 
       fetchAssets: async (userId: string) => {
         if (!isSupabaseConfigured || !supabase) return;

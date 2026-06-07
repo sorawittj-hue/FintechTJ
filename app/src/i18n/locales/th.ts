@@ -99,6 +99,8 @@ const th = {
     usStockFrameworkDesc: 'วิเคราะห์หุ้นพื้นฐาน',
     advancedCrypto: 'Advanced Crypto',
     advancedCryptoDesc: 'วิเคราะห์คริปโตเชิงลึก',
+    marketAction: 'Market Action',
+    marketActionDesc: 'เพลย์บุ๊กและธีม 2026',
     sectorRotation: 'Sector Rotation',
     sectorRotationDesc: 'การหมุนเวียนเซกเตอร์',
     narrativeCycle: 'Narrative Cycle',

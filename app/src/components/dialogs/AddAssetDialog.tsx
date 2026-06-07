@@ -21,6 +21,7 @@ import {
     fetchStockQuote,
 } from '@/services/realDataService';
 import { formatCurrency } from '@/lib/utils';
+import { searchCatalog, type CatalogAsset } from '@/lib/assetCatalog';
 
 interface AddAssetDialogProps {
     isOpen: boolean;
@@ -43,6 +44,8 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [isFetchingPrice, setIsFetchingPrice] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
+    const [searchResults, setSearchResults] = useState<CatalogAsset[]>([]);
+    const [showDropdown, setShowDropdown] = useState(false);
 
     // ตรวจสอบ symbol ซ้ำ
     const existingAsset = useMemo(() => {
@@ -56,6 +59,8 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         setName('');
         setQuantity('');
         setAvgPrice('');
+        setSearchResults([]);
+        setShowDropdown(false);
     };
 
     const handleClose = () => {
@@ -134,12 +139,12 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                     price: formatCurrency(convertedPrice, userCurrency) 
                 }));
             } else {
-                setFetchError(t('addAssetDialog.priceNotFound'));
-                toast.warning(t('addAssetDialog.priceNotFound'));
+                setFetchError('ไม่สามารถดึงราคาล่าสุดได้ โปรดกรอกราคาด้วยตนเอง (Manual Entry)');
+                toast.warning('ไม่สามารถดึงราคาอัตโนมัติได้ โปรดกรอกราคาด้วยตนเอง');
             }
         } catch {
-            setFetchError(t('addAssetDialog.cannotFetchPrice'));
-            toast.error(t('addAssetDialog.cannotFetchPrice'));
+            setFetchError('ไม่สามารถดึงราคาล่าสุดได้ โปรดกรอกราคาด้วยตนเอง (Manual Entry)');
+            toast.error('ระบบดึงข้อมูลตลาดขัดข้อง โปรดกรอกราคาด้วยตนเอง');
         } finally {
             setIsFetchingPrice(false);
         }
@@ -167,12 +172,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
         // Convert back to USD for storage
         const pxNum = userCurrency === 'USD' ? pxNumInUserCurrency : pxNumInUserCurrency / (usePriceStore.getState().exchangeRates[userCurrency] || 1);
 
-        // ตรวจสอบ symbol ซ้ำ
-        const duplicateAsset = assets.find(a => a.symbol.toUpperCase() === symbol.toUpperCase());
-        if (duplicateAsset) {
-            toast.error(t('addAssetDialog.assetAlreadyExists', { symbol: symbol.toUpperCase() }));
-            return;
-        }
+        const existingPosition = assets.find(a => a.symbol.toUpperCase() === symbol.toUpperCase());
 
         setIsProcessing(true);
 
@@ -225,19 +225,34 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                 }
             }
 
-            await addAsset({
-                symbol: normalizedSymbol,
-                name: resolvedName,
-                type,
-                quantity: qtyNum,
-                avgPrice: pxNum,
-                currentPrice,
-                value: totalValue,
-                change24h,
-                change24hPercent,
-                change24hValue,
-                allocation: 0
-            });
+            if (existingPosition) {
+                // Calculate new cost basis
+                const oldTotalValue = existingPosition.quantity * existingPosition.avgPrice;
+                const newTotalValue = qtyNum * pxNum;
+                const newQuantity = existingPosition.quantity + qtyNum;
+                const newAvgPrice = (oldTotalValue + newTotalValue) / newQuantity;
+                
+                // Keep the existing currentPrice and let calculateSummary handle the portfolio value updates
+                await updateAsset(existingPosition.id, {
+                    quantity: newQuantity,
+                    avgPrice: newAvgPrice,
+                    value: newQuantity * currentPrice, // Approximate, will be recalculated by store
+                });
+            } else {
+                await addAsset({
+                    symbol: normalizedSymbol,
+                    name: resolvedName,
+                    type,
+                    quantity: qtyNum,
+                    avgPrice: pxNum,
+                    currentPrice,
+                    value: totalValue,
+                    change24h,
+                    change24hPercent,
+                    change24hValue,
+                    allocation: 0
+                });
+            }
 
             await addTransaction({
                 type: 'buy',
@@ -325,9 +340,9 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                 </div>
 
                                 {existingAsset && (
-                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl">
-                                        <p className="text-sm text-red-600 dark:text-red-400">
-                                            {t('addAssetDialog.existingAssetWarning', { symbol: symbol.toUpperCase(), qty: existingAsset.quantity })}
+                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl">
+                                        <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                                            You already own {existingAsset.quantity} {symbol.toUpperCase()}. This will add to your position and update your average cost.
                                         </p>
                                     </div>
                                 )}
@@ -342,12 +357,43 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                                 type="text"
                                                 value={symbol}
                                                 onChange={(e) => {
-                                                    setSymbol(e.target.value.toUpperCase());
+                                                    const val = e.target.value.toUpperCase();
+                                                    setSymbol(val);
                                                     setFetchError(null);
+                                                    const results = searchCatalog(val, type);
+                                                    setSearchResults(results);
+                                                    setShowDropdown(results.length > 0);
                                                 }}
-                                                placeholder="e.g. BTC"
+                                                onFocus={() => {
+                                                    if (searchResults.length > 0) setShowDropdown(true);
+                                                }}
+                                                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                                                placeholder={type === 'stock' ? 'e.g. PTT.BK, AAPL' : 'e.g. BTC'}
                                                 className="w-full px-4 py-2.5 pr-10 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-950 focus:outline-none focus:border-[#ee7d54] focus:ring-2 focus:ring-[#ee7d54]/20 transition-all font-medium uppercase dark:text-white"
                                             />
+                                            {showDropdown && (
+                                                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                                                    {searchResults.map((res) => (
+                                                        <button
+                                                            key={res.symbol}
+                                                            className="w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors flex flex-col border-b border-gray-50 dark:border-slate-700/50 last:border-0"
+                                                            onClick={() => {
+                                                                setSymbol(res.symbol);
+                                                                setName(res.name);
+                                                                setShowDropdown(false);
+                                                                // Don't auto-fetch yet to let them see, or auto-fetch?
+                                                                // setTimeout(fetchCurrentPrice, 100);
+                                                            }}
+                                                        >
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="font-bold text-sm text-gray-900 dark:text-white">{res.symbol}</span>
+                                                                {res.market && <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500">{res.market}</span>}
+                                                            </div>
+                                                            <span className="text-xs text-gray-500 truncate">{res.name}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                             <button
                                                 onClick={fetchCurrentPrice}
                                                 disabled={isFetchingPrice || !symbol}
@@ -362,7 +408,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                             </button>
                                         </div>
                                         {fetchError && (
-                                            <p className="text-xs text-red-500 mt-1">{fetchError}</p>
+                                            <p className="text-xs text-amber-500 mt-2 bg-amber-50 dark:bg-amber-900/10 p-2 rounded-lg border border-amber-100 dark:border-amber-900/20">{fetchError}</p>
                                         )}
                                     </div>
                                     <div>
@@ -430,7 +476,7 @@ export function AddAssetDialog({ isOpen, onClose }: AddAssetDialogProps) {
                                 </button>
                                 <button
                                     onClick={handleAddAsset}
-                                    disabled={isProcessing || !symbol || !name || !quantity || !avgPrice || !!existingAsset}
+                                    disabled={isProcessing || !symbol || !name || !quantity || !avgPrice}
                                     className="flex-[2] py-3 px-4 bg-gradient-to-r from-[#ee7d54] to-[#f59e0b] text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#ee7d54]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isProcessing ? (

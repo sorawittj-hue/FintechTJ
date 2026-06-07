@@ -22,7 +22,11 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import type { CryptoPrice } from '@/services/binance';
 import type { AuthUser } from '@/context/AuthContext';
-import { usePortfolio, usePrice, useSettings, useAuth } from '@/context/hooks';
+import { useAuth } from '@/context/hooks';
+import { usePriceStore } from '@/store/usePriceStore';
+import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { useShallow } from 'zustand/react/shallow';
 
 /**
  * Get user initials from email or name
@@ -263,19 +267,29 @@ export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [priceFlash, setPriceFlash] = useState<Record<string, 'up' | 'down' | null>>({});
-  const { settings, updateSettings } = useSettings();
+  const settings = useSettingsStore(s => s.settings);
+  const updateSettings = useSettingsStore(s => s.updateSettings);
   const isDarkMode = settings.theme === 'dark' || (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  const { portfolio } = usePortfolio();
-  const { prices, isWebSocketConnected, isPriceFeedStale, lastUpdateAgeSeconds, connectionState, latencyMs } = usePrice();
+  
+  const portfolio = usePortfolioStore(useShallow(s => ({
+    totalValue: s.summary.totalValue,
+    totalChange24hPercent: s.summary.totalChange24hPercent
+  })));
+
+  const isWebSocketConnected = usePriceStore(s => s.connectionStatus.state === 'connected');
+  const isPriceFeedStale = usePriceStore(s => s.isPriceFeedStale);
+  const lastUpdate = usePriceStore(s => s.lastUpdate);
+  const lastUpdateAgeSeconds = lastUpdate ? Math.floor((Date.now() - lastUpdate.getTime()) / 1000) : null;
+  const connectionState = usePriceStore(s => s.connectionStatus.state);
+  const latencyMs = usePriceStore(s => s.connectionStatus.latency);
   const previousPricesRef = useRef<Record<string, number>>({});
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const tickers = useMemo<CryptoPrice[]>(
-    () => HEADER_TICKERS
-      .map((symbol) => prices.get(symbol))
-      .filter((ticker): ticker is CryptoPrice => Boolean(ticker)),
-    [prices]
-  );
+  const tickers = usePriceStore(useShallow(s => 
+    HEADER_TICKERS
+      .map((symbol) => s.prices.get(symbol))
+      .filter((ticker): ticker is CryptoPrice => Boolean(ticker))
+  ));
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);

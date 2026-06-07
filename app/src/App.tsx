@@ -55,6 +55,9 @@ const USStockFramework = lazy(() => import('@/sections/USStockFramework'));
 // KapraoHub - 40 OpenClaw Features
 const KapraoHub = lazy(() => import('@/sections/KapraoHub'));
 
+// Market Action Dashboard
+const MarketActionDashboard = lazy(() => import('@/sections/MarketActionDashboard'));
+
 function getSkeletonType(path: string): 'dashboard' | 'overview' | 'list' | 'grid' | 'chart' | 'settings' | 'default' {
   const section = path.substring(1) || 'dashboard';
   switch (section) {
@@ -69,7 +72,7 @@ function getSkeletonType(path: string): 'dashboard' | 'overview' | 'list' | 'gri
     case 'whalevault': case 'whale': case 'smcpanel': case 'smc':
     case 'brio': case 'sentinel': case 'audio': case 'sector':
     case 'narrative': case 'defcon': case 'riskpanel': case 'risk':
-    case 'liquidity': case 'institutional': case 'trading': case 'us-framework':
+    case 'liquidity': case 'institutional': case 'trading': case 'market-action': case 'marketaction': case 'us-framework':
     case 'futures': case 'futuressignal': return 'chart';
     case 'settings': case 'help': return 'settings';
     case 'crisis': case 'crisisguide': return 'grid';
@@ -87,9 +90,14 @@ function SectionWrapper({ section, children }: { section: string; children: Reac
 
 function AppContent() {
   const location = useLocation();
-  const { isDepositOpen, setIsDepositOpen, isWithdrawOpen, setIsWithdrawOpen, isAlertOpen, setIsAlertOpen } = usePortfolio();
+  const isDepositOpen = usePortfolioStore(s => s.isDepositOpen);
+  const setIsDepositOpen = usePortfolioStore(s => s.setIsDepositOpen);
+  const isWithdrawOpen = usePortfolioStore(s => s.isWithdrawOpen);
+  const setIsWithdrawOpen = usePortfolioStore(s => s.setIsWithdrawOpen);
+  const isAlertOpen = usePortfolioStore(s => s.isAlertOpen);
+  const setIsAlertOpen = usePortfolioStore(s => s.setIsAlertOpen);
   const { user } = useAuth();
-  const { setupRealtimeSync } = usePortfolioStore();
+  const setupRealtimeSync = usePortfolioStore(s => s.setupRealtimeSync);
 
   // Initialize performance monitoring and analytics
   useEffect(() => {
@@ -191,6 +199,8 @@ function AppContent() {
                       <Route path="/audiobrief" element={<AudioBrief />} />
 
                       {/* Market Analysis */}
+                      <Route path="/market-action" element={<MarketActionDashboard />} />
+                      <Route path="/marketaction" element={<MarketActionDashboard />} />
                       <Route path="/us-framework" element={<USStockFramework />} />
                       <Route path="/sector" element={<SectorRotation />} />
                       <Route path="/sectorrotation" element={<SectorRotation />} />

@@ -19,7 +19,7 @@ function reportServiceFailure(service: keyof typeof serviceHealth) {
     const s = serviceHealth[service];
     s.failures++;
     s.lastFailure = Date.now();
-    if (s.failures >= 3) {
+    if (s.failures === 3) {
         s.disabledUntil = Date.now() + 5 * 60 * 1000; // 5 min cooldown
         console.warn(`[RealData] Service ${service} is cooling down.`);
     }
@@ -357,6 +357,7 @@ export async function fetchStockQuote(symbol: string): Promise<StockQuote | null
     const cacheKey = `stock_${symbol.toUpperCase()}`;
     const cached = cache.stocks.get(cacheKey);
     if (cached) return cached;
+    if (!isServiceAvailable('yahoo')) return cached || null;
     try {
         const url = `${ENDPOINTS.yahoo.chart}/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
         const response = await fetchWithProxy(url);
@@ -379,6 +380,7 @@ export async function fetchStockQuote(symbol: string): Promise<StockQuote | null
 
 export async function fetchMarketIndices(): Promise<MarketIndex[]> {
     const indices = [ { symbol: '^GSPC', name: 'S&P 500' }, { symbol: '^IXIC', name: 'NASDAQ' } ];
+    if (!isServiceAvailable('yahoo')) return [];
     const results = await Promise.all(indices.map(async ({ symbol, name }) => {
         try {
             const url = `${ENDPOINTS.yahoo.chart}/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
@@ -391,7 +393,7 @@ export async function fetchMarketIndices(): Promise<MarketIndex[]> {
                 changePercent: (((meta?.regularMarketPrice || 0) - (meta?.chartPreviousClose || 0)) / (meta?.chartPreviousClose || 1)) * 100,
                 timestamp: new Date(),
             };
-        } catch { return null; }
+        } catch { reportServiceFailure('yahoo'); return null; }
     }));
     return results.filter((r): r is MarketIndex => r !== null);
 }
@@ -399,6 +401,7 @@ export async function fetchMarketIndices(): Promise<MarketIndex[]> {
 export async function fetchCommodityPrices(): Promise<CommodityPrice[]> {
     const commodities = [ { symbol: 'GC=F', name: 'Gold', unit: 'USD/Ounce' }, { symbol: 'CL=F', name: 'Crude Oil', unit: 'USD/Barrel' } ];
     const results = await Promise.all(commodities.map(async ({ symbol, name, unit }) => {
+        if (!isServiceAvailable('yahoo')) return null;
         try {
             const url = `${ENDPOINTS.yahoo.chart}/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
             const response = await fetchWithProxy(url);
@@ -410,7 +413,7 @@ export async function fetchCommodityPrices(): Promise<CommodityPrice[]> {
                 change24hPercent: ((price - meta?.chartPreviousClose) / meta?.chartPreviousClose) * 100,
                 unit, lastUpdated: new Date(),
             };
-        } catch { return null; }
+        } catch { reportServiceFailure('yahoo'); return null; }
     }));
     return results.filter((r): r is CommodityPrice => r !== null);
 }
@@ -418,6 +421,7 @@ export async function fetchCommodityPrices(): Promise<CommodityPrice[]> {
 export async function fetchYahooOHLCV(symbol: string, timeframe: '15m' | '1h' | '4h' | '1d' = '4h'): Promise<{ klines: YahooKline[]; meta: YahooQuoteMeta } | null> {
     const intervalMap: Record<string, string> = { '15m': '15m', '1h': '60m', '4h': '60m', '1d': '1d' };
     const rangeMap: Record<string, string> = { '15m': '5d', '1h': '30d', '4h': '60d', '1d': '180d' };
+    if (!isServiceAvailable('yahoo')) return null;
     try {
         const url = `${ENDPOINTS.yahoo.chart}/${encodeURIComponent(symbol)}?interval=${intervalMap[timeframe]}&range=${rangeMap[timeframe]}`;
         const response = await fetchWithProxy(url);
@@ -436,11 +440,12 @@ export async function fetchYahooOHLCV(symbol: string, timeframe: '15m' | '1h' | 
             regularMarketDayHigh: m.regularMarketDayHigh, regularMarketDayLow: m.regularMarketDayLow,
             regularMarketVolume: m.regularMarketVolume, shortName: m.shortName,
         }};
-    } catch { return null; }
+    } catch { reportServiceFailure('yahoo'); return null; }
 }
 
 export async function fetchForexRates(): Promise<ForexRate[]> {
     const pairs = [ { symbol: 'EURUSD=X', name: 'EUR/USD' }, { symbol: 'USDTHB=X', name: 'USD/THB' } ];
+    if (!isServiceAvailable('yahoo')) return [];
     const results = await Promise.all(pairs.map(async ({ symbol, name }) => {
         try {
             const url = `${ENDPOINTS.yahoo.chart}/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
@@ -452,7 +457,7 @@ export async function fetchForexRates(): Promise<ForexRate[]> {
                 symbol: name.replace('/', ''), name, rate, change24h: rate - meta?.chartPreviousClose,
                 change24hPercent: ((rate - meta?.chartPreviousClose) / meta?.chartPreviousClose) * 100, lastUpdated: new Date(),
             };
-        } catch { return null; }
+        } catch { reportServiceFailure('yahoo'); return null; }
     }));
     return results.filter((r): r is ForexRate => r !== null);
 }

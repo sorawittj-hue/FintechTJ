@@ -13,7 +13,8 @@ import {
   Brain
 } from 'lucide-react';
 import { useIndicators, useRSIHeatmap } from '@/hooks/useIndicators';
-import { useData } from '@/context/hooks';
+import { useMarketStore } from '@/store/useMarketStore';
+import { useShallow } from 'zustand/react/shallow';
 import {
   XAxis,
   YAxis,
@@ -49,7 +50,7 @@ function getRSISignal(rsi: number | null): string {
 
 export function QuantLab() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
-  const { state: dataState } = useData();
+  const marketData = useMarketStore(useShallow(s => s.marketData));
 
   // Get real-time indicators for selected symbol
   const {
@@ -96,7 +97,7 @@ export function QuantLab() {
 
   // Use top symbols as "Technical Signals" data
   const combinedData = useMemo(() => {
-    return dataState.marketData.topVolume.slice(0, 6).map(coin => {
+    return marketData.topVolume.slice(0, 6).map(coin => {
       const rsiInfo = combinedRsiData.find(r => r.symbol === coin.symbol);
       return {
         symbol: coin.symbol,
@@ -108,7 +109,7 @@ export function QuantLab() {
         hasRsi: rsiInfo?.isReal ?? false,
       };
     });
-  }, [dataState.marketData, combinedRsiData]);
+  }, [marketData, combinedRsiData]);
 
   const handleRefresh = () => {
     refreshIndicators();

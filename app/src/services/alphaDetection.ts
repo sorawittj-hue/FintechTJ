@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { usePriceStore } from '@/store/usePriceStore';
+import { useShallow } from 'zustand/react/shallow';
 
 // Alpha opportunity types
 export type AlphaOpportunityType =
@@ -107,7 +108,7 @@ function calculateAlpha(symbol: string, price: number, change24h: number): Alpha
 }
 
 export function useAlphaDetection() {
-  const { allPrices } = usePriceStore();
+  const allPrices = usePriceStore(useShallow(s => s.allPrices));
 
   const result = useMemo(() => {
     if (allPrices.length === 0) {

@@ -395,17 +395,15 @@ async function fetchRealWTIPrice(): Promise<OilPriceData> {
                 return data;
             }
         } catch (e) {
-            console.warn('[OilEngine] Proxy fetch failed:', e);
+            // Silently continue to next proxy or fallback
         }
     }
 
     // Return cached price if available and recent
     if (cache?.price && Date.now() - cache.timestamp < 30 * 60 * 1000) {
-        console.log('[OilEngine] Using cached price data');
         return cache.price;
     }
 
-    console.warn('[OilEngine] All proxies failed, using fallback data');
     return { ...FALLBACK_PRICE, timestamp: new Date().toISOString() };
 }
 
@@ -444,7 +442,7 @@ async function fetchWTIHistory(range: string = '3mo'): Promise<OilHistoricalData
                 return data;
             }
         } catch (e) {
-            console.warn('[OilEngine] History fetch failed:', e);
+            // Silently continue to next proxy or fallback
         }
     }
     return generateFallbackHistory();
