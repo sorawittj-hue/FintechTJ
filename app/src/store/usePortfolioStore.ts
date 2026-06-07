@@ -38,6 +38,12 @@ interface PortfolioState {
   setupRealtimeSync: (userId: string) => () => void;
 }
 
+// Helper to check if a string is a valid UUID (guest IDs are not UUIDs)
+const isUUID = (str?: string): boolean => {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+};
+
 // Helper for portfolio calculations
 function calculatePortfolioSummary(assets: PortfolioAsset[], prices: Map<string, { price: number; change24h: number; change24hPercent: number }>): PortfolioSummary {
   const assetsWithPrices = assets.map(asset => {
@@ -104,7 +110,7 @@ export const usePortfolioStore = create<PortfolioState>()(
       setIsAlertOpen: (open) => set({ isAlertOpen: open }),
 
       fetchAssets: async (userId: string) => {
-        if (!isSupabaseConfigured || !supabase) return;
+        if (!isSupabaseConfigured || !supabase || !isUUID(userId)) return;
 
         set({ isLoading: true });
         try {
@@ -128,7 +134,7 @@ export const usePortfolioStore = create<PortfolioState>()(
       },
 
       addAsset: async (asset, userId) => {
-        if (userId && isSupabaseConfigured && supabase) {
+        if (userId && isUUID(userId) && isSupabaseConfigured && supabase) {
           try {
             const { data, error } = await supabase
               .from('portfolio_positions')
@@ -158,7 +164,7 @@ export const usePortfolioStore = create<PortfolioState>()(
       },
 
       removeAsset: async (id) => {
-        if (isSupabaseConfigured && supabase) {
+        if (isUUID(id) && isSupabaseConfigured && supabase) {
           try {
             const { error } = await supabase
               .from('portfolio_positions')
@@ -180,7 +186,7 @@ export const usePortfolioStore = create<PortfolioState>()(
       },
 
       updateAsset: async (id, updates) => {
-        if (isSupabaseConfigured && supabase) {
+        if (isUUID(id) && isSupabaseConfigured && supabase) {
           try {
             const { error } = await supabase
               .from('portfolio_positions')
@@ -203,7 +209,7 @@ export const usePortfolioStore = create<PortfolioState>()(
       },
 
       fetchTransactions: async (userId: string) => {
-        if (!isSupabaseConfigured || !supabase) return;
+        if (!isSupabaseConfigured || !supabase || !isUUID(userId)) return;
 
         try {
           const { data, error } = await supabase
@@ -228,11 +234,13 @@ export const usePortfolioStore = create<PortfolioState>()(
       },
 
       addTransaction: async (transaction, userId) => {
-        if (userId && isSupabaseConfigured && supabase) {
+        if (userId && isUUID(userId) && isSupabaseConfigured && supabase) {
           try {
+            // Strip client-side 'asset' property (it doesn't exist in the Postgres schema)
+            const { asset, ...dbTransaction } = transaction as any;
             const { data, error } = await supabase
               .from('transactions')
-              .insert([{ ...transaction, user_id: userId, timestamp: new Date().toISOString() }])
+              .insert([{ ...dbTransaction, user_id: userId, timestamp: new Date().toISOString() }])
               .select();
 
             if (error) throw error;
@@ -304,7 +312,7 @@ export const usePortfolioStore = create<PortfolioState>()(
       },
 
       setupRealtimeSync: (userId: string) => {
-        if (!isSupabaseConfigured || !supabase) return () => { };
+        if (!isSupabaseConfigured || !supabase || !isUUID(userId)) return () => { };
 
         const assetsSubscription = supabase
           .channel('portfolio-assets-sync')
