@@ -1,5 +1,6 @@
 import { useQuery, QueryClient } from '@tanstack/react-query';
 import type { CandlestickData, Time } from 'lightweight-charts';
+import { fetchWithProxy } from '@/services/realDataService';
 
 // =============================================================================
 // Query Client Instance (exported for use in App.tsx)
@@ -68,12 +69,10 @@ export interface RealtimePriceData {
  * Falls back to empty array if API fails.
  */
 async function fetchOHLCData(symbol: string, timeframe: '1D' | '1W' | '1M' | '1Y'): Promise<OHLCBar[]> {
-  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${timeframe === '1D' ? '1d' : '1d'}&range=${timeframe === '1D' ? '1mo' : timeframe === '1W' ? '3mo' : timeframe === '1M' ? '1y' : '5y'}`
-  )}`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=${timeframe === '1D' ? '1mo' : timeframe === '1W' ? '3mo' : timeframe === '1M' ? '1y' : '5y'}`;
   
   try {
-    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+    const response = await fetchWithProxy(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
     const proxyData = await response.json();
@@ -106,8 +105,7 @@ async function fetchOHLCData(symbol: string, timeframe: '1D' | '1W' | '1M' | '1Y
 async function fetchAssetNews(symbol: string): Promise<AssetNewsItem[]> {
   try {
     const url = `https://min-api.cryptocompare.com/data/v2/news/?lang=EN&limit=10`;
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+    const response = await fetchWithProxy(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
     const proxyData = await response.json();
@@ -140,8 +138,7 @@ async function fetchRealtimePrice(symbol: string): Promise<RealtimePriceData> {
   try {
     // Try CoinGecko first
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${symbol.toLowerCase()}&vs_currencies=usd&include_24hr_change=true`;
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+    const response = await fetchWithProxy(url);
     
     if (response.ok) {
       const proxyData = await response.json();
@@ -158,7 +155,6 @@ async function fetchRealtimePrice(symbol: string): Promise<RealtimePriceData> {
       }
     }
   } catch { /* Try Binance fallback */ }
-  
   try {
     // Binance fallback
     const binanceUrl = `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol.toUpperCase()}USDT`;
@@ -173,7 +169,32 @@ async function fetchRealtimePrice(symbol: string): Promise<RealtimePriceData> {
         timestamp: Date.now(),
       };
     }
-  } catch { /* silence */ }
+  } catch { /* Try Yahoo Finance fallback */ }
+
+  try {
+    // Yahoo Finance fallback (for stocks, commodities, forex)
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+    const response = await fetchWithProxy(yahooUrl);
+    
+    if (response.ok) {
+      const proxyData = await response.json();
+      const data = proxyData.contents ? JSON.parse(proxyData.contents) : proxyData;
+      const meta = data.chart?.result?.[0]?.meta;
+      
+      if (meta) {
+        const price = meta.regularMarketPrice || 0;
+        const previousClose = meta.chartPreviousClose || price;
+        return {
+          price,
+          change24h: price - previousClose,
+          change24hPercent: previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0,
+          timestamp: Date.now(),
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('[Price] Yahoo Finance fallback failed for', symbol, e);
+  }
   
   console.warn('[Price] All price APIs failed for', symbol);
   return {

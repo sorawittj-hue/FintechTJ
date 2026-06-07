@@ -34,7 +34,7 @@ export function useData() {
   })));
 
   const portfolioState = usePortfolioStore(useShallow(state => ({
-    assets: state.assets,
+    assets: state.summary.assets.length > 0 ? state.summary.assets : state.assets,
     transactions: state.transactions,
     alerts: state.alerts,
     summary: state.summary,

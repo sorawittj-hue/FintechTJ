@@ -112,7 +112,7 @@ function DashboardHome() {
   const settings = useSettingsStore(s => s.settings);
   const portfolio = usePortfolioStore(s => s.summary);
   const setIsDepositOpen = usePortfolioStore(s => s.setIsDepositOpen);
-  const assets = usePortfolioStore(useShallow(s => s.assets));
+  const assets = usePortfolioStore(useShallow(s => s.summary.assets.length > 0 ? s.summary.assets : s.assets));
   
   const refreshPrices = usePriceStore(s => s.refreshPrices);
   const latencyMs = usePriceStore(s => s.connectionStatus.latency);

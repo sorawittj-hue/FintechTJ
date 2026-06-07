@@ -23,7 +23,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 export const Sentinel = React.memo(function Sentinel() {
   const rawAlerts = usePortfolioStore(useShallow(s => s.alerts));
-  const assets = usePortfolioStore(useShallow(s => s.assets));
+  const assets = usePortfolioStore(useShallow(s => s.summary.assets.length > 0 ? s.summary.assets : s.assets));
   const portfolioSummary = usePortfolioStore(useShallow(s => s.summary));
   const toggleAlert = usePortfolioStore(s => s.toggleAlert);
   

@@ -26,9 +26,9 @@ import { binanceAPI } from './binance';
 // ═══════════════════ FREE API CONFIGURATION ═══════════════════
 
 const CORS_PROXIES = [
-    'https://api.codetabs.com/v1/proxy?quest=',
-    'https://api.allorigins.win/get?url=',
     'https://corsproxy.io/?',
+    'https://api.allorigins.win/get?url=',
+    'https://api.codetabs.com/v1/proxy?quest=',
 ];
 
 const FREE_APIS = {

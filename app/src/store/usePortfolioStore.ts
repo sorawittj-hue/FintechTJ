@@ -73,6 +73,11 @@ function calculatePortfolioSummary(assets: PortfolioAsset[], prices: Map<string,
   const totalChange24h = assetsWithPrices.reduce((sum, asset) => sum + (asset.change24hValue || 0), 0);
   const totalChange24hPercent = totalValue > 0 ? (totalChange24h / totalValue) * 100 : 0;
 
+  const assetsWithAllocations = assetsWithPrices.map(asset => ({
+    ...asset,
+    allocation: totalValue > 0 ? ((asset.value || 0) / totalValue) * 100 : 0
+  }));
+
   return {
     totalValue,
     totalCost,
@@ -80,7 +85,7 @@ function calculatePortfolioSummary(assets: PortfolioAsset[], prices: Map<string,
     totalProfitLossPercent,
     totalChange24h,
     totalChange24hPercent,
-    assets: assetsWithPrices,
+    assets: assetsWithAllocations,
   };
 }
 
@@ -123,6 +128,7 @@ export const usePortfolioStore = create<PortfolioState>()(
 
           const assets = data.map(r => ({ ...r, id: r.id }) as unknown as PortfolioAsset);
           set({ assets, isLoading: false });
+          await usePriceStore.getState().refreshNonCryptoPrices().catch(console.error);
           get().calculateSummary();
         } catch (err: unknown) {
           const error = err as { message?: string };
@@ -144,6 +150,7 @@ export const usePortfolioStore = create<PortfolioState>()(
             if (error) throw error;
             if (data) {
               set(state => ({ assets: [...state.assets, data[0] as unknown as PortfolioAsset] }));
+              await usePriceStore.getState().refreshNonCryptoPrices().catch(console.error);
             }
           } catch (err: unknown) {
             const error = err as { message?: string };
@@ -153,10 +160,12 @@ export const usePortfolioStore = create<PortfolioState>()(
             // Local fallback
             const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             set(state => ({ assets: [...state.assets, { ...asset, id } as PortfolioAsset] }));
+            await usePriceStore.getState().refreshNonCryptoPrices().catch(console.error);
           }
         } else {
           const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           set(state => ({ assets: [...state.assets, { ...asset, id } as PortfolioAsset] }));
+          await usePriceStore.getState().refreshNonCryptoPrices().catch(console.error);
         }
 
         get().calculateSummary();

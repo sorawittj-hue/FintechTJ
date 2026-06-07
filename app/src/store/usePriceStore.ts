@@ -23,6 +23,7 @@ interface PriceState {
   updatePricesBatch: (prices: CryptoPrice[]) => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
   checkStaleness: () => void;
+  refreshNonCryptoPrices: () => Promise<void>;
   
   // Helpers
   convert: (value: number, toCurrency: string) => number;
@@ -168,11 +169,78 @@ export const usePriceStore = create<PriceState>()(
       if (!lastUpdate) return;
       const ageSeconds = Math.max(0, Math.round((Date.now() - lastUpdate.getTime()) / 1000));
       set({ isPriceFeedStale: ageSeconds > PRICE_FEED_STALE_AFTER_SECONDS });
+    },
+
+    refreshNonCryptoPrices: async () => {
+      try {
+        const { usePortfolioStore } = await import('./usePortfolioStore');
+        const { fetchStockQuote } = await import('@/services/realDataService');
+        
+        // 1. Get non-crypto symbols from portfolio assets
+        const assets = usePortfolioStore.getState().assets;
+        const portfolioSymbols = assets
+          .filter(asset => asset.type !== 'crypto')
+          .map(asset => asset.symbol.toUpperCase());
+
+        // 2. Get non-crypto symbols from watchlist (persisted in localStorage)
+        let watchlistSymbols: string[] = [];
+        try {
+          const rawWatchlist = localStorage.getItem('fintechtj.watchlist.v2');
+          if (rawWatchlist) {
+            const watchlistItems = JSON.parse(rawWatchlist) as { symbol: string }[];
+            const knownCryptos = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'LINK', 'MATIC', 'LTC', 'TRX'];
+            watchlistSymbols = watchlistItems
+              .map(item => item.symbol.toUpperCase())
+              .filter(symbol => !knownCryptos.includes(symbol));
+          }
+        } catch (e) {
+          console.error('Failed to parse watchlist in priceStore:', e);
+        }
+
+        // 3. Merge unique non-crypto symbols
+        const nonCryptoSymbols = Array.from(new Set([
+          ...portfolioSymbols,
+          ...watchlistSymbols
+        ]));
+
+        if (nonCryptoSymbols.length === 0) return;
+
+        const updatedPrices: CryptoPrice[] = [];
+        
+        await Promise.all(
+          nonCryptoSymbols.map(async (symbol) => {
+            try {
+              const quote = await fetchStockQuote(symbol);
+              if (quote) {
+                updatedPrices.push({
+                  symbol,
+                  price: quote.price,
+                  change24h: quote.change,
+                  change24hPercent: quote.changePercent,
+                  high24h: quote.high || quote.price,
+                  low24h: quote.low || quote.price,
+                  volume24h: quote.volume || 0,
+                  quoteVolume24h: (quote.volume || 0) * quote.price
+                });
+              }
+            } catch (err) {
+              console.error(`Failed to fetch stock quote for ${symbol}:`, err);
+            }
+          })
+        );
+
+        if (updatedPrices.length > 0) {
+          get().updatePricesBatch(updatedPrices);
+        }
+      } catch (error) {
+        console.error('Failed to refresh non-crypto prices:', error);
+      }
     }
   }))
 );
 
 let stalenessInterval: ReturnType<typeof setInterval> | null = null;
+let stockInterval: ReturnType<typeof setInterval> | null = null;
 let wsUnsubscribe: (() => void) | null = null;
 
 /**
@@ -194,16 +262,30 @@ export function initPriceStore(): () => void {
   // Initial fetch
   usePriceStore.getState().refreshPrices();
 
+  // Wait 2 seconds and fetch stock prices initially
+  setTimeout(() => {
+    usePriceStore.getState().refreshNonCryptoPrices().catch(console.error);
+  }, 2000);
+
   // Periodically check staleness
   stalenessInterval = setInterval(() => {
     usePriceStore.getState().checkStaleness();
   }, 5000);
+
+  // Periodically refresh stock prices (every 30 seconds)
+  stockInterval = setInterval(() => {
+    usePriceStore.getState().refreshNonCryptoPrices().catch(console.error);
+  }, 30000);
 
   // Return cleanup function
   return () => {
     if (stalenessInterval) {
       clearInterval(stalenessInterval);
       stalenessInterval = null;
+    }
+    if (stockInterval) {
+      clearInterval(stockInterval);
+      stockInterval = null;
     }
     if (wsUnsubscribe) {
       wsUnsubscribe();

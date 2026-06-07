@@ -57,7 +57,7 @@ export function usePortfolio() {
 
   return useMemo(() => ({
     portfolio: portfolio.summary,
-    assets: portfolio.assets,
+    assets: portfolio.summary.assets.length > 0 ? portfolio.summary.assets : portfolio.assets,
     transactions: portfolio.transactions,
     isLoading: portfolio.isLoading,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

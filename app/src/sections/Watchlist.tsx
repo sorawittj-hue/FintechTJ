@@ -125,7 +125,25 @@ export default function Watchlist() {
       }]);
       setNewSymbol('');
     } catch {
-      setError(`ไม่พบสัญลักษณ์ ${sym} บน Binance`);
+      // ลองค้นหาจาก Yahoo Finance (สำหรับ US Stock / Forex / สินค้าโภคภัณฑ์)
+      try {
+        const { fetchStockQuote } = await import('@/services/realDataService');
+        const quote = await fetchStockQuote(sym);
+        if (quote) {
+          setItems(prev => [...prev, {
+            symbol: sym,
+            name: quote.name || sym,
+            addedAt: Date.now(),
+          }]);
+          setNewSymbol('');
+          // สั่งอัปเดตราคาใน store ทันที
+          usePriceStore.getState().refreshNonCryptoPrices().catch(console.error);
+          return;
+        }
+      } catch (e) {
+        console.error('Yahoo Finance watchlist fetch failed:', e);
+      }
+      setError(`ไม่พบสัญลักษณ์ ${sym} บน Binance หรือ Yahoo Finance`);
     }
   };
 

@@ -37,8 +37,9 @@ function isServiceAvailable(service: keyof typeof serviceHealth): boolean {
 // ═══════════════════ CONFIGURATION ═══════════════════
 
 const CORS_PROXIES = [
-    'https://api.codetabs.com/v1/proxy?quest=',
+    'https://corsproxy.io/?',
     'https://api.allorigins.win/get?url=',
+    'https://api.codetabs.com/v1/proxy?quest=',
 ];
 
 const ENDPOINTS = {
@@ -164,7 +165,7 @@ const cache = {
 
 // ═══════════════════ UTILITY FUNCTIONS ═══════════════════
 
-async function fetchWithProxy(url: string, options?: RequestInit, proxyIndex = 0): Promise<Response> {
+export async function fetchWithProxy(url: string, options?: RequestInit, proxyIndex = 0): Promise<Response> {
     const proxy = CORS_PROXIES[proxyIndex % CORS_PROXIES.length];
     try {
         let proxyUrl = url;

@@ -3,6 +3,8 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { X, TrendingUp, TrendingDown, Newspaper, Activity } from 'lucide-react';
 import { CandlestickChart } from '@/components/charts/CandlestickChart';
 import { useOHLCData, useAssetNews, useRealtimePrice, LABELS, formatRelativeTime } from '@/hooks/useAssetQueries';
+import { useSettings, usePrice } from '@/context/hooks';
+import { formatCurrency } from '@/lib/utils';
 
 // =============================================================================
 // Props Interface
@@ -19,17 +21,6 @@ type Timeframe = '1D' | '1W' | '1M' | '1Y';
 // Helper Functions
 // =============================================================================
 
-/**
- * Formats a number as Thai Baht currency.
- */
-function formatThb(value: number): string {
-  return new Intl.NumberFormat('th-TH', {
-    style: 'currency',
-    currency: 'THB',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 /**
  * Formats a large number with K/M/B suffixes for market cap, volume, etc.
@@ -163,6 +154,9 @@ function NewsItem({ item }: { item: { id: string; title: string; source: string;
 
 export function AssetDetailModal({ symbol, onClose }: AssetDetailModalProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('1D');
+  const { settings } = useSettings();
+  const { convert } = usePrice();
+  const userCurrency = settings.currency || 'USD';
 
   // Fetch data using our hooks
   const {
@@ -233,7 +227,7 @@ export function AssetDetailModal({ symbol, onClose }: AssetDetailModalProps) {
               <div className="h-10 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
             ) : (
               <span className={`text-3xl font-bold text-gray-900 dark:text-white ${pulseClass}`}>
-                {formatThb(priceData?.price ?? 0)}
+                {formatCurrency(convert(priceData?.price ?? 0, userCurrency), userCurrency)}
               </span>
             )}
             
@@ -271,17 +265,17 @@ export function AssetDetailModal({ symbol, onClose }: AssetDetailModalProps) {
           <div className="mt-6 grid grid-cols-2 gap-4">
             <StatCard
               label={LABELS.marketCap}
-              value={stats ? `${formatCompact(stats.marketCap)} THB` : LABELS.noData}
+              value={stats ? formatCurrency(convert(stats.marketCap, userCurrency), userCurrency, { compact: true }) : LABELS.noData}
               isLoading={isLoading}
             />
             <StatCard
               label={LABELS.volume24h}
-              value={stats ? `${formatCompact(stats.volume24h)} THB` : LABELS.noData}
+              value={stats ? formatCurrency(convert(stats.volume24h, userCurrency), userCurrency, { compact: true }) : LABELS.noData}
               isLoading={isLoading}
             />
             <StatCard
               label={LABELS.allTimeHigh}
-              value={stats ? formatThb(stats.allTimeHigh) : LABELS.noData}
+              value={stats ? formatCurrency(convert(stats.allTimeHigh, userCurrency), userCurrency) : LABELS.noData}
               isLoading={isLoading}
             />
             <StatCard
