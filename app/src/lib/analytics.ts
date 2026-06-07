@@ -68,7 +68,7 @@ const config = {
   gaId: import.meta.env.VITE_GA_MEASUREMENT_ID || '',
   
   // Custom
-  apiUrl: import.meta.env.VITE_ANALYTICS_API || '/api/analytics',
+  apiUrl: import.meta.env.VITE_ANALYTICS_API || '',
 };
 
 // ============================================================================

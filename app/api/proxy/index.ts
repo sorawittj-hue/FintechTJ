@@ -69,6 +69,7 @@ const RATE_LIMITS: Record<string, { requests: number; window: number }> = {
 const ALLOWED_ORIGINS = [
   'http://localhost:5175',
   'http://localhost:3000',
+  'https://fintech-t.vercel.app',
   'https://fintechtj.vercel.app',
   'https://fintechtj.com',
 ];
@@ -171,7 +172,24 @@ export default async function handler(request: Request): Promise<Response> {
     const origin = request.headers.get('origin') || '';
 
     // Validate origin
-    if (!ALLOWED_ORIGINS.includes(origin) && !origin.includes('localhost')) {
+    let isAllowed = false;
+    if (!origin) {
+      // Allow same-origin GET/etc. requests or direct requests that don't pass an Origin header
+      isAllowed = true;
+    } else {
+      try {
+        const originUrl = new URL(origin);
+        isAllowed = 
+          ALLOWED_ORIGINS.includes(origin) || 
+          origin.includes('localhost') || 
+          originUrl.hostname === url.hostname || 
+          originUrl.hostname.endsWith('.vercel.app');
+      } catch {
+        isAllowed = false;
+      }
+    }
+
+    if (!isAllowed) {
       return new Response(
         JSON.stringify({ error: 'Origin not allowed' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
