@@ -354,31 +354,30 @@ export class NewsService {
   }
 
   /**
-   * Fetch news from CryptoCompare
+   * Fetch news from CryptoCompare (Now using CoinTelegraph RSS)
    */
   private async fetchCryptoCompareNews(
     filters: NewsFilters,
     client: HttpClient
   ): Promise<NewsResponse> {
-    const params = new URLSearchParams({
-      lang: filters.language || 'EN',
-    });
+    const rssUrl = encodeURIComponent('https://cointelegraph.com/rss');
+    const response = await client.get<any>(`https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`);
 
-    if (filters.symbols && filters.symbols.length > 0) {
-      params.append('feeds', filters.symbols.join(','));
-    }
-
-    if (filters.category) {
-      params.append('categories', filters.category);
-    }
-
-    const maxResults = filters.maxResults || this.config.maxResults;
+    const items = response.data?.items || [];
     
-    const response = await client.get<{
-      Data: CryptoCompareNewsItem[];
-    }>(`/news/?${params.toString()}`);
-
-    let articles = response.data.Data.map(this.transformCryptoCompareArticle);
+    let articles: NewsArticle[] = items.map((item: any) => ({
+      id: item.guid || item.link || `${Date.now()}`,
+      title: item.title || '',
+      description: (item.description || '').replace(/<[^>]*>?/gm, '').substring(0, 300) + '...',
+      url: item.link || '',
+      imageUrl: item.thumbnail || (item.enclosure && item.enclosure.link) || undefined,
+      publishedAt: new Date(item.pubDate || Date.now()).toISOString(),
+      source: {
+        name: 'CoinTelegraph',
+      },
+      author: item.author || undefined,
+      categories: item.categories || [],
+    }));
 
     // Filter by query if provided
     if (filters.query) {
@@ -389,6 +388,15 @@ export class NewsService {
           article.description.toLowerCase().includes(queryLower)
       );
     }
+    
+    // Filter by category if provided
+    if (filters.category) {
+      const catLower = filters.category.toLowerCase();
+      articles = articles.filter(
+        article => 
+          article.categories && article.categories.some(c => c.toLowerCase().includes(catLower))
+      );
+    }
 
     // Sort by published date
     articles.sort((a, b) => 
@@ -396,6 +404,7 @@ export class NewsService {
     );
 
     // Limit results
+    const maxResults = filters.maxResults || this.config.maxResults;
     articles = articles.slice(0, maxResults);
 
     return {

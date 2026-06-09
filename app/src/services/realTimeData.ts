@@ -616,7 +616,7 @@ async function getCachedBTCPrice(): Promise<number> {
 }
 
 /**
- * Fetch crypto news from CryptoCompare (FREE tier)
+ * Fetch crypto news from CoinTelegraph RSS (FREE)
  */
 export async function fetchCryptoNews(symbols?: string[], limit = 20): Promise<NewsItem[]> {
   const cacheKey = `news_${(symbols || []).sort().join(',')}_${limit}`;
@@ -625,33 +625,44 @@ export async function fetchCryptoNews(symbols?: string[], limit = 20): Promise<N
 
   return rateLimiters.cryptocompare.execute(async () => {
     try {
-      let url = `${FREE_APIS.cryptocompare.base}/v2/news/?lang=EN&limit=${limit}`;
-      if (symbols && symbols.length > 0) {
-        url += `&categories=${symbols.join(',').toLowerCase()}`;
-      }
+      // Using RSS to JSON for CoinTelegraph as a free, no-key alternative
+      const rssUrl = encodeURIComponent('https://cointelegraph.com/rss');
+      let url = `https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`;
 
       const response = await fetchWithProxy(url);
-      if (!response.ok) throw new Error(`CryptoCompare error: ${response.status}`);
+      if (!response.ok) throw new Error(`RSS proxy error: ${response.status}`);
 
       const data = await response.json();
 
-      if (data.Response === 'Error') {
-        throw new Error(data.Message);
+      if (data.status !== 'ok') {
+        throw new Error(data.message || 'Failed to fetch RSS');
       }
 
-      const news: NewsItem[] = (data.Data || []).map((item: Record<string, unknown>) => ({
-        id: item.id?.toString() || generateId(),
-        title: item.title as string || '',
-        description: item.body?.toString().slice(0, 300) + '...' || '',
-        url: item.url as string || '',
-        imageUrl: item.imageurl as string,
-        publishedAt: new Date((item.published_on as number) * 1000),
-        source: item.source as string || 'CryptoCompare',
-        sourceName: (item.source_info as Record<string, string> || {}).name || item.source as string || 'Unknown',
-        categories: (item.categories as string)?.split('|') || [],
-        relatedSymbols: (item.tags as string)?.split('|')?.slice(0, 5) || [],
-        sentiment: analyzeSentiment(item.title as string),
+      let news: NewsItem[] = (data.items || []).map((item: any) => ({
+        id: item.guid || item.link || generateId(),
+        title: item.title || '',
+        description: (item.description || '').replace(/<[^>]*>?/gm, '').slice(0, 300) + '...',
+        url: item.link || '',
+        imageUrl: item.thumbnail || (item.enclosure && item.enclosure.link) || '',
+        publishedAt: new Date(item.pubDate),
+        source: 'CoinTelegraph',
+        sourceName: 'CoinTelegraph',
+        categories: item.categories || [],
+        relatedSymbols: [],
+        sentiment: analyzeSentiment(item.title || ''),
       }));
+
+      // Filter by symbols if provided
+      if (symbols && symbols.length > 0) {
+        const lowerSymbols = symbols.map(s => s.toLowerCase());
+        news = news.filter(item => {
+          const content = (item.title + ' ' + item.description).toLowerCase();
+          return lowerSymbols.some(s => content.includes(s));
+        });
+      }
+
+      // Limit results
+      news = news.slice(0, limit);
 
       cache.news.set(cacheKey, news);
       return news;
