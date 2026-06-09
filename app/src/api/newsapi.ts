@@ -194,6 +194,12 @@ export class NewsService {
       }));
     }
 
+    // Proxy all requests through our secure Vercel proxy to bypass CORS
+    this.client.addRequestInterceptor(async (url, reqConfig) => {
+      const proxyUrl = `https://fintech-t.vercel.app/api/proxy?url=${encodeURIComponent(url)}`;
+      return { url: proxyUrl, config: reqConfig };
+    });
+
     // Setup fallback client if configured
     if (this.config.fallbackProvider && this.config.fallbackApiKey) {
       const fallbackBaseURL = this.getProviderBaseURL(this.config.fallbackProvider);
@@ -209,6 +215,12 @@ export class NewsService {
         url: this.addApiKeyToURL(url, this.config.fallbackApiKey!, this.config.fallbackProvider!),
         config: reqConfig,
       }));
+
+      // Proxy fallback requests as well
+      this.fallbackClient.addRequestInterceptor(async (url, reqConfig) => {
+        const proxyUrl = `https://fintech-t.vercel.app/api/proxy?url=${encodeURIComponent(url)}`;
+        return { url: proxyUrl, config: reqConfig };
+      });
     }
 
     // Initialize cache
