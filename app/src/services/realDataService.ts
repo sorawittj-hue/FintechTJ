@@ -170,7 +170,7 @@ export async function fetchWithProxy(url: string, options?: RequestInit, proxyIn
     const proxy = CORS_PROXIES[proxyIndex % CORS_PROXIES.length];
     try {
         let proxyUrl = url;
-        if (proxy.includes('allorigins.win')) {
+        if (proxy.includes('allorigins.win') || proxy.includes('?url=') || proxy.includes('?quest=')) {
             proxyUrl = `${proxy}${encodeURIComponent(url)}`;
         } else {
             proxyUrl = `${proxy}${url}`;

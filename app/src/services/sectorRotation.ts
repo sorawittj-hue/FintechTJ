@@ -340,6 +340,7 @@ const rateLimiter = new TokenBucketRateLimiter({
 // ═══════════════════ CORS PROXY CONFIG ═══════════════════
 
 const CORS_PROXIES = [
+  'https://fintech-t.vercel.app/api/proxy?url=', // Custom Vercel Serverless Proxy
   'https://api.allorigins.win/get?url=',
   'https://api.codetabs.com/v1/proxy?quest=',
 ];

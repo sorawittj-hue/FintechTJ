@@ -196,6 +196,56 @@ export default async function handler(request: Request): Promise<Response> {
       );
     }
 
+    // Generic URL Proxy support
+    const targetUrlString = url.searchParams.get('url');
+    if (targetUrlString) {
+      let targetUrl: URL;
+      try {
+        targetUrl = new URL(decodeURIComponent(targetUrlString));
+      } catch {
+        try {
+          targetUrl = new URL(targetUrlString);
+        } catch {
+          return new Response(
+            JSON.stringify({ error: 'Invalid target URL' }),
+            { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          );
+        }
+      }
+
+      // Reconstruct query parameters that might have been split if unencoded
+      url.searchParams.forEach((value, key) => {
+        if (key !== 'url') {
+          targetUrl.searchParams.set(key, value);
+        }
+      });
+
+      const headers = new Headers(request.headers);
+      headers.delete('host');
+      headers.delete('origin');
+      // Set browser-like headers to avoid Yahoo block
+      headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      headers.set('Accept', 'application/json, text/plain, */*');
+      headers.set('Accept-Language', 'en-US,en;q=0.9');
+
+      const response = await fetch(targetUrl.toString(), {
+        method: request.method,
+        headers,
+        body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
+      });
+
+      const responseData = await response.text();
+      return new Response(responseData, {
+        status: response.status,
+        headers: {
+          'Content-Type': response.headers.get('Content-Type') || 'application/json',
+          ...securityHeaders,
+          ...corsHeaders,
+          'Access-Control-Allow-Origin': origin || '*',
+        },
+      });
+    }
+
     // Parse path: /api/[service]/[...path]
     const pathParts = url.pathname.split('/').filter(Boolean);
     // Remove 'api' prefix

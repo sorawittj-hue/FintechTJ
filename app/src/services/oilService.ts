@@ -236,6 +236,7 @@ const WS_RECONNECT_DELAY = 3000;
 const PRICE_UPDATE_INTERVAL = 5000; // 5 seconds for simulated real-time
 
 const CORS_PROXIES = [
+    'https://fintech-t.vercel.app/api/proxy?url=', // Custom Vercel Serverless Proxy
     'https://api.codetabs.com/v1/proxy?quest=',
     'https://api.allorigins.win/get?url=',
     'https://corsproxy.io/?',

@@ -20,8 +20,25 @@ export default async function handler(req, res) {
   }
 
   try {
-    const targetUrl = decodeURIComponent(url);
-    const fetchResponse = await fetch(targetUrl, {
+    let targetUrl;
+    try {
+      targetUrl = new URL(decodeURIComponent(url));
+    } catch {
+      try {
+        targetUrl = new URL(url);
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid url parameter' });
+      }
+    }
+
+    // Reconstruct query parameters that might have been split if unencoded
+    Object.keys(req.query).forEach((key) => {
+      if (key !== 'url') {
+        targetUrl.searchParams.set(key, req.query[key]);
+      }
+    });
+
+    const fetchResponse = await fetch(targetUrl.toString(), {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',

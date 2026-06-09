@@ -26,6 +26,7 @@ import { binanceAPI } from './binance';
 // ═══════════════════ FREE API CONFIGURATION ═══════════════════
 
 const CORS_PROXIES = [
+    'https://fintech-t.vercel.app/api/proxy?url=', // Custom Vercel Serverless Function Proxy (Most Reliable)
     'https://corsproxy.io/?',
     'https://api.allorigins.win/get?url=',
     'https://api.codetabs.com/v1/proxy?quest=',

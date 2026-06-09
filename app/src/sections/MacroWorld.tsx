@@ -95,6 +95,7 @@ function saveMacroCache(payload: MacroCachePayload) {
 async function fetchFREDData(seriesId: string): Promise<{ value: number; date: string } | null> {
   try {
     const proxies = [
+      { url: 'https://fintech-t.vercel.app/api/proxy?url=', encode: true },
       { url: 'https://api.codetabs.com/v1/proxy?quest=', encode: true },
       { url: 'https://api.allorigins.win/get?url=', encode: true },
       { url: 'https://corsproxy.io/?', encode: true },
@@ -128,6 +129,7 @@ async function fetchFREDData(seriesId: string): Promise<{ value: number; date: s
 async function fetchM2History(): Promise<LiquidityData[]> {
   try {
     const proxies = [
+      { url: 'https://fintech-t.vercel.app/api/proxy?url=', encode: true },
       { url: 'https://api.codetabs.com/v1/proxy?quest=', encode: true },
       { url: 'https://api.allorigins.win/get?url=', encode: true },
       { url: 'https://corsproxy.io/?', encode: true },
